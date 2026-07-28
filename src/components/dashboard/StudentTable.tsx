@@ -152,27 +152,27 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       {/* Table Data */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse whitespace-nowrap">
-          <thead className="hidden md:table-header-group">
-            <tr className="border-b border-gray-700/50 bg-transparent text-slate-400 font-semibold text-xs uppercase tracking-wider">
-              <th className="pb-3 px-4 text-left" colSpan={2}>Họ và Tên</th>
-              <th className="pb-3 px-4 text-center">Chuyên cần</th>
-              <th className="pb-3 px-4 text-center">BTVN</th>
+          <thead className="bg-slate-950/80 border-b border-slate-700">
+            <tr className="text-slate-400 font-semibold text-xs uppercase tracking-wider">
+              <th className="py-3 px-4 text-left" colSpan={2}>Họ và Tên</th>
+              <th className="py-3 px-4 text-center">Chuyên cần</th>
+              <th className="py-3 px-4 text-center">BTVN</th>
               
               {/* Dynamic Columns based on Grid View */}
               {isGridView ? (
                 <>
-                  <th className="pb-3 px-2 text-center" colSpan={6}>T1 - T6</th>
-                  <th className="pb-3 px-3 text-center">TB</th>
+                  <th className="py-3 px-2 text-center" colSpan={6}>T1 - T6</th>
+                  <th className="py-3 px-3 text-center">TB</th>
                 </>
               ) : (
                 <>
-                  <th className="pb-3 px-4 text-center">Điểm Test</th>
-                  <th className="pb-3 px-4 text-center">Biểu đồ Lộ trình</th>
+                  <th className="py-3 px-4 text-center">Điểm Test</th>
+                  <th className="py-3 px-4 text-center">Biểu đồ Lộ trình</th>
                 </>
               )}
 
-              <th className="pb-3 px-4 text-center">Nhãn</th>
-              <th className="pb-3 px-4 text-right" colSpan={3}>Trạng thái / Hành động</th>
+              <th className="py-3 px-4 text-center">Nhãn</th>
+              <th className="py-3 px-4 text-right" colSpan={3}>Trạng thái / Hành động</th>
             </tr>
           </thead>
 
