@@ -153,33 +153,26 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead className="hidden md:table-header-group">
-            <tr className="border-b border-slate-800/80 bg-slate-950/50 text-slate-400 font-semibold text-xs uppercase tracking-wider">
-              <th className="py-3 px-4 w-12 text-center">#</th>
-              <th className="py-3 px-4">Họ và Tên / SĐT</th>
-              <th className="py-3 px-4 text-center">Chuyên cần</th>
-              <th className="py-3 px-4 text-center">BTVN</th>
+            <tr className="border-b border-gray-700/50 bg-transparent text-slate-400 font-semibold text-xs uppercase tracking-wider">
+              <th className="pb-3 px-4 text-left" colSpan={2}>Họ và Tên</th>
+              <th className="pb-3 px-4 text-center">Chuyên cần</th>
+              <th className="pb-3 px-4 text-center">BTVN</th>
               
               {/* Dynamic Columns based on Grid View */}
               {isGridView ? (
                 <>
-                  <th className="py-3 px-2 text-center font-mono">T1</th>
-                  <th className="py-3 px-2 text-center font-mono">T2</th>
-                  <th className="py-3 px-2 text-center font-mono">T3</th>
-                  <th className="py-3 px-2 text-center font-mono">T4</th>
-                  <th className="py-3 px-2 text-center font-mono">T5</th>
-                  <th className="py-3 px-2 text-center font-mono">T6</th>
-                  <th className="py-3 px-3 text-center font-mono">Avg</th>
+                  <th className="pb-3 px-2 text-center" colSpan={6}>T1 - T6</th>
+                  <th className="pb-3 px-3 text-center">TB</th>
                 </>
               ) : (
-                <th className="py-3 px-4 text-center">
-                  <span>Xu hướng &amp; Điểm Test (Avg)</span>
-                </th>
+                <>
+                  <th className="pb-3 px-4 text-center">Điểm Test</th>
+                  <th className="pb-3 px-4 text-center">Biểu đồ Lộ trình</th>
+                </>
               )}
 
-              <th className="py-3 px-4 text-center">Nhãn hiện tại</th>
-              <th className="py-3 px-4">Đánh giá Pass</th>
-              <th className="py-3 px-4 text-right">Hành động gợi ý</th>
-              <th className="py-3 px-4 text-center">Lịch sử</th>
+              <th className="pb-3 px-4 text-center">Nhãn</th>
+              <th className="pb-3 px-4 text-right" colSpan={3}>Trạng thái / Hành động</th>
             </tr>
           </thead>
 
@@ -340,8 +333,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         </td>
                       </>
                     ) : (
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-3">
+                      <>
+                        <td className="py-3.5 px-4 text-center">
                           {/* Big Avg Number Badge */}
                           {s.testPerformance.averageScore !== null ? (
                             <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold font-mono shadow-sm ${
@@ -353,47 +346,51 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           ) : (
                             <span className="text-slate-600 font-bold font-mono">--</span>
                           )}
+                        </td>
+                        
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-3">
+                            {/* Sparkline */}
+                            {sparkData.length >= 2 ? (
+                              <div className="w-16 h-8 bg-slate-900/80 rounded px-1 pt-1 border border-slate-800/80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={sparkData}>
+                                    <Line
+                                      type="monotone"
+                                      dataKey="score"
+                                      stroke={
+                                        s.testPerformance.trendDirection === 'improving' ? '#10b981' :
+                                        s.testPerformance.trendDirection === 'declining' ? '#ef4444' : '#f59e0b'
+                                      }
+                                      strokeWidth={2}
+                                      dot={false}
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 font-mono">1 Test</span>
+                            )}
 
-                          {/* Sparkline */}
-                          {sparkData.length >= 2 ? (
-                            <div className="w-16 h-8 bg-slate-900/80 rounded px-1 pt-1 border border-slate-800/80">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={sparkData}>
-                                  <Line
-                                    type="monotone"
-                                    dataKey="score"
-                                    stroke={
-                                      s.testPerformance.trendDirection === 'improving' ? '#10b981' :
-                                      s.testPerformance.trendDirection === 'declining' ? '#ef4444' : '#f59e0b'
-                                    }
-                                    strokeWidth={2}
-                                    dot={false}
-                                  />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-500 font-mono">1 Test</span>
-                          )}
-
-                          {/* Trend Icon with span wrapper for title */}
-                          {s.testPerformance.trendDirection === 'improving' && (
-                            <span title="Xu hướng điểm test tiến bộ">
-                              <TrendingUp className="w-4 h-4 text-emerald-400" />
-                            </span>
-                          )}
-                          {s.testPerformance.trendDirection === 'declining' && (
-                            <span title="Xu hướng điểm test sa sút">
-                              <TrendingDown className="w-4 h-4 text-red-400 animate-pulse" />
-                            </span>
-                          )}
-                          {s.testPerformance.trendDirection === 'stable' && (
-                            <span title="Xu hướng điểm test ổn định">
-                              <Minus className="w-4 h-4 text-amber-400" />
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                            {/* Trend Icon with span wrapper for title */}
+                            {s.testPerformance.trendDirection === 'improving' && (
+                              <span title="Xu hướng điểm test tiến bộ">
+                                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                              </span>
+                            )}
+                            {s.testPerformance.trendDirection === 'declining' && (
+                              <span title="Xu hướng điểm test sa sút">
+                                <TrendingDown className="w-4 h-4 text-red-400 animate-pulse" />
+                              </span>
+                            )}
+                            {s.testPerformance.trendDirection === 'stable' && (
+                              <span title="Xu hướng điểm test ổn định">
+                                <Minus className="w-4 h-4 text-amber-400" />
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </>
                     )}
 
                     {/* Current Label Badge */}
