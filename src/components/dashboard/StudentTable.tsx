@@ -349,12 +349,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
                     {/* Current Label Badge */}
                     <td className="py-3.5 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 shadow-sm ${
+                      <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 ${
                         s.labeling.currentLabel === 'red'
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/40 glow-red'
+                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
                           : s.labeling.currentLabel === 'yellow'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 glow-yellow'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
                       }`}>
                         {s.labeling.currentLabel === 'red' && <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />}
                         {s.labeling.currentLabel === 'yellow' && <Award className="w-3.5 h-3.5" />}
@@ -388,14 +388,14 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
                         <button
                           onClick={onOpenCallModal}
-                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-all inline-flex items-center gap-1.5 shadow-md shadow-red-600/20 active:scale-95"
+                          className="px-3 py-1.5 rounded-lg bg-transparent text-[#DB0829] border border-[#DB0829] hover:bg-[#DB0829] hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                         >
                           <PhoneCall className="w-3 h-3" /> Gọi gấp
                         </button>
                       ) : s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently ? (
                         <button
                           onClick={onOpenZaloModal}
-                          className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-all inline-flex items-center gap-1.5 shadow-md shadow-amber-600/20 active:scale-95"
+                          className="px-3 py-1.5 rounded-lg bg-transparent text-amber-600 border border-amber-500 hover:bg-amber-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                         >
                           <MessageSquare className="w-3 h-3" /> Nhắc Zalo
                         </button>
@@ -404,7 +404,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           href="https://portal.izone.edu.vn"
                           target="_blank"
                           rel="noreferrer"
-                          className="px-3 py-1.5 rounded-lg bg-[#DB0829] hover:bg-[#b80620] text-white font-semibold text-xs transition-all inline-flex items-center gap-1.5 shadow-md shadow-[#DB0829]/20 active:scale-95"
+                          className="px-3 py-1.5 rounded-lg bg-transparent text-[#DB0829] border border-[#DB0829] hover:bg-[#DB0829] hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                         >
                           <Clock className="w-3 h-3" /> Duyệt trên Portal
                         </a>

@@ -7,7 +7,7 @@ import { CallParentModal } from './components/modals/CallParentModal';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import { MOCK_CLASSES, MOCK_STUDENTS_IC2174 } from './data/mockData';
 import type { ClassSummary } from './data/mockData';
-import { ShieldCheck, HeartPulse, LayoutDashboard, Users, X } from 'lucide-react';
+import { ShieldCheck, HeartPulse, LayoutDashboard, Users, X, CheckCircle, BookOpen, Award } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
 
 export default function App() {
@@ -103,18 +103,61 @@ export default function App() {
             </button>
           </div>
 
-          {/* Center Health Widget */}
-          <div className="rounded-2xl p-4 border border-slate-700 bg-slate-800 shadow-none space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-              <span className="flex items-center gap-1.5"><HeartPulse className="w-4 h-4 text-[#DB0829]" /> Sức khỏe lớp</span>
-              <span className="text-emerald-400 font-mono">Tốt (68.5)</span>
+          {/* Lớp Overview Widget */}
+          <div className="space-y-4 pt-2">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-700/50 pb-2">
+              Tổng quan lớp
+            </h3>
+            
+            <div className="flex flex-col gap-4">
+              {/* Điểm danh */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-300">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Điểm danh</span>
+                  </div>
+                  <span className={`font-semibold text-sm ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                    {selectedClass.healthMetrics.attendanceAverage}%
+                  </span>
+                </div>
+                <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                  <div className={`h-full ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.attendanceAverage}%` }} />
+                </div>
+              </div>
+
+              {/* BTVN */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-300">
+                    <BookOpen className="w-4 h-4" />
+                    <span>BTVN</span>
+                  </div>
+                  <span className={`font-semibold text-sm ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                    {selectedClass.healthMetrics.homeworkAverage}%
+                  </span>
+                </div>
+                <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                  <div className={`h-full ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.homeworkAverage}%` }} />
+                </div>
+              </div>
+
+              {/* Pass/Fail (Pass Chuẩn) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-300">
+                    <Award className="w-4 h-4" />
+                    <span>Tỷ lệ Pass</span>
+                  </div>
+                  <span className={`font-semibold text-sm ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                    {selectedClass.healthMetrics.passChuanRate}%
+                  </span>
+                </div>
+                <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                  <div className={`h-full ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.passChuanRate}%` }} />
+                </div>
+              </div>
             </div>
-            <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-red-500 via-amber-500 to-emerald-500" style={{ width: '68.5%' }} />
-            </div>
-            <p className="text-[11px] text-slate-300 leading-tight">
-              Lớp <b>{selectedClass.className}</b> đang ở tuần 6/9. Sĩ số ổn định, cần chú ý 3 học viên nhãn Đỏ.
-            </p>
           </div>
 
           {/* System Info Box */}

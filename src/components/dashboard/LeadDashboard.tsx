@@ -292,7 +292,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       <span className="font-bold text-color:white text-slate-500 text-[11px]"> / {c.healthMetrics.passMemRate}%</span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button className="px-3 py-1.5 rounded-lg bg-transparent border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#DB0829] hover:text-[#DB0829] dark:hover:border-[#DB0829] dark:hover:text-[#DB0829] font-semibold transition-colors inline-flex items-center gap-1">
+                      <button className="px-3 py-1.5 rounded-lg bg-transparent text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold inline-flex items-center gap-1">
                         Vào lớp <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </td>
