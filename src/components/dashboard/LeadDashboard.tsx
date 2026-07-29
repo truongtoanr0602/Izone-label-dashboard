@@ -87,55 +87,55 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
       {/* Layer 1: 6 Macro Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <UserCheck className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Điểm danh (TB)</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Điểm danh (TB)</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-slate-100">{avgAttendance}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgAttendance}%</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <BookOpen className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Làm BTVN (TB)</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Làm BTVN (TB)</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-slate-100">{avgHomework}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgHomework}%</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Pass Chuẩn</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Pass Chuẩn</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-slate-100">{avgPassChuan}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgPassChuan}%</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <Award className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Pass Mềm</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Pass Mềm</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-slate-100">{avgPassMem}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgPassMem}%</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 rounded-lg bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-500">
               <UserMinus className="w-4 h-4" />
@@ -143,27 +143,27 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-red-700 dark:text-red-400 uppercase">Bỏ học</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-red-600 dark:text-red-500">{totalDropped}</span>
+            <span className="text-2xl font-extrabold font-mono text-red-700 dark:text-red-400">{totalDropped}</span>
             <span className="text-xs text-red-500/80">HV</span>
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900/60 shadow-sm">
+        <div className="rounded-2xl p-4 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm transition-all hover:-translate-y-0.5">
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
               <Clock className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Bảo lưu</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Bảo lưu</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-700 dark:text-slate-300">{totalOnHold}</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{totalOnHold}</span>
             <span className="text-xs text-slate-500">HV</span>
           </div>
         </div>
       </div>
 
       {/* Layer 2: Timeline Tracking Chart */}
-      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 p-5 shadow-sm">
+      <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -174,7 +174,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </p>
           </div>
           <select 
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-[#DB0829]"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-[#DB0829]"
             value={timelineFilter}
             onChange={(e) => setTimelineFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
           >
@@ -204,8 +204,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 3: Master Class Table */}
-      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             📋 Bảng Quản Lý Toàn Bộ Lớp (Master Table)
           </h3>
@@ -217,7 +217,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 placeholder="🔍 Lọc lớp/GV..."
                 value={searchClass}
                 onChange={(e) => setSearchClass(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-[#DB0829] w-full sm:w-56 transition-all"
+                className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-[#DB0829] w-full sm:w-56 transition-all"
               />
             </div>
             <span className="hidden sm:inline text-[10px] text-slate-500">Bấm vào hàng để vào lớp</span>
@@ -227,7 +227,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/50 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">
                 <th className="py-3 px-4">Mã lớp / Khóa</th>
                 <th className="py-3 px-4">Giáo viên chủ nhiệm</th>
                 <th className="py-3 px-4 text-center">Sĩ số (Active)</th>
@@ -237,7 +237,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 <th className="py-3 px-4 text-right">Hành động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
               {filteredClasses.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
@@ -251,14 +251,14 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                   <tr
                     key={c.classId}
                     onClick={() => onSelectClassAndDrillDown(c)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
                   >
                     <td className="py-3.5 px-4">
                       <span className="font-bold text-slate-900 dark:text-slate-100 font-mono text-sm">{c.className}</span>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{c.courseName}</p>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/50 px-2 py-0.5 rounded-md">{c.teacher.fullName}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-md">{c.teacher.fullName}</span>
                       <p className="text-[11px] font-mono text-slate-500 mt-1">{c.teacher.phone}</p>
                     </td>
                     <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-200">
@@ -266,7 +266,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{c.progress.percentage}%</span>
-                      <div className="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 mx-auto mt-1 overflow-hidden">
+                      <div className="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mx-auto mt-1 overflow-hidden">
                         <div className="h-full bg-[#DB0829] rounded-full" style={{ width: `${c.progress.percentage}%` }} />
                       </div>
                     </td>
@@ -280,7 +280,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       <span className="text-slate-500 text-[10px]"> / {c.healthMetrics.passMemRate}%</span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#DB0829] dark:hover:bg-[#DB0829] hover:text-white text-slate-600 dark:text-slate-300 font-semibold transition-all inline-flex items-center gap-1 border border-slate-200 dark:border-transparent">
+                      <button className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-[#DB0829] dark:hover:bg-[#DB0829] hover:text-white text-slate-700 dark:text-slate-200 font-semibold transition-all inline-flex items-center gap-1 border border-slate-200 dark:border-transparent">
                         Vào lớp <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </td>
@@ -294,8 +294,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 4: Stacked Bar Chart - Label Distribution */}
-      <div className="glass-panel rounded-2xl p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               📊 Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)

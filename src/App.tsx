@@ -116,15 +116,15 @@ export default function App() {
           </div>
 
           {/* Center Health Widget */}
-          <div className="glass-panel rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 space-y-3">
+          <div className="rounded-2xl p-4 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shadow-sm dark:shadow-none space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
               <span className="flex items-center gap-1.5"><HeartPulse className="w-4 h-4 text-[#DB0829]" /> Sức khỏe lớp</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-mono">Tốt (68.5)</span>
             </div>
-            <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-red-500 via-amber-500 to-emerald-500" style={{ width: '68.5%' }} />
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+            <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-tight">
               Lớp <b>{selectedClass.className}</b> đang ở tuần 6/9. Sĩ số ổn định, cần chú ý 3 học viên nhãn Đỏ.
             </p>
           </div>
