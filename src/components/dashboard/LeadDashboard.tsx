@@ -63,6 +63,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     return { label: 'Cần can thiệp', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' };
   };
 
+  const getMetricColor = (value: number) => {
+    if (value > 80) return 'text-emerald-600 dark:text-emerald-400';
+    if (value >= 70) return 'text-amber-600 dark:text-amber-400';
+    return 'text-[#DB0829] dark:text-red-400';
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Welcome & KPI Summary */}
@@ -163,18 +169,18 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 2: Timeline Tracking Chart */}
-      <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col">
+        <div className="bg-[#DB0829] dark:bg-slate-800/90 text-white border-b border-[#DB0829] dark:border-slate-700 px-5 py-4 rounded-t-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold flex items-center gap-2">
               📈 Timeline Tracking (Biến động theo thời gian)
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-red-100 mt-1">
               Theo dõi sự thay đổi của tỷ lệ Điểm danh, BTVN và Pass dự kiến qua các mốc thời gian.
             </p>
           </div>
           <select 
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-[#DB0829]"
+            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-[#DB0829] dark:focus:ring-slate-500 transition-colors"
             value={timelineFilter}
             onChange={(e) => setTimelineFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
           >
@@ -184,7 +190,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             ))}
           </select>
         </div>
-        <div className="h-64 w-full">
+        <div className="h-64 w-full p-5">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={timelineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.2} vertical={false} />
@@ -204,23 +210,23 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 3: Master Class Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col overflow-hidden">
+        <div className="bg-[#DB0829] dark:bg-slate-800/90 text-white border-b border-[#DB0829] dark:border-slate-700 px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="text-sm font-bold flex items-center gap-2">
             📋 Bảng Quản Lý Toàn Bộ Lớp (Master Table)
           </h3>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="🔍 Lọc lớp/GV..."
                 value={searchClass}
                 onChange={(e) => setSearchClass(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-[#DB0829] w-full sm:w-56 transition-all"
+                className="pl-8 pr-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-[#DB0829] dark:focus:ring-slate-500 w-full sm:w-56 transition-all"
               />
             </div>
-            <span className="hidden sm:inline text-[10px] text-slate-500">Bấm vào hàng để vào lớp</span>
+            <span className="hidden sm:inline text-[10px] text-red-100">Bấm vào hàng để vào lớp</span>
           </div>
         </div>
 
@@ -231,6 +237,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 <th className="py-3 px-4">Mã lớp / Khóa</th>
                 <th className="py-3 px-4">Giáo viên chủ nhiệm</th>
                 <th className="py-3 px-4 text-center">Sĩ số (Active)</th>
+                <th className="py-3 px-4 text-center">Điểm danh / BTVN</th>
                 <th className="py-3 px-4 text-center">Tiến độ</th>
                 <th className="py-3 px-4 text-center">Trạng thái Cảnh báo</th>
                 <th className="py-3 px-4 text-center">Tỷ lệ Pass (Chuẩn/Mềm)</th>
@@ -240,7 +247,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
               {filteredClasses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
+                  <td colSpan={8} className="py-8 text-center text-slate-500 text-xs">
                     Không tìm thấy lớp nào khớp với từ khóa tìm kiếm.
                   </td>
                 </tr>
@@ -264,10 +271,15 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-200">
                       {c.studentCounts.active} / {c.studentCounts.totalEnrolled}
                     </td>
+                    <td className="py-3.5 px-4 text-center text-xs">
+                      <span className={`${getMetricColor(c.healthMetrics.attendanceAverage)} font-medium`}>ĐH: {c.healthMetrics.attendanceAverage}%</span>
+                      <span className="text-slate-400 mx-1">•</span>
+                      <span className={`${getMetricColor(c.healthMetrics.homeworkAverage)} font-medium`}>BT: {c.healthMetrics.homeworkAverage}%</span>
+                    </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{c.progress.percentage}%</span>
                       <div className="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mx-auto mt-1 overflow-hidden">
-                        <div className="h-full bg-[#DB0829] rounded-full" style={{ width: `${c.progress.percentage}%` }} />
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress.percentage}%` }} />
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-center">
@@ -277,7 +289,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">{c.healthMetrics.passChuanRate}%</span>
-                      <span className="text-slate-500 text-[10px]"> / {c.healthMetrics.passMemRate}%</span>
+                      <span className="font-bold text-color:white text-slate-500 text-[11px]"> / {c.healthMetrics.passMemRate}%</span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button className="px-3 py-1.5 rounded-lg bg-transparent border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#DB0829] hover:text-[#DB0829] dark:hover:border-[#DB0829] dark:hover:text-[#DB0829] font-semibold transition-colors inline-flex items-center gap-1">
@@ -294,18 +306,18 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 4: Stacked Bar Chart - Label Distribution */}
-      <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm flex flex-col justify-between space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col overflow-hidden">
+        <div className="bg-[#DB0829] dark:bg-slate-800/90 text-white border-b border-[#DB0829] dark:border-slate-700 px-5 py-4 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold flex items-center gap-2">
               📊 Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối</p>
+            <p className="text-xs text-red-100 mt-0.5">So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối</p>
           </div>
-          <BarChart3 className="w-5 h-5 text-[#DB0829]" />
+          <BarChart3 className="w-5 h-5 text-white" />
         </div>
-
-        <div className="h-80 w-full pt-2 pb-6">
+        
+        <div className="h-80 w-full p-5 pb-6">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
               <XAxis type="number" stroke="#94a3b8" fontSize={11} />

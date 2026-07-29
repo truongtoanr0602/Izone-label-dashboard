@@ -1,7 +1,6 @@
 import React from 'react';
 import { RefreshCw, ChevronDown, ExternalLink, Download, Menu, Moon, Sun } from 'lucide-react';
 import type { ClassSummary } from '../../data/mockData';
-import IzoneLogo from '../../images/logo.png';
 
 interface HeaderProps {
   classes: ClassSummary[];
@@ -25,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleDarkMode
 }) => {
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-200 dark:border-slate-800/80 px-6 py-3.5 transition-all bg-white/90 dark:bg-slate-900/90">
+    <header className="w-full flex-shrink-0 z-10 glass-panel border-b border-slate-200 dark:border-slate-800/80 px-6 py-3.5 transition-all bg-white/90 dark:bg-slate-900/90">
       <div className="flex items-center justify-between">
         {/* Left: Brand & Title */}
         <div className="flex items-center gap-4 md:gap-6">
@@ -38,9 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Menu className="w-6 h-6" />
               </button>
             )}
-            <div className="h-9 w-auto flex items-center justify-center shrink-0">
-              <img src={IzoneLogo} alt="IZONE Logo" className="h-full w-auto object-contain drop-shadow-md" />
-            </div>
+
             <div>
               <span className="text-xs font-bold tracking-widest text-[#DB0829] uppercase">
                 IZONE PORTAL
