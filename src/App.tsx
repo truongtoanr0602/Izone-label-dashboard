@@ -40,7 +40,7 @@ export default function App() {
   }, [isDarkMode]);
 
   return (
-    <div className={`${isDarkMode ? 'dark' : ''} min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-[#DB0829]/30 selection:text-white transition-colors duration-300`}>
+    <div className={`${isDarkMode ? 'dark' : ''} min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans selection:bg-[#DB0829]/30 selection:text-white transition-colors duration-300`}>
       {/* Top Header */}
       <Header
         classes={classes}
@@ -70,10 +70,10 @@ export default function App() {
         <aside className={`fixed inset-y-0 left-0 z-[60] w-64 transform transition-transform duration-300 xl:relative xl:translate-x-0 flex flex-col border-r border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 xl:bg-transparent p-5 space-y-6 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
           {/* Mobile Header in Sidebar */}
           <div className="flex items-center justify-between xl:hidden mb-2">
-            <span className="font-extrabold text-slate-900 dark:text-slate-100 text-lg">Menu</span>
+            <span className="font-extrabold text-slate-800 dark:text-slate-100 text-lg">Menu</span>
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -90,7 +90,7 @@ export default function App() {
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'lead'
                   ? 'bg-[#DB0829] text-white shadow-lg shadow-[#DB0829]/25'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <LayoutDashboard className="w-4 h-4" />
@@ -104,7 +104,7 @@ export default function App() {
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'teacher'
                   ? 'bg-[#DB0829] text-white shadow-lg shadow-[#DB0829]/25'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -160,7 +160,7 @@ export default function App() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm dark:shadow-none">
                 <div className="space-y-1">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                    <h2 className="text-lg md:text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
                       👩‍🏫 Lớp {selectedClass.className} — {selectedClass.courseName}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[#DB0829]/10 dark:bg-[#DB0829]/20 text-[#DB0829] border border-[#DB0829]/20 dark:border-[#DB0829]/30 w-fit">

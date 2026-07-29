@@ -68,7 +68,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       {/* Top Welcome & KPI Summary */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight flex flex-wrap items-center gap-2">
+          <h2 className="text-lg md:text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight flex flex-wrap items-center gap-2">
             📊 Lead Khối Dashboard — Quản lý Rủi ro Toàn Khối 3-4
             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#DB0829]/10 text-[#DB0829] font-mono border border-[#DB0829]/20">
               Macro View
@@ -95,7 +95,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Điểm danh (TB)</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgAttendance}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-800 dark:text-white">{avgAttendance}%</span>
           </div>
         </div>
 
@@ -107,7 +107,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Làm BTVN (TB)</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgHomework}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-800 dark:text-white">{avgHomework}%</span>
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Pass Chuẩn</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgPassChuan}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-800 dark:text-white">{avgPassChuan}%</span>
           </div>
         </div>
 
@@ -131,7 +131,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Pass Mềm</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{avgPassMem}%</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-800 dark:text-white">{avgPassMem}%</span>
           </div>
         </div>
 
@@ -156,7 +156,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Bảo lưu</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{totalOnHold}</span>
+            <span className="text-2xl font-extrabold font-mono text-slate-800 dark:text-white">{totalOnHold}</span>
             <span className="text-xs text-slate-500">HV</span>
           </div>
         </div>
@@ -166,7 +166,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               📈 Timeline Tracking (Biến động theo thời gian)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -206,7 +206,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       {/* Layer 3: Master Class Table */}
       <div className="rounded-2xl border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             📋 Bảng Quản Lý Toàn Bộ Lớp (Master Table)
           </h3>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -254,7 +254,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
                   >
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 font-mono text-sm">{c.className}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-100 font-mono text-sm">{c.className}</span>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{c.courseName}</p>
                     </td>
                     <td className="py-3.5 px-4">
@@ -280,7 +280,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       <span className="text-slate-500 text-[10px]"> / {c.healthMetrics.passMemRate}%</span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-[#DB0829] dark:hover:bg-[#DB0829] hover:text-white text-slate-700 dark:text-slate-200 font-semibold transition-all inline-flex items-center gap-1 border border-slate-200 dark:border-transparent">
+                      <button className="px-3 py-1.5 rounded-lg bg-transparent border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#DB0829] hover:text-[#DB0829] dark:hover:border-[#DB0829] dark:hover:text-[#DB0829] font-semibold transition-colors inline-flex items-center gap-1">
                         Vào lớp <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </td>
@@ -297,7 +297,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="rounded-2xl p-5 border border-slate-200 dark:border-none bg-white dark:bg-slate-800 shadow-sm flex flex-col justify-between space-y-4">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               📊 Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối</p>
