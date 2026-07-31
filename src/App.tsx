@@ -5,7 +5,7 @@ import { StudentTable } from './components/dashboard/StudentTable';
 import { LeadDashboard } from './components/dashboard/LeadDashboard';
 import { CallParentModal } from './components/modals/CallParentModal';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
-import { MOCK_CLASSES, MOCK_STUDENTS_IC2174 } from './data/mockData';
+import { MOCK_CLASSES, getStudentsByClass } from './data/mockData';
 import type { ClassSummary } from './data/mockData';
 import { ShieldCheck, LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
@@ -13,7 +13,9 @@ import IzoneLogo from './images/logo.png';
 export default function App() {
   const [classes] = useState<ClassSummary[]>(MOCK_CLASSES);
   const [selectedClass, setSelectedClass] = useState<ClassSummary>(MOCK_CLASSES[0]); // IC2174
-  const [students] = useState(MOCK_STUDENTS_IC2174);
+  // Danh sách HV bám theo lớp đang chọn. Trước đây bị ghim cứng vào IC2174 —
+  // với 3 lớp thì khó thấy, với 15 lớp thì mọi lớp đều hiện nhầm học viên.
+  const students = getStudentsByClass(selectedClass.classId);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
