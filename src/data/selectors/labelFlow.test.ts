@@ -138,4 +138,36 @@ describe('labelFlowDelta', () => {
     expect(result.value).toBeNull();
     expect(result.comparableClasses).toBe(0);
   });
+
+  it('loại lớp có ảnh chụp cả hai kỳ nhưng không thi ở một trong hai kỳ', () => {
+    // Lớp 3 có mặt ở cả tháng 6 và tháng 7 nhưng KHÔNG thi ở tháng 6
+    // (testCheckpoint null). Nếu cài đặt chỉ xét "lớp có ảnh chụp trong kỳ" mà bỏ
+    // sót điều kiện testCheckpoint !== null, lớp 3 vẫn bị coi là so sánh được và
+    // các chuyển dịch của nó bị gộp vào phép trừ — cho ra value/comparableClasses
+    // khác với kỳ vọng dưới đây, nên phép so sánh này lộ ra sai sót đó.
+    const snapshotsWithUntestedClass: ClassSnapshot[] = [
+      snap(1, '2026-06-15', 'Test 3'),
+      snap(1, '2026-07-13', 'Test 4'),
+      snap(3, '2026-06-20', null),
+      snap(3, '2026-07-20', 'Test 1'),
+    ];
+    const result = labelFlowDelta(
+      [
+        // Lớp 1, tháng 6: ròng −1
+        change({ logId: 'a', classId: 1, direction: 'down', createdAt: '2026-06-15 10:00:00' }),
+        // Lớp 1, tháng 7: ròng −2
+        change({ logId: 'b', classId: 1, direction: 'down', createdAt: '2026-07-13 10:00:00' }),
+        change({ logId: 'c', classId: 1, direction: 'down', createdAt: '2026-07-13 10:00:00' }),
+        // Lớp 3 không thi ở tháng 6 nên không có chuyển dịch nào ở tháng 6; tháng 7
+        // có 3 lượt "up" — nếu bị gộp nhầm sẽ đẩy value và comparableClasses lên.
+        change({ logId: 'd', classId: 3, direction: 'up', createdAt: '2026-07-20 10:00:00' }),
+        change({ logId: 'e', classId: 3, direction: 'up', createdAt: '2026-07-20 10:00:00' }),
+        change({ logId: 'f', classId: 3, direction: 'up', createdAt: '2026-07-20 10:00:00' }),
+      ],
+      snapshotsWithUntestedClass,
+      '2026-07',
+    );
+    expect(result.comparableClasses).toBe(1);
+    expect(result.value).toBe(-1);
+  });
 });
