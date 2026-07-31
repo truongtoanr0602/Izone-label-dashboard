@@ -46,10 +46,13 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   return (
     <div className="relative rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] overflow-hidden">
       {sparkData.length > 1 && (
-        <div className="absolute inset-x-0 bottom-0 h-10 opacity-[0.18] pointer-events-none">
+        // `stroke` là SVG attribute thuần, class `dark:` không gắn được vào nó — nên
+        // đặt màu trên div bọc ngoài rồi dùng `currentColor` để recharts kế thừa đúng
+        // theme, thay vì hardcode một hex duy nhất khiến sparkline biến mất ở dark mode.
+        <div className="absolute inset-x-0 bottom-0 h-10 opacity-[0.18] pointer-events-none text-[#475569] dark:text-[#a1a1aa]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={sparkData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <Line type="monotone" dataKey="v" stroke="#475569" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="v" stroke="currentColor" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
