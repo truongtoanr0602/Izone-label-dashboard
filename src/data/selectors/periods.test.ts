@@ -134,6 +134,23 @@ describe('latestSnapshotPerClass', () => {
     expect(result.find((s) => s.classId === 2)?.snapshotDate).toBe('2026-07-13');
   });
 
+  it('chọn theo ngày mới nhất, không phải phần tử cuối mảng', () => {
+    // Cố ý đặt ảnh chụp mới nhất (2026-07-27) ở GIỮA mảng, không phải cuối —
+    // nếu ai đó lỡ sửa hàm thành "lấy phần tử cuối cùng gặp trong vòng lặp"
+    // thay vì so sánh ngày, test này phải fail. Đừng sắp lại mảng theo thứ tự
+    // thời gian, sẽ làm mất tác dụng kiểm định của test.
+    const result = latestSnapshotPerClass(
+      [
+        snap(1, '2026-07-06', 5),
+        snap(1, '2026-07-27', 8),
+        snap(1, '2026-07-13', 6),
+      ],
+      '2026-07',
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].snapshotDate).toBe('2026-07-27');
+  });
+
   it('trả về mảng rỗng khi kỳ không có ảnh chụp nào', () => {
     expect(latestSnapshotPerClass([snap(1, '2026-07-06', 5)], '2026-05')).toEqual([]);
   });
