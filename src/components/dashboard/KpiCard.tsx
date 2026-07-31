@@ -11,7 +11,11 @@ interface KpiCardProps {
   delta: MetricDelta;
   /** true khi giá trị càng cao càng tốt (điểm danh); false khi ngược lại (bỏ học). */
   higherIsBetter: boolean;
-  /** Chuỗi 13 tuần cho sparkline nền. `null` = chưa xác định, đường sẽ ngắt. */
+  /**
+   * Chuỗi tuần cho sparkline nền: TỐI ĐA 13 tuần, kết thúc ở tuần cuối của kỳ
+   * đang chọn. Kỳ đầu dữ liệu có ít hơn 13 tuần nên chuỗi ngắn hơn là bình
+   * thường. `null` = chưa xác định, đường sẽ ngắt.
+   */
   sparkline?: (number | null)[];
   /**
    * Mẫu số của GIÁ TRỊ lớn. BỔ SUNG cho dòng mẫu số của delta chứ không thay thế
@@ -81,7 +85,10 @@ export const KpiCard: React.FC<KpiCardProps> = ({
 
       {/*
         Hai dòng mẫu số riêng biệt khi có `note`: dòng trên thuộc về con số lớn,
-        dòng dưới (mờ hơn, thụt vào sau dấu ▲/▼) thuộc về delta bên cạnh con số.
+        dòng dưới thuộc về delta. Phân biệt bằng CÂU CHỮ chứ không bằng kiểu
+        dáng — `formatComparisonNote` luôn mở đầu bằng "thay đổi". Cố ý không làm
+        dòng dưới mờ đi: đây chính là dòng cần đọc được, hạ tương phản ở cỡ 10px
+        là xoá nó khỏi màn hình.
       */}
       {note !== undefined && (
         <p className="relative text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-1.5">
@@ -90,7 +97,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
       )}
       <p
         className={`relative text-[10px] text-[#404040]/50 dark:text-[#71717a] ${
-          note !== undefined ? 'mt-0.5 opacity-70' : 'mt-1.5'
+          note !== undefined ? 'mt-0.5' : 'mt-1.5'
         }`}
       >
         {formatComparisonNote(delta)}
