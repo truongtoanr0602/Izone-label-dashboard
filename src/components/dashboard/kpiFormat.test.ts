@@ -26,36 +26,49 @@ describe('formatValue', () => {
 
 describe('formatDelta', () => {
   it('giảm ở chỉ số càng-cao-càng-tốt là xấu', () => {
-    const result = formatDelta(delta({ value: -2.1 }), true);
+    const result = formatDelta(delta({ value: -2.1 }), true, 'percent');
     expect(result.text).toBe('▼2.1 điểm');
     expect(result.tone).toBe('down');
     expect(result.isGood).toBe(false);
   });
 
   it('tăng ở chỉ số càng-cao-càng-tốt là tốt', () => {
-    const result = formatDelta(delta({ value: 3.4 }), true);
+    const result = formatDelta(delta({ value: 3.4 }), true, 'percent');
     expect(result.text).toBe('▲3.4 điểm');
     expect(result.isGood).toBe(true);
   });
 
   it('tăng ở chỉ số càng-thấp-càng-tốt là xấu', () => {
-    const result = formatDelta(delta({ value: 2 }), false);
+    const result = formatDelta(delta({ value: 2 }), false, 'percent');
     expect(result.tone).toBe('up');
     expect(result.isGood).toBe(false);
   });
 
+  it('giảm ở chỉ số càng-thấp-càng-tốt là tốt', () => {
+    const result = formatDelta(delta({ value: -3 }), false, 'percent');
+    expect(result.text).toBe('▼3.0 điểm');
+    expect(result.tone).toBe('down');
+    expect(result.isGood).toBe(true);
+  });
+
   it('không đổi thì trung tính', () => {
-    const result = formatDelta(delta({ value: 0 }), true);
+    const result = formatDelta(delta({ value: 0 }), true, 'percent');
     expect(result.text).toBe('không đổi');
     expect(result.tone).toBe('flat');
     expect(result.isGood).toBeNull();
   });
 
   it('không so sánh được thì nói rõ, không suy ra 0', () => {
-    const result = formatDelta(delta({ value: null, comparableClasses: 0 }), true);
+    const result = formatDelta(delta({ value: null, comparableClasses: 0 }), true, 'percent');
     expect(result.text).toBe('chưa so sánh được');
     expect(result.tone).toBe('unknown');
     expect(result.isGood).toBeNull();
+  });
+
+  it('định dạng số HV với đơn vị count', () => {
+    const result = formatDelta(delta({ value: 2.4 }), true, 'count');
+    expect(result.text).toBe('▲2 HV');
+    expect(result.isGood).toBe(true);
   });
 });
 

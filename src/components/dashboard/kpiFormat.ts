@@ -21,8 +21,13 @@ export function formatValue(value: number | null, unit: 'percent' | 'count'): st
  *
  * Điểm danh tăng là tốt; số HV bỏ học tăng là xấu. Mũi tên bám theo hướng
  * (`tone`), màu bám theo ý nghĩa (`isGood`).
+ *
+ * Unit phải được truyền vào vì không thể suy ra từ delta: cùng một thay đổi
+ * có thể là thay đổi phần trăm (đơn vị `điểm`) hay thay đổi số HV (đơn vị `HV`).
+ * Card Bỏ học và Chuyển dịch nhãn dùng `unit: 'count'` để hiển thị HV,
+ * còn card Điểm danh và Vắng học dùng `unit: 'percent'` để hiển thị điểm.
  */
-export function formatDelta(delta: MetricDelta, higherIsBetter: boolean): FormattedDelta {
+export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: 'percent' | 'count'): FormattedDelta {
   if (delta.value === null) {
     return { text: 'chưa so sánh được', tone: 'unknown', isGood: null };
   }
@@ -31,10 +36,13 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean): Format
   }
 
   const rising = delta.value > 0;
-  const magnitude = Math.abs(delta.value).toFixed(1);
+  const magnitude = unit === 'percent'
+    ? Math.abs(delta.value).toFixed(1)
+    : String(Math.round(Math.abs(delta.value)));
+  const suffix = unit === 'percent' ? 'điểm' : 'HV';
 
   return {
-    text: `${rising ? '▲' : '▼'}${magnitude} điểm`,
+    text: `${rising ? '▲' : '▼'}${magnitude} ${suffix}`,
     tone: rising ? 'up' : 'down',
     isGood: rising === higherIsBetter,
   };
