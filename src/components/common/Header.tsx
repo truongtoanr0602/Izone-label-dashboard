@@ -55,20 +55,20 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="hidden md:flex flex-wrap items-center gap-1 bg-[#f3f4f6] dark:bg-[#18181b] p-1 rounded-[12px] border border-[#f3f4f6] dark:border-[#3f3f46]">
             <button
               onClick={() => onChangeTab('lead')}
-              className={`px-4 py-1.5 rounded-[8px] text-xs font-semibold transition-all inline-flex items-center gap-1.5 ${
+              className={`px-4 py-1.5 rounded-[8px] text-xs transition-all inline-flex items-center gap-1.5 ${
                 activeTab === 'lead'
-                  ? 'bg-[#DB0829] text-white'
-                  : 'text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-white dark:hover:bg-[#27272a]'
+                  ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-b-2 border-[#db0829]'
+                  : 'font-semibold text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-white dark:hover:bg-[#27272a]'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" /> Lead Khối (Macro View)
             </button>
             <button
               onClick={() => onChangeTab('teacher')}
-              className={`px-4 py-1.5 rounded-[8px] text-xs font-semibold transition-all flex items-center gap-2 ${
+              className={`px-4 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'teacher'
-                  ? 'bg-[#DB0829] text-white'
-                  : 'text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-white dark:hover:bg-[#27272a]'
+                  ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-b-2 border-[#db0829]'
+                  : 'font-semibold text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-white dark:hover:bg-[#27272a]'
               }`}
             >
               <Users className="w-3.5 h-3.5" /> Teacher Dashboard

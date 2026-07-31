@@ -91,8 +91,8 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                     onClick={() => handleCopyMessage(idx, s.fullName, s.homework.percentage)}
                     className={`px-3 py-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
                       copiedIndex === idx
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-amber-600 hover:bg-amber-500 text-white active:scale-95'
+                        ? 'bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                        : 'bg-transparent border border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95'
                     }`}
                   >
                     {copiedIndex === idx ? (
@@ -109,7 +109,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                     href={`https://zalo.me/${s.phone}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 rounded-[8px] bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                    className="p-2 rounded-[8px] bg-transparent border border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                     title="Mở chat Zalo web"
                   >
                     <Send className="w-4 h-4" />

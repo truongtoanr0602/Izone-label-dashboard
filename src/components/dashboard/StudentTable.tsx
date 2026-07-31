@@ -66,10 +66,10 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         <div className="flex flex-wrap items-center gap-1.5 bg-white dark:bg-[#27272a] p-1.5 rounded-[12px] border border-[#f3f4f6] dark:border-[#3f3f46]">
           <button
             onClick={() => onChangeFilter('all')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
               activeFilter === 'all'
-                ? 'bg-[#DB0829] text-white'
-                : 'text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]'
+                ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-200 font-medium border border-[#f3f4f6] dark:border-slate-700'
+                : 'font-semibold text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]'
             }`}
           >
             <Users className="w-3.5 h-3.5" /> Tất cả học viên
@@ -77,10 +77,10 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           </button>
           <button
             onClick={() => onChangeFilter('urgent')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
               activeFilter === 'urgent'
-                ? 'bg-red-600 text-white'
-                : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800/50'
+                : 'font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" /> Nguy cấp &amp; Tụt nhãn
@@ -88,25 +88,25 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           </button>
           <button
             onClick={() => onChangeFilter('pass')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
               activeFilter === 'pass'
-                ? 'bg-emerald-600 text-white'
-                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-200 dark:border-emerald-800/50'
+                : 'font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
             }`}
           >
             <Target className="w-3.5 h-3.5" /> Đủ điều kiện Pass
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeFilter === 'pass' ? 'bg-white/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>{counts.pass}</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeFilter === 'pass' ? 'bg-emerald-500/20 text-emerald-600' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>{counts.pass}</span>
           </button>
           <button
             onClick={() => onChangeFilter('review')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
               activeFilter === 'review'
-                ? 'bg-amber-600 text-white'
-                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-800/50'
+                : 'font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
             }`}
           >
             <Clock className="w-3.5 h-3.5" /> Chờ GV Duyệt Pass
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeFilter === 'review' ? 'bg-white/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>{counts.review}</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeFilter === 'review' ? 'bg-amber-500/20 text-amber-600' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>{counts.review}</span>
           </button>
         </div>
 

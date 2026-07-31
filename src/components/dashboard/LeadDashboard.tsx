@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   ArrowUpRight, Award, BarChart3, CheckCircle2,
-  Clock, Search, BookOpen, UserMinus, UserCheck, TrendingUp, Table2
+  Clock, Search, BookOpen, UserMinus, UserCheck, TrendingUp, Table2,
+  TrendingDown, Minus
 } from 'lucide-react';
 import type { ClassSummary } from '../../data/mockData';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from 'recharts';
@@ -27,6 +28,37 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   const avgHomework = (classes.reduce((acc, c) => acc + c.healthMetrics.homeworkAverage, 0) / classes.length).toFixed(1);
   const avgPassChuan = (classes.reduce((acc, c) => acc + c.healthMetrics.passChuanRate, 0) / classes.length).toFixed(1);
   const avgPassMem = (classes.reduce((acc, c) => acc + c.healthMetrics.passMemRate, 0) / classes.length).toFixed(1);
+
+  // Mock Deltas
+  const deltas = {
+    attendance: 2.1,
+    homework: -1.5,
+    passChuan: 0.8,
+    passMem: 0,
+    dropped: 2,
+    onHold: -1
+  };
+
+  const renderTrend = (delta: number, invertColors: boolean = false, suffix: string = '%') => {
+    if (delta === 0) {
+      return (
+        <span className="flex items-center text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-2">
+          <Minus size={16} className="mr-1" /> 0{suffix}
+        </span>
+      );
+    }
+    const isUp = delta > 0;
+    const isGood = invertColors ? !isUp : isUp;
+    const colorClass = isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+    const Icon = isUp ? TrendingUp : TrendingDown;
+    const sign = isUp ? '+' : '';
+
+    return (
+      <span className={`flex items-center text-[13px] font-medium ${colorClass} mt-2`}>
+        <Icon size={16} className="mr-1" /> {sign}{delta}{suffix}
+      </span>
+    );
+  };
 
   // Stacked Bar Chart Data
   const barChartData = classes.map((c) => ({
@@ -100,8 +132,11 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Điểm danh (TB)</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgAttendance}%</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7] leading-none">{avgAttendance}%</span>
+            </div>
+            {renderTrend(deltas.attendance)}
           </div>
         </div>
 
@@ -112,8 +147,11 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Làm BTVN (TB)</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgHomework}%</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7] leading-none">{avgHomework}%</span>
+            </div>
+            {renderTrend(deltas.homework)}
           </div>
         </div>
 
@@ -124,8 +162,11 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Pass Chuẩn</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgPassChuan}%</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7] leading-none">{avgPassChuan}%</span>
+            </div>
+            {renderTrend(deltas.passChuan)}
           </div>
         </div>
 
@@ -136,8 +177,11 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Pass Mềm</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgPassMem}%</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7] leading-none">{avgPassMem}%</span>
+            </div>
+            {renderTrend(deltas.passMem)}
           </div>
         </div>
 
@@ -148,9 +192,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Bỏ học</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-red-600 dark:text-red-400">{totalDropped}</span>
-            <span className="text-xs text-red-500/80">HV</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-red-600 dark:text-red-400 leading-none">{totalDropped}</span>
+              <span className="text-xs text-red-500/80">HV</span>
+            </div>
+            {renderTrend(deltas.dropped, true, '')}
           </div>
         </div>
 
@@ -161,9 +208,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Bảo lưu</span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{totalOnHold}</span>
-            <span className="text-xs text-[#404040]/50 dark:text-[#71717a]">HV</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7] leading-none">{totalOnHold}</span>
+              <span className="text-xs text-[#404040]/50 dark:text-[#71717a]">HV</span>
+            </div>
+            {renderTrend(deltas.onHold, true, '')}
           </div>
         </div>
       </div>
