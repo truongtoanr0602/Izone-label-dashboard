@@ -3,9 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 /**
  * Giữ một tham số đồng bộ với thanh địa chỉ.
  *
- * Nhờ vậy copy URL gửi đi là người nhận thấy đúng kỳ báo cáo mày đang xem — đây
- * là thứ thay thế việc xuất file (§4.3). Dùng replaceState để đổi kỳ không sinh
- * mục mới trong lịch sử trình duyệt.
+ * Nhờ vậy copy URL gửi đi là người nhận thấy đúng kỳ báo cáo đang xem — đây là
+ * thứ thay thế việc xuất file (§4.3). Dùng replaceState để đổi kỳ không sinh mục
+ * mới trong lịch sử trình duyệt.
+ *
+ * Hook này trả về giá trị THÔ trên URL, không kiểm tra tính hợp lệ: nó không
+ * biết miền giá trị hợp lệ của từng tham số. Nơi gọi phải tự đối chiếu.
  */
 export function useUrlParam(
   name: string,

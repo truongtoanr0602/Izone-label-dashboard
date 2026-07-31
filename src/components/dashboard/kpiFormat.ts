@@ -2,6 +2,16 @@ import type { MetricDelta } from '../../data/selectors';
 
 export type DeltaTone = 'up' | 'down' | 'flat' | 'unknown';
 
+/**
+ * Đơn vị của một thẻ KPI.
+ *
+ * `count` đếm CON NGƯỜI (HV), `event` đếm SỰ KIỆN (lượt). Phân biệt này không
+ * phải chuyện chữ nghĩa: bảng đổi nhãn ghi mỗi lần đổi là một dòng, nên một HV
+ * đổi nhãn hai lần trong kỳ sinh hai dòng. Gọi con số đó là "HV" là báo cáo 23
+ * học viên trong khi thực tế chỉ có 22 người.
+ */
+export type KpiUnit = 'percent' | 'count' | 'event';
+
 export interface FormattedDelta {
   text: string;
   /** Hướng thay đổi — quyết định mũi tên. */
@@ -11,7 +21,7 @@ export interface FormattedDelta {
 }
 
 /** Không bao giờ trả về '0' khi giá trị là null. Xem §7 của tài liệu thiết kế. */
-export function formatValue(value: number | null, unit: 'percent' | 'count'): string {
+export function formatValue(value: number | null, unit: KpiUnit): string {
   if (value === null) return '—';
   return unit === 'percent' ? `${value.toFixed(1)}%` : String(Math.round(value));
 }
@@ -23,11 +33,12 @@ export function formatValue(value: number | null, unit: 'percent' | 'count'): st
  * (`tone`), màu bám theo ý nghĩa (`isGood`).
  *
  * Unit phải được truyền vào vì không thể suy ra từ delta: cùng một thay đổi
- * có thể là thay đổi phần trăm (đơn vị `điểm`) hay thay đổi số HV (đơn vị `HV`).
- * Card Bỏ học và Chuyển dịch nhãn dùng `unit: 'count'` để hiển thị HV,
- * còn card Điểm danh và Vắng học dùng `unit: 'percent'` để hiển thị điểm.
+ * có thể là thay đổi phần trăm (đơn vị `điểm`), thay đổi số HV (đơn vị `HV`)
+ * hay thay đổi số lượt (đơn vị `lượt`). Card Bỏ học đếm người nên dùng
+ * `unit: 'count'`; card Chuyển dịch nhãn đếm lần đổi nhãn nên dùng
+ * `unit: 'event'`; card Điểm danh và BTVN dùng `unit: 'percent'`.
  */
-export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: 'percent' | 'count'): FormattedDelta {
+export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: KpiUnit): FormattedDelta {
   if (delta.value === null) {
     return { text: 'chưa so sánh được', tone: 'unknown', isGood: null };
   }
@@ -39,7 +50,7 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: '
   const magnitude = unit === 'percent'
     ? Math.abs(delta.value).toFixed(1)
     : String(Math.round(Math.abs(delta.value)));
-  const suffix = unit === 'percent' ? 'điểm' : 'HV';
+  const suffix = unit === 'percent' ? 'điểm' : unit === 'event' ? 'lượt' : 'HV';
 
   return {
     text: `${rising ? '▲' : '▼'}${magnitude} ${suffix}`,
@@ -48,10 +59,20 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: '
   };
 }
 
+/**
+ * Mẫu số của DELTA, không phải của giá trị.
+ *
+ * Câu chữ phải tự đứng một mình được: thẻ KPI hiện đồng thời hai dòng mẫu số —
+ * một cho giá trị (prop `note`) và một cho delta — nên nếu dòng này chỉ ghi
+ * "12/15 lớp" thì người đọc không biết con số nào đang được chia cho mẫu số nào.
+ * Vì thế mở đầu bằng chữ "thay đổi".
+ */
 export function formatComparisonNote(delta: MetricDelta): string {
-  if (delta.comparableClasses === 0) return 'không lớp nào có mặt ở cả hai kỳ';
-  if (delta.comparableClasses === delta.totalClasses) {
-    return `so sánh trên toàn bộ ${delta.totalClasses} lớp`;
+  if (delta.comparableClasses === 0) {
+    return 'thay đổi: không có lớp nào so sánh được giữa hai kỳ';
   }
-  return `so sánh trên ${delta.comparableClasses}/${delta.totalClasses} lớp`;
+  if (delta.comparableClasses === delta.totalClasses) {
+    return `thay đổi tính trên toàn bộ ${delta.totalClasses} lớp so sánh được`;
+  }
+  return `thay đổi tính trên ${delta.comparableClasses}/${delta.totalClasses} lớp so sánh được`;
 }

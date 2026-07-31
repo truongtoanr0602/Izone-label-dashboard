@@ -42,7 +42,17 @@ interface TrendChartProps {
   /** Chuỗi điểm theo thời gian. Sẽ được sắp theo ngày. */
   points: TrendPoint[];
   series: TrendSeries[];
-  /** Thu hẹp trục Y để biến động nhỏ nhìn thấy được. */
+  /**
+   * Khoảng trục Y **tối thiểu**, không phải khoảng cố định.
+   *
+   * recharts chỉ NỚI RỘNG khoảng này để chứa hết dữ liệu, không bao giờ cắt bớt
+   * (trừ khi bật `allowDataOverflow`, mà ở đây cố tình KHÔNG bật: cắt mất một
+   * điểm dữ liệu trong buổi họp còn tệ hơn một trục hơi rộng). Nên hiểu prop này
+   * là "đừng để trục hẹp hơn ngần này" — nó chống được trục tự co lại quanh dải
+   * dữ liệu khiến biến động 1 điểm trông như sụp đổ, chứ nó KHÔNG ép được trục
+   * hẹp hơn dữ liệu. Vì vậy giá trị truyền vào phải bao trọn dải thật của chỉ số
+   * (tỷ lệ pass: 0–100), nếu không trục hiện ra sẽ khác con số ghi ở đây.
+   */
   domain: [number, number];
   isDarkMode: boolean;
 }

@@ -82,8 +82,29 @@ describe('aggregateKhoi', () => {
   it('không chia cho 0 khi danh sách rỗng', () => {
     const result = aggregateKhoi([]);
     expect(result.activeStudents).toBe(0);
-    expect(result.attendanceAvg).toBe(0);
     expect(result.droppedStudents).toBe(0);
     expect(result.passChuanRate).toBeNull();
+  });
+
+  it('trả null (KHÔNG phải 0) cho mọi trung bình khi không có HV để chia', () => {
+    // Cả hàng KPI phải nói "chưa có dữ liệu" bằng MỘT cách duy nhất: gạch ngang.
+    const result = aggregateKhoi([]);
+    expect(result.attendanceAvg).toBeNull();
+    expect(result.homeworkAvg).toBeNull();
+    expect(result.riskPct).toBeNull();
+    expect(result.passChuanRate).toBeNull();
+    expect(result.passMemRate).toBeNull();
+  });
+
+  it('trả null khi mọi lớp đều không còn HV active', () => {
+    const result = aggregateKhoi([
+      snap({ classId: 1, activeStudents: 0, attendanceAvg: 0 }),
+      snap({ classId: 2, activeStudents: 0, attendanceAvg: 0 }),
+    ]);
+    expect(result.attendanceAvg).toBeNull();
+    expect(result.homeworkAvg).toBeNull();
+    expect(result.riskPct).toBeNull();
+    // Nhưng luỹ kế bỏ học vẫn tính được trên các lớp đó.
+    expect(result.droppedStudents).toBe(2);
   });
 });

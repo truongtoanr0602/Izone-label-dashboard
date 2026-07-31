@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
@@ -50,7 +50,23 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
   const periods = useMemo(() => listPeriods(MOCK_SNAPSHOTS), []);
   const defaultPeriod = periods[0]?.key ?? periodKeyOf(REFERENCE_DATE);
-  const [selectedPeriod, setSelectedPeriod] = useUrlParam('ky', defaultPeriod);
+  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', defaultPeriod);
+
+  /*
+   * URL là đầu vào KHÔNG TIN CẬY. Nó vừa là cơ chế chia sẻ chính thức của màn
+   * hình này (§4.3/§8.4 — thay cho xuất file) vừa là thứ người dùng sửa tay
+   * được, nên một đường link cũ hoặc bị gõ sai là đầu vào BÌNH THƯỜNG, không
+   * phải trường hợp ngoại lệ. `?ky=garbage` mà đi thẳng vào tầng selector sẽ
+   * cho previousPeriodKey ra 'NaN-NaN' và thanh ngữ cảnh ghi "so với Tháng
+   * NaN/NaN". Đối chiếu với danh sách kỳ có thật; sai thì lặng lẽ lùi về kỳ mặc
+   * định và dọn luôn URL, KHÔNG ném lỗi giữa buổi họp.
+   */
+  const isKnownPeriod = periods.some((p) => p.key === urlPeriod);
+  const selectedPeriod = isKnownPeriod ? urlPeriod : defaultPeriod;
+
+  useEffect(() => {
+    if (!isKnownPeriod) setSelectedPeriod(defaultPeriod);
+  }, [isKnownPeriod, defaultPeriod, setSelectedPeriod]);
 
   const view = useMemo(() => {
     const currentSnaps = latestSnapshotPerClass(MOCK_SNAPSHOTS, selectedPeriod);
@@ -76,10 +92,22 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
     /*
      * Chuỗi cấp khối: mỗi tuần một điểm, gộp có trọng số qua toàn bộ lớp của
-     * tuần đó. Tỷ lệ pass giữ nguyên `null` khi tuần đó chưa lớp nào thi — KHÔNG
-     * ép về 0, xem chú thích của TrendPoint.
+     * tuần đó. Mọi chỉ số giữ nguyên `null` khi tuần đó chưa tính được (chưa lớp
+     * nào thi, hoặc không còn HV active) — KHÔNG ép về 0, xem chú thích của
+     * TrendPoint.
+     *
+     * Cửa sổ 13 tuần neo vào CUỐI KỲ ĐANG XEM, không neo vào "bây giờ". Lead mở
+     * Tháng 5 để kể chuyện tháng 5; nếu biểu đồ vẫn chạy tới tuần cuối cùng của
+     * toàn bộ dữ liệu thì thẻ KPI nói tháng 5 còn đường biểu đồ nói tháng 7,
+     * ngay cạnh nhau. Giữ độ dài 13 điểm tuần theo §6.2, chỉ đổi điểm kết thúc.
+     * `endDate` lấy thẳng từ `listPeriods` để không tự tính lại ngày cuối tháng.
      */
-    const weeks = [...new Set(MOCK_SNAPSHOTS.map((s) => s.snapshotDate))].sort();
+    const periodEnd = periods.find((p) => p.key === selectedPeriod)?.endDate ?? '';
+    const weeks = [...new Set(MOCK_SNAPSHOTS.map((s) => s.snapshotDate))]
+      .sort()
+      .filter((date) => date <= periodEnd)
+      .slice(-13);
+
     const khoiSeries: TrendPoint[] = weeks.map((date) => {
       const ofWeek = MOCK_SNAPSHOTS.filter((s) => s.snapshotDate === date);
       const agg = aggregateKhoi(ofWeek);
@@ -106,12 +134,13 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       };
     });
 
-    const recent = khoiSeries.slice(-13);
+    // `khoiSeries` đã là đúng 13 tuần cuối tính đến hết kỳ đang xem — sparkline
+    // và biểu đồ diễn biến dùng CHUNG cửa sổ này để không kể hai câu chuyện.
     const sparklines: KpiSparklines = {
-      attendance: recent.map((p) => p.attendanceAvg),
-      homework: recent.map((p) => p.homeworkAvg),
-      passChuan: recent.map((p) => p.passChuanRate),
-      passMem: recent.map((p) => p.passMemRate),
+      attendance: khoiSeries.map((p) => p.attendanceAvg),
+      homework: khoiSeries.map((p) => p.homeworkAvg),
+      passChuan: khoiSeries.map((p) => p.passChuanRate),
+      passMem: khoiSeries.map((p) => p.passMemRate),
     };
 
     /*
@@ -128,12 +157,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       labelFlow,
       deltas,
       sparklines,
-      trendSeries: recent,
+      trendSeries: khoiSeries,
       newClasses: [...currentIds].filter((id) => !previousIds.has(id)).length,
       endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
       noDataStudents,
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, periods]);
 
   // Stacked Bar Chart Data
   const barChartData = classes.map((c) => ({
@@ -212,7 +241,10 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
           subtitle="Tỷ lệ pass chuẩn và pass mềm toàn khối, chỉ tính trên lớp đã có bài test. Đường ngắt là tuần chưa lớp nào thi."
           points={view.trendSeries}
           series={OUTCOME_SERIES}
-          domain={[0, 80]}
+          // Pass mềm chạm 94.4 trên dữ liệu hiện tại, nên [0,80] là con số ghi
+          // một đằng vẽ một nẻo — recharts nới ra tới ~94 mà nhãn trục vẫn nói
+          // 80. Dùng đúng dải thật của một tỷ lệ phần trăm.
+          domain={[0, 100]}
           isDarkMode={isDarkMode}
         />
       </div>
@@ -220,9 +252,20 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       {/* Layer 3: Master Class Table */}
       <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
         <div className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] border-l-4 border-l-[#db0829] px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
-            <Table2 className="w-4 h-4 text-[#db0829]" /> Bảng Quản Lý Toàn Bộ Lớp (Master Table)
-          </h3>
+          {/*
+            Khối này vẫn đọc prop `classes` (trạng thái hiện tại), chưa nối vào
+            bộ chọn kỳ — việc đó thuộc đợt 2. Cho tới lúc đó phải nói thẳng ra:
+            nếu không, thanh ngữ cảnh ghi "6 lớp đang chạy" cho Tháng 5 trong khi
+            bảng ngay dưới liệt kê 15 dòng, và người xem không biết tin số nào.
+          */}
+          <div>
+            <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
+              <Table2 className="w-4 h-4 text-[#db0829]" /> Bảng Quản Lý Toàn Bộ Lớp (Master Table)
+            </h3>
+            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
+              Hiện trạng hôm nay của toàn bộ lớp — KHÔNG lọc theo kỳ báo cáo đã chọn ở trên.
+            </p>
+          </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-[#404040]/40 dark:text-[#71717a] absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -320,7 +363,11 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[#db0829]" /> Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)
             </h3>
-            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối</p>
+            {/* Cùng lý do như Master Table: chưa nối vào bộ chọn kỳ (đợt 2). */}
+            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
+              So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối · Hiện trạng hôm nay,
+              KHÔNG lọc theo kỳ báo cáo đã chọn ở trên.
+            </p>
           </div>
           <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />
         </div>

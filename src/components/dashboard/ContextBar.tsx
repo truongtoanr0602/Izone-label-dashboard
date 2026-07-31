@@ -24,9 +24,14 @@ export const ContextBar: React.FC<ContextBarProps> = ({
   noDataStudents,
   lastSyncedAt,
 }) => {
-  const noDataPct =
+  /*
+   * Không có HV active nào thì tỷ lệ này KHÔNG tính được — trả null để hiện gạch
+   * ngang, không hiện 0% (0% nghĩa là "đã kiểm và không ai thiếu dữ liệu", trái
+   * hẳn với "không có gì để kiểm").
+   */
+  const noDataPct: number | null =
     aggregate.activeStudents === 0
-      ? 0
+      ? null
       : Math.round((noDataStudents / aggregate.activeStudents) * 100);
 
   return (
@@ -39,6 +44,7 @@ export const ContextBar: React.FC<ContextBarProps> = ({
           </span>
         </div>
         <select
+          aria-label="Kỳ báo cáo"
           value={selectedKey}
           onChange={(e) => onSelectPeriod(e.target.value)}
           className="px-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] transition-colors"
@@ -62,10 +68,15 @@ export const ContextBar: React.FC<ContextBarProps> = ({
 
       <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a] flex items-center gap-1.5">
         <Database className="w-3 h-3" />
-        Đồng bộ lần cuối {lastSyncedAt}
+        {/*
+          Nói rõ đây là mốc đồng bộ của NGUỒN DỮ LIỆU, không phải mốc của kỳ đang
+          xem: khi Lead chọn Tháng 5 mà dòng này ghi trống trơn "2026-07-31" thì
+          rất dễ đọc nhầm thành ngày chốt số của kỳ.
+        */}
+        Dữ liệu đồng bộ đến {lastSyncedAt} (áp dụng cho mọi kỳ)
         {noDataStudents > 0 && (
           <span className="text-amber-600 dark:text-amber-400">
-            · {noDataStudents} HV chưa đủ dữ liệu ({noDataPct}%)
+            · {noDataStudents} HV chưa đủ dữ liệu ({noDataPct === null ? '—' : `${noDataPct}%`})
           </span>
         )}
       </p>
