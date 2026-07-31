@@ -531,6 +531,7 @@ function buildSnapshots(
 ): ClassSnapshot[] {
   const weeks = Math.max(1, Math.ceil(completedSessions / SESSIONS_PER_WEEK));
   const active = students.filter((s) => s.registrationStatus === 'active');
+  const dropped = students.filter((s) => s.registrationStatus === 'dropped').length;
 
   const totalPresent = active.reduce((a, s) => a + s.attendance.presentSessions, 0);
   const totalSessionsSum = active.reduce((a, s) => a + s.attendance.totalSessions, 0);
@@ -599,6 +600,8 @@ function buildSnapshots(
       completedSessions: sessionsDone,
       totalSessions: TOTAL_SESSIONS,
       testCheckpoint: testJustHeld ? `Test ${testsSoFar}` : null,
+      testsCompleted: testsSoFar,
+      droppedStudents: dropped,
       attendanceAvg,
       homeworkAvg,
       passChuanRate: round1((passChuan / denominator) * 100),

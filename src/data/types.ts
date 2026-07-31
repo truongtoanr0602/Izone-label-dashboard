@@ -232,6 +232,22 @@ export interface ClassSnapshot {
   completedSessions: number;
   totalSessions: number;
   testCheckpoint: string | null;
+
+  /**
+   * Số bài test đã diễn ra tính tới ảnh chụp này.
+   *
+   * Bằng 0 nghĩa là lớp chưa thi bài nào — khi đó tỷ lệ pass KHÔNG có nghĩa và
+   * phải bị loại khỏi mọi phép tổng hợp, thay vì tính là 0%.
+   */
+  testsCompleted: number;
+
+  /**
+   * Số HV đã bỏ học tính tới ảnh chụp này (luỹ kế).
+   *
+   * Hiệu giữa hai kỳ cho ra "số HV bỏ học thêm trong tháng" — con số Lead cần,
+   * khác với tổng luỹ kế.
+   */
+  droppedStudents: number;
   attendanceAvg: number;
   homeworkAvg: number;
   passChuanRate: number;
