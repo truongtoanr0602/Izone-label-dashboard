@@ -1,32 +1,119 @@
-import React, { useState } from 'react';
-import { 
-  ArrowUpRight, Award, BarChart3, CheckCircle2,
-  Clock, Search, BookOpen, UserMinus, UserCheck, TrendingUp, Table2
+import React, { useMemo, useState } from 'react';
+import {
+  ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
 import type { ClassSummary } from '../../data/mockData';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from 'recharts';
+import {
+  MOCK_LABEL_CHANGES,
+  MOCK_SNAPSHOTS,
+  REFERENCE_DATE,
+} from '../../data/mockData';
+import {
+  aggregateKhoi,
+  labelFlowDelta,
+  labelFlowInPeriod,
+  latestSnapshotPerClass,
+  listPeriods,
+  metricDelta,
+  periodKeyOf,
+  previousPeriodKey,
+} from '../../data/selectors';
+import { useUrlParam } from '../../hooks/useUrlParam';
+import { ContextBar } from './ContextBar';
+import { KpiRow, type KpiDeltas, type KpiSparklines } from './KpiRow';
+import { TrendChart, type TrendPoint, type TrendSeries } from './TrendChart';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface LeadDashboardProps {
   classes: ClassSummary[];
   onSelectClassAndDrillDown: (cls: ClassSummary) => void;
+  isDarkMode: boolean;
 }
+
+/** Hai nhóm chỉ số KHÁC THANG ĐO → hai biểu đồ riêng (§3.2 của tài liệu thiết kế). */
+const OPERATIONS_SERIES: TrendSeries[] = [
+  { key: 'attendanceAvg', name: 'Điểm danh', lightColor: '#3b82f6', darkColor: '#3b82f6' },
+  { key: 'homeworkAvg', name: 'BTVN', lightColor: '#f59e0b', darkColor: '#d97706' },
+];
+
+const OUTCOME_SERIES: TrendSeries[] = [
+  { key: 'passChuanRate', name: 'Pass chuẩn', lightColor: '#10b981', darkColor: '#059669' },
+  { key: 'passMemRate', name: 'Pass mềm', lightColor: '#a855f7', darkColor: '#a855f7' },
+];
 
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
-  onSelectClassAndDrillDown
+  onSelectClassAndDrillDown,
+  isDarkMode,
 }) => {
   const [searchClass, setSearchClass] = useState('');
-  const [timelineFilter, setTimelineFilter] = useState<'all' | number>('all');
 
-  // Aggregate KPIs
-  const totalStudents = classes.reduce((acc, c) => acc + c.studentCounts.active, 0);
-  const totalDropped = classes.reduce((acc, c) => acc + c.studentCounts.dropped, 0);
-  const totalOnHold = classes.reduce((acc, c) => acc + c.studentCounts.onHold, 0);
+  const periods = useMemo(() => listPeriods(MOCK_SNAPSHOTS), []);
+  const defaultPeriod = periods[0]?.key ?? periodKeyOf(REFERENCE_DATE);
+  const [selectedPeriod, setSelectedPeriod] = useUrlParam('ky', defaultPeriod);
 
-  const avgAttendance = (classes.reduce((acc, c) => acc + c.healthMetrics.attendanceAverage, 0) / classes.length).toFixed(1);
-  const avgHomework = (classes.reduce((acc, c) => acc + c.healthMetrics.homeworkAverage, 0) / classes.length).toFixed(1);
-  const avgPassChuan = (classes.reduce((acc, c) => acc + c.healthMetrics.passChuanRate, 0) / classes.length).toFixed(1);
-  const avgPassMem = (classes.reduce((acc, c) => acc + c.healthMetrics.passMemRate, 0) / classes.length).toFixed(1);
+  const view = useMemo(() => {
+    const currentSnaps = latestSnapshotPerClass(MOCK_SNAPSHOTS, selectedPeriod);
+    const previousSnaps = latestSnapshotPerClass(
+      MOCK_SNAPSHOTS,
+      previousPeriodKey(selectedPeriod),
+    );
+
+    const aggregate = aggregateKhoi(currentSnaps);
+    const labelFlow = labelFlowInPeriod(MOCK_LABEL_CHANGES, MOCK_SNAPSHOTS, selectedPeriod);
+
+    const currentIds = new Set(currentSnaps.map((s) => s.classId));
+    const previousIds = new Set(previousSnaps.map((s) => s.classId));
+
+    const deltas: KpiDeltas = {
+      attendance: metricDelta(currentSnaps, previousSnaps, (a) => a.attendanceAvg),
+      homework: metricDelta(currentSnaps, previousSnaps, (a) => a.homeworkAvg),
+      passChuan: metricDelta(currentSnaps, previousSnaps, (a) => a.passChuanRate),
+      passMem: metricDelta(currentSnaps, previousSnaps, (a) => a.passMemRate),
+      dropped: metricDelta(currentSnaps, previousSnaps, (a) => a.droppedStudents),
+      labelNet: labelFlowDelta(MOCK_LABEL_CHANGES, MOCK_SNAPSHOTS, selectedPeriod),
+    };
+
+    /*
+     * Chuỗi cấp khối: mỗi tuần một điểm, gộp có trọng số qua toàn bộ lớp của
+     * tuần đó. Tỷ lệ pass giữ nguyên `null` khi tuần đó chưa lớp nào thi — KHÔNG
+     * ép về 0, xem chú thích của TrendPoint.
+     */
+    const weeks = [...new Set(MOCK_SNAPSHOTS.map((s) => s.snapshotDate))].sort();
+    const khoiSeries: TrendPoint[] = weeks.map((date) => {
+      const ofWeek = MOCK_SNAPSHOTS.filter((s) => s.snapshotDate === date);
+      const agg = aggregateKhoi(ofWeek);
+      const withTest = ofWeek.find((s) => s.testCheckpoint !== null);
+      return {
+        date,
+        testCheckpoint: withTest ? withTest.testCheckpoint : null,
+        attendanceAvg: agg.attendanceAvg,
+        homeworkAvg: agg.homeworkAvg,
+        passChuanRate: agg.passChuanRate,
+        passMemRate: agg.passMemRate,
+      };
+    });
+
+    const recent = khoiSeries.slice(-13);
+    const sparklines: KpiSparklines = {
+      attendance: recent.map((p) => p.attendanceAvg),
+      homework: recent.map((p) => p.homeworkAvg),
+      passChuan: recent.map((p) => p.passChuanRate),
+      passMem: recent.map((p) => p.passMemRate),
+    };
+
+    return {
+      aggregate,
+      labelFlow,
+      deltas,
+      sparklines,
+      trendSeries: recent,
+      newClasses: [...currentIds].filter((id) => !previousIds.has(id)).length,
+      endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
+    };
+  }, [selectedPeriod]);
+
+  const noDataStudents = classes.reduce((sum, c) => sum + c.labelDistribution.noData, 0);
 
   // Stacked Bar Chart Data
   const barChartData = classes.map((c) => ({
@@ -36,16 +123,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     Đỏ: c.labelDistribution.red,
     Xám: c.labelDistribution.grey,
   }));
-
-  // Mock Timeline Data (In a real app, this would be fetched based on timelineFilter)
-  const timelineData = [
-    { checkpoint: 'Tuần 1', attendance: 98, homework: 95, passRate: 20 },
-    { checkpoint: 'Tuần 2', attendance: 96, homework: 90, passRate: 25 },
-    { checkpoint: 'Test 1', attendance: 95, homework: 85, passRate: 40 },
-    { checkpoint: 'Tuần 4', attendance: 92, homework: 82, passRate: 45 },
-    { checkpoint: 'Tuần 5', attendance: 88, homework: 75, passRate: 50 },
-    { checkpoint: 'Test 2', attendance: 85, homework: 70, passRate: 55 },
-  ];
 
   // Filter classes for Master Table
   const filteredClasses = classes.filter(c => 
@@ -71,142 +148,53 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Top Welcome & KPI Summary */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg md:text-xl font-semibold text-[#404040] dark:text-[#e4e4e7] tracking-tight flex flex-wrap items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#a1a1aa]" /> Lead Khối Dashboard — Quản lý Rủi ro Toàn Khối 3-4
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#DB0829]/10 text-[#DB0829] font-mono border border-[#DB0829]/20">
-              Macro View
-            </span>
-          </h2>
-          <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
-            Giám sát chất lượng giảng dạy, tỷ lệ chuyển dịch nhãn và cảnh báo sớm các lớp sa sút.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 bg-white dark:bg-[#27272a] px-3 py-2 rounded-[12px] border border-[#f3f4f6] dark:border-[#3f3f46] text-xs text-[#404040]/70 dark:text-[#a1a1aa] font-mono">
-          <span>Tổng số lớp đang dạy: <b className="text-[#404040] dark:text-[#e4e4e7]">{classes.length}</b></span>
-          <span className="hidden sm:inline text-[#404040]/30 dark:text-[#52525b]">•</span>
-          <span>Học viên Active: <b className="text-[#404040] dark:text-[#e4e4e7]">{totalStudents}</b></span>
-        </div>
+      <div>
+        <h2 className="text-lg md:text-xl font-semibold text-[#404040] dark:text-[#e4e4e7] tracking-tight flex flex-wrap items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#a1a1aa]" /> Lead Khối Dashboard — Quản lý Rủi ro Toàn Khối 3-4
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#DB0829]/10 text-[#DB0829] font-mono border border-[#DB0829]/20">
+            Macro View
+          </span>
+        </h2>
+        <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
+          Giám sát chất lượng giảng dạy, tỷ lệ chuyển dịch nhãn và cảnh báo sớm các lớp sa sút.
+        </p>
       </div>
 
-      {/* Layer 1: 6 Macro Metrics Cards — Standardized */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
-              <UserCheck className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Điểm danh (TB)</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgAttendance}%</span>
-          </div>
-        </div>
+      <ContextBar
+        periods={periods}
+        selectedKey={selectedPeriod}
+        onSelectPeriod={setSelectedPeriod}
+        aggregate={view.aggregate}
+        newClasses={view.newClasses}
+        endedClasses={view.endedClasses}
+        noDataStudents={noDataStudents}
+        lastSyncedAt={REFERENCE_DATE}
+      />
 
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Làm BTVN (TB)</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgHomework}%</span>
-          </div>
-        </div>
+      <KpiRow
+        aggregate={view.aggregate}
+        deltas={view.deltas}
+        labelFlow={view.labelFlow}
+        sparklines={view.sparklines}
+      />
 
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Pass Chuẩn</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgPassChuan}%</span>
-          </div>
-        </div>
-
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
-              <Award className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Pass Mềm</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{avgPassMem}%</span>
-          </div>
-        </div>
-
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#ef3753]">
-              <UserMinus className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Bỏ học</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-red-600 dark:text-red-400">{totalDropped}</span>
-            <span className="text-xs text-red-500/80">HV</span>
-          </div>
-        </div>
-
-        <div className="rounded-[16px] p-[24px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] transition-all">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
-              <Clock className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">Bảo lưu</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">{totalOnHold}</span>
-            <span className="text-xs text-[#404040]/50 dark:text-[#71717a]">HV</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Layer 2: Timeline Tracking Chart */}
-      <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] flex flex-col">
-        <div className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] border-l-4 border-l-[#db0829] px-5 py-4 rounded-t-[16px] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#db0829]" /> Timeline Tracking (Biến động theo thời gian)
-            </h3>
-            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-1">
-              Theo dõi sự thay đổi của tỷ lệ Điểm danh, BTVN và Pass dự kiến qua các mốc thời gian.
-            </p>
-          </div>
-          <select 
-            className="px-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] transition-colors"
-            value={timelineFilter}
-            onChange={(e) => setTimelineFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          >
-            <option value="all">Toàn Khối 3-4</option>
-            {classes.map(c => (
-              <option key={c.classId} value={c.classId}>{c.className}</option>
-            ))}
-          </select>
-        </div>
-        <div className="h-64 w-full p-5">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={timelineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} vertical={false} />
-              <XAxis dataKey="checkpoint" stroke="#9ca3af" fontSize={11} tickMargin={10} />
-              <YAxis stroke="#9ca3af" fontSize={11} domain={[0, 100]} />
-              <Tooltip 
-                contentStyle={{ background: '#ffffff', border: '1px solid #f3f4f6', borderRadius: '12px', fontSize: '12px', color: '#404040' }}
-                itemStyle={{ fontWeight: 'bold' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Line type="monotone" dataKey="attendance" name="Tỷ lệ Điểm danh (%)" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="homework" name="Tỷ lệ BTVN (%)" stroke="#a855f7" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="passRate" name="Tỷ lệ Pass Dự kiến (%)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <TrendChart
+          title="Chất lượng vận hành"
+          subtitle="Tỷ lệ điểm danh và BTVN toàn khối. Vạch dọc là mốc bài test."
+          points={view.trendSeries}
+          series={OPERATIONS_SERIES}
+          domain={[70, 100]}
+          isDarkMode={isDarkMode}
+        />
+        <TrendChart
+          title="Kết quả"
+          subtitle="Tỷ lệ pass chuẩn và pass mềm toàn khối, chỉ tính trên lớp đã có bài test. Đường ngắt là tuần chưa lớp nào thi."
+          points={view.trendSeries}
+          series={OUTCOME_SERIES}
+          domain={[0, 80]}
+          isDarkMode={isDarkMode}
+        />
       </div>
 
       {/* Layer 3: Master Class Table */}

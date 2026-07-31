@@ -195,6 +195,7 @@ export default function App() {
             <LeadDashboard
               classes={classes}
               onSelectClassAndDrillDown={handleDrillDownToClass}
+              isDarkMode={isDarkMode}
             />
           )}
 
