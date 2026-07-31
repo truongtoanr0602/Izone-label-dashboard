@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MessageSquare, Copy, Check, TrendingDown, Send } from 'lucide-react';
+import { X, MessageSquare, Copy, Check, TrendingDown, Send, MessageCircle } from 'lucide-react';
 import type { StudentDetail } from '../../data/mockData';
 
 interface ZaloRemindModalProps {
@@ -33,29 +33,29 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="glass-panel w-full max-w-2xl rounded-2xl border border-amber-500/40 shadow-2xl overflow-hidden bg-slate-900/95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl rounded-[16px] shadow-[0px_3px_5px_0px_rgba(0,0,0,0.2)] overflow-hidden bg-white dark:bg-[#27272a] text-[#404040] dark:text-[#e4e4e7]">
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-amber-950/80 to-slate-900 border-b border-amber-500/30 flex items-center justify-between">
+        <div className="px-6 py-4 bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-[12px] bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <h2 className="text-base font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
                 Danh sách Cần nhắc nhở BTVN qua Zalo
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-400 font-mono">
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-500 font-mono">
                   {hwStudents.length} Học viên
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa]">
                 1-Click Copy tin nhắn mẫu chuẩn hóa để gửi nhanh Zalo cá nhân / Nhóm lớp.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-[8px] text-[#404040]/50 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -64,35 +64,35 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 max-h-[65vh] overflow-y-auto space-y-3">
           {hwStudents.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              <Check className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-              <p className="font-semibold text-slate-200">Tuyệt vời! Tất cả học viên đều nộp BTVN rất đầy đủ.</p>
+            <div className="text-center py-8 text-[#404040]/50 dark:text-[#71717a]">
+              <Check className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
+              <p className="font-semibold text-[#404040] dark:text-[#e4e4e7]">Tuyệt vời! Tất cả học viên đều nộp BTVN rất đầy đủ.</p>
             </div>
           ) : (
             hwStudents.map((s, idx) => (
-              <div key={s.studentId} className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/30 transition-all flex items-center justify-between gap-4">
+              <div key={s.studentId} className="p-4 rounded-[12px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] hover:border-[#e5e7eb] dark:hover:border-[#52525b] transition-all flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
                     {s.fullName}
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold font-mono">
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 font-semibold font-mono">
                       BTVN: {s.homework.percentage}% ({s.homework.completedCount}/{s.homework.totalCount})
                     </span>
                   </h4>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <TrendingDown className="w-3.5 h-3.5 text-amber-400 inline" />
-                    <span>SĐT Zalo: <b className="text-slate-200 font-mono">{s.phone}</b></span>
+                  <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
+                    <TrendingDown className="w-3.5 h-3.5 text-amber-500 inline" />
+                    <span>SĐT Zalo: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.phone}</b></span>
                     <span>•</span>
-                    <span>ĐH: <b className="text-slate-200">{s.attendance.percentage}%</b></span>
+                    <span>ĐH: <b className="text-[#404040] dark:text-[#e4e4e7]">{s.attendance.percentage}%</b></span>
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleCopyMessage(idx, s.fullName, s.homework.percentage)}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    className={`px-3 py-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
                       copiedIndex === idx
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                        : 'bg-amber-600 hover:bg-amber-500 text-white shadow-md shadow-amber-600/20 active:scale-95'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-amber-600 hover:bg-amber-500 text-white active:scale-95'
                     }`}
                   >
                     {copiedIndex === idx ? (
@@ -109,7 +109,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                     href={`https://zalo.me/${s.phone}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-md shadow-blue-600/20"
+                    className="p-2 rounded-[8px] bg-blue-600 hover:bg-blue-500 text-white transition-colors"
                     title="Mở chat Zalo web"
                   >
                     <Send className="w-4 h-4" />
@@ -121,13 +121,13 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
-          <p className="text-xs text-slate-400">
-            💬 <b className="text-slate-300">Lưu ý:</b> Bấm biểu tượng máy bay xanh để mở thẳng Zalo Web chat với học viên.
+        <div className="px-6 py-4 bg-[#f3f4f6] dark:bg-[#18181b] border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-between">
+          <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
+            <MessageCircle className="w-3.5 h-3.5 text-[#475569] dark:text-[#a1a1aa]" /> <b className="text-[#404040] dark:text-[#e4e4e7]">Lưu ý:</b> Bấm biểu tượng máy bay xanh để mở thẳng Zalo Web chat với học viên.
           </p>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-colors"
+            className="px-5 py-2 rounded-[12px] bg-[#404040]/10 dark:bg-[#3f3f46] hover:bg-[#404040]/15 dark:hover:bg-[#52525b] text-[#404040] dark:text-[#e4e4e7] font-semibold text-xs transition-colors"
           >
             Đóng bảng
           </button>
