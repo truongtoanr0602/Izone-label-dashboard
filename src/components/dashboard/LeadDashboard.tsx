@@ -83,10 +83,22 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     const khoiSeries: TrendPoint[] = weeks.map((date) => {
       const ofWeek = MOCK_SNAPSHOTS.filter((s) => s.snapshotDate === date);
       const agg = aggregateKhoi(ofWeek);
-      const withTest = ofWeek.find((s) => s.testCheckpoint !== null);
+      /*
+       * Không thể lấy "Test N" của một lớp bất kỳ làm nhãn cho cả tuần: mốc
+       * test bám theo VÒNG ĐỜI từng lớp, không bám lịch. Hai lớp khai giảng
+       * cách nhau ba tháng vẫn có thể cùng ở "Test 4" nhưng vào hai tuần khác
+       * nhau hẳn; ngược lại cùng một tuần có thể có lớp đang ở Test 1 và lớp
+       * khác đã ở Test 6. Lấy đại một lớp làm đại diện là gán nhãn sai cho cả
+       * khối. Cái có ý nghĩa ở cấp khối là ĐẾM: bao nhiêu lớp thi tuần đó —
+       * con số này cho Lead biết một đường đi ngang là "ổn định" hay "chưa có
+       * lớp nào nộp dữ liệu".
+       */
+      const classesWithTest = new Set(
+        ofWeek.filter((s) => s.testCheckpoint !== null).map((s) => s.classId),
+      );
       return {
         date,
-        testCheckpoint: withTest ? withTest.testCheckpoint : null,
+        testCheckpoint: classesWithTest.size > 0 ? `${classesWithTest.size} lớp thi` : null,
         attendanceAvg: agg.attendanceAvg,
         homeworkAvg: agg.homeworkAvg,
         passChuanRate: agg.passChuanRate,
@@ -102,6 +114,15 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       passMem: recent.map((p) => p.passMemRate),
     };
 
+    /*
+     * Lấy từ `currentSnaps` (đúng kỳ đang xem), KHÔNG lấy từ prop `classes` —
+     * `classes` luôn phản ánh thời điểm hiện tại nên khi chọn kỳ cũ, tử số
+     * "chưa đủ dữ liệu" (hiện tại) bị đem chia cho mẫu số `activeStudents`
+     * (của kỳ cũ) ở ContextBar, ra phần trăm ảo không tương ứng dữ liệu thật
+     * của kỳ đó.
+     */
+    const noDataStudents = currentSnaps.reduce((sum, s) => sum + s.labelCounts.noData, 0);
+
     return {
       aggregate,
       labelFlow,
@@ -110,10 +131,9 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       trendSeries: recent,
       newClasses: [...currentIds].filter((id) => !previousIds.has(id)).length,
       endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
+      noDataStudents,
     };
   }, [selectedPeriod]);
-
-  const noDataStudents = classes.reduce((sum, c) => sum + c.labelDistribution.noData, 0);
 
   // Stacked Bar Chart Data
   const barChartData = classes.map((c) => ({
@@ -167,7 +187,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         aggregate={view.aggregate}
         newClasses={view.newClasses}
         endedClasses={view.endedClasses}
-        noDataStudents={noDataStudents}
+        noDataStudents={view.noDataStudents}
         lastSyncedAt={REFERENCE_DATE}
       />
 
