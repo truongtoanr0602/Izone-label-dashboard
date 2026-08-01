@@ -56,7 +56,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
           </button>
           <button
             onClick={onOpenCallModal}
-            className="px-3 py-1.5 rounded-[8px] bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 active:scale-95"
+            className="px-4 py-2 rounded-[8px] bg-transparent border border-[#db0829] text-[#db0829] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
             <PhoneCall className="w-3.5 h-3.5" /> Gọi ngay (SĐT + Kịch bản)
           </button>
@@ -94,7 +94,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         <div className="mt-4 pt-3 border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-end">
           <button
             onClick={onOpenZaloModal}
-            className="px-3 py-1.5 rounded-[8px] bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-all flex items-center gap-1.5 active:scale-95"
+            className="px-4 py-2 rounded-[8px] bg-transparent border border-[#db0829] text-[#db0829] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
             <MessageSquare className="w-3.5 h-3.5" /> Gửi Zalo nhắc nhở (Mẫu tin nhắn)
           </button>
@@ -134,7 +134,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
             href={selectedClass.portalUrl || "https://portal.izone.edu.vn"}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-[8px] bg-[#DB0829] hover:bg-[#b80620] text-white font-semibold text-xs transition-all flex items-center gap-1.5 active:scale-95"
+            className="px-4 py-2 rounded-[8px] bg-transparent border border-[#db0829] text-[#db0829] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
             Duyệt trên Portal <ArrowUpRight className="w-3.5 h-3.5" />
           </a>

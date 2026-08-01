@@ -77,9 +77,9 @@ export default function App() {
               setActiveTab('lead');
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all ${activeTab === 'lead'
-                ? 'bg-[#DB0829] text-white'
-                : 'text-[#404040]/70 dark:text-[#a1a1aa] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] hover:text-[#404040] dark:hover:text-[#e4e4e7]'
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs transition-all ${activeTab === 'lead'
+                ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-l-4 border-[#db0829]'
+                : 'font-bold text-[#404040]/70 dark:text-[#a1a1aa] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] hover:text-[#404040] dark:hover:text-[#e4e4e7]'
               }`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -90,9 +90,9 @@ export default function App() {
               setActiveTab('teacher');
               setIsMobileMenuOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs font-bold transition-all ${activeTab === 'teacher'
-                ? 'bg-[#DB0829] text-white'
-                : 'text-[#404040]/70 dark:text-[#a1a1aa] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] hover:text-[#404040] dark:hover:text-[#e4e4e7]'
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs transition-all ${activeTab === 'teacher'
+                ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-l-4 border-[#db0829]'
+                : 'font-bold text-[#404040]/70 dark:text-[#a1a1aa] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] hover:text-[#404040] dark:hover:text-[#e4e4e7]'
               }`}
           >
             <div className="flex items-center gap-3">
@@ -224,13 +224,13 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setIsCallModalOpen(true)}
-                    className="px-3.5 py-2 rounded-[8px] bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-all active:scale-95 inline-flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-[8px] bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 font-bold text-xs transition-all hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
                     <AlertTriangle className="w-3.5 h-3.5" /> Gọi gấp (3)
                   </button>
                   <button
                     onClick={() => setIsZaloModalOpen(true)}
-                    className="px-3.5 py-2 rounded-[8px] bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all active:scale-95 inline-flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-[8px] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-orange-600 dark:text-orange-400 font-bold text-xs transition-all hover:bg-orange-100 dark:hover:bg-orange-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
                     <MessageSquare className="w-3.5 h-3.5" /> Nhắc Zalo (5)
                   </button>

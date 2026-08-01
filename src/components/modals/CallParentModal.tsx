@@ -114,8 +114,8 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
                         onClick={() => handleCopyPhone(s.phone)}
                         className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
                           copiedPhone === s.phone
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-red-600 hover:bg-red-500 text-white'
+                            ? 'bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                            : 'bg-transparent border border-[#db0829] text-[#db0829] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95'
                         }`}
                       >
                         {copiedPhone === s.phone ? (
