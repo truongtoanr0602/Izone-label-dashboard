@@ -17,6 +17,8 @@ interface KpiCardProps {
    * mẫu số của chính nó — §3.3.
    */
   note?: string;
+  /** Icon giải thích cách tính, đặt cạnh label. Xem `InfoTooltip`. */
+  infoTooltip?: React.ReactNode;
 }
 
 const TONE_CLASS: Record<string, string> = {
@@ -33,6 +35,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   delta,
   higherIsBetter,
   note,
+  infoTooltip,
 }) => {
   const formatted = formatDelta(delta, higherIsBetter, unit);
   const toneClass =
@@ -51,6 +54,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         <span className="text-xs font-bold text-[#404040]/50 dark:text-[#71717a] uppercase">
           {label}
         </span>
+        {infoTooltip}
       </div>
 
       <div className="flex items-baseline gap-2">

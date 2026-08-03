@@ -2,6 +2,7 @@ import React from 'react';
 import { Award, BookOpen, CheckCircle2, TrendingDown, UserCheck, UserMinus } from 'lucide-react';
 import type { KhoiAggregate, LabelFlowSummary, MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
+import { InfoTooltip } from '../common/InfoTooltip';
 
 export interface KpiDeltas {
   attendance: MetricDelta;
@@ -66,6 +67,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         delta={deltas.passChuan}
         higherIsBetter
         note={passNote}
+        infoTooltip={
+          <InfoTooltip label="Cách tính Pass chuẩn">
+            Điểm danh ≥90% <b>VÀ</b> BTVN ≥90% <b>VÀ</b> TB test ≥60 — cả 3 điều kiện.
+          </InfoTooltip>
+        }
       />
       <KpiCard
         icon={<Award className="w-4 h-4" />}
@@ -75,6 +81,15 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         delta={deltas.passMem}
         higherIsBetter
         note={passNote}
+        infoTooltip={
+          <InfoTooltip label="Cách tính Pass mềm">
+            <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)
+            <br />
+            <b>Nhóm 2</b>: TB test 55–&lt;60, ĐH &amp; BTVN ≥90% (cần GV duyệt)
+            <br />
+            <b>Nhóm 3</b>: TB test ≥60 (tự động đạt)
+          </InfoTooltip>
+        }
       />
       <KpiCard
         icon={<TrendingDown className="w-4 h-4" />}
