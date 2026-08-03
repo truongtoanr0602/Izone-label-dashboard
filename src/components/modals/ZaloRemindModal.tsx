@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MessageSquare, Copy, Check, TrendingDown, Send, MessageCircle } from 'lucide-react';
 import type { StudentDetail } from '../../data/mockData';
+import { isHomeworkReminderStudent } from '../../data/selectors';
 
 interface ZaloRemindModalProps {
   isOpen: boolean;
@@ -21,9 +22,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
 
   if (!isOpen) return null;
 
-  const hwStudents = students.filter(
-    (s) => s.evaluation.suggestedAction === 'assign_hw' || s.homework.percentage < 80 || s.homework.isDroppingRecently
-  );
+  const hwStudents = students.filter(isHomeworkReminderStudent);
 
   const handleCopyMessage = (index: number, studentName: string, hwPct: number) => {
     const msg = `Chào ${studentName} ! Cô/Thầy ${teacherName} (GVCN lớp ${className}) nhắc em nộp bài tập về nhà đầy đủ nhé. Hiện tại tỷ lệ hoàn thành BTVN của em đang là ${hwPct}%, cần cải thiện ngay để không bị ảnh hưởng đến điều kiện Pass đầu ra của khóa học nha em! 💪`;
@@ -44,9 +43,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
             <div>
               <h2 className="text-base font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
                 Danh sách Cần nhắc nhở BTVN qua Zalo
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-500 font-mono">
-                  {hwStudents.length} Học viên
-                </span>
+                <span className="text-xs font-mono text-amber-500">{hwStudents.length} Học viên</span>
               </h2>
               <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa]">
                 1-Click Copy tin nhắn mẫu chuẩn hóa để gửi nhanh Zalo cá nhân / Nhóm lớp.

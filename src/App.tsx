@@ -7,7 +7,8 @@ import { CallParentModal } from './components/modals/CallParentModal';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import { MOCK_CLASSES, getStudentsByClass } from './data/mockData';
 import type { ClassSummary } from './data/mockData';
-import { ShieldCheck, LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare } from 'lucide-react';
+import { isHomeworkReminderStudent, isUrgentCallStudent } from './data/selectors';
+import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
 
 export default function App() {
@@ -16,6 +17,8 @@ export default function App() {
   // Danh sách HV bám theo lớp đang chọn. Trước đây bị ghim cứng vào IC2174 —
   // với 3 lớp thì khó thấy, với 15 lớp thì mọi lớp đều hiện nhầm học viên.
   const students = getStudentsByClass(selectedClass.classId);
+  const urgentCallCount = students.filter(isUrgentCallStudent).length;
+  const homeworkReminderCount = students.filter(isHomeworkReminderStudent).length;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -76,6 +79,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('lead');
               setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-xs transition-all ${activeTab === 'lead'
                 ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-l-4 border-[#db0829]'
@@ -89,6 +93,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('teacher');
               setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[12px] text-xs transition-all ${activeTab === 'teacher'
                 ? 'bg-[#f3f4f6] dark:bg-slate-800 text-[#404040] dark:text-slate-100 font-medium border-l-4 border-[#db0829]'
@@ -117,12 +122,12 @@ export default function App() {
                   <CheckCircle className="w-4 h-4" />
                   <span>Điểm danh</span>
                 </div>
-                <span className={`font-semibold text-sm ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'text-amber-500' : 'text-red-500'}`}>
                   {selectedClass.healthMetrics.attendanceAverage}%
                 </span>
               </div>
               <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                <div className={`h-full ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.attendanceAverage}%` }} />
+                <div className={`h-full ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.attendanceAverage}%` }} />
               </div>
             </div>
 
@@ -133,12 +138,12 @@ export default function App() {
                   <BookOpen className="w-4 h-4" />
                   <span>BTVN</span>
                 </div>
-                <span className={`font-semibold text-sm ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'text-amber-500' : 'text-red-500'}`}>
                   {selectedClass.healthMetrics.homeworkAverage}%
                 </span>
               </div>
               <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                <div className={`h-full ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.homeworkAverage}%` }} />
+                <div className={`h-full ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.homeworkAverage}%` }} />
               </div>
             </div>
 
@@ -149,29 +154,14 @@ export default function App() {
                   <Award className="w-4 h-4" />
                   <span>Tỷ lệ Pass</span>
                 </div>
-                <span className={`font-semibold text-sm ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'text-amber-500' : 'text-[#DB0829]'}`}>
+                <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'text-amber-500' : 'text-red-500'}`}>
                   {selectedClass.healthMetrics.passChuanRate}%
                 </span>
               </div>
               <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                <div className={`h-full ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'bg-amber-500' : 'bg-[#DB0829]'}`} style={{ width: `${selectedClass.healthMetrics.passChuanRate}%` }} />
+                <div className={`h-full ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.passChuanRate}%` }} />
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* System Info Box */}
-        <div className="mt-auto p-3.5 rounded-[16px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] text-[11px] text-[#404040]/60 dark:text-[#a1a1aa] space-y-2">
-          <div className="flex items-center gap-2 font-semibold text-[#404040] dark:text-[#e4e4e7]">
-            <ShieldCheck className="w-4 h-4 text-[#DB0829]" />
-            <span>Kiến trúc Hybrid CQRS</span>
-          </div>
-          <p className="leading-relaxed">
-            Dữ liệu được làm giàu tĩnh trên Sheet <code>02_DuLieu_HocVien</code> giúp tốc độ phản hồi &lt;500ms.
-          </p>
-          <div className="pt-2 border-t border-[#404040]/10 dark:border-[#3f3f46] flex items-center justify-between font-mono text-[10px]">
-            <span>n8n Webhook: <b>Active</b></span>
-            <span className="text-emerald-500">● Live</span>
           </div>
         </div>
       </aside>
@@ -181,11 +171,6 @@ export default function App() {
           classes={classes}
           selectedClass={selectedClass}
           onSelectClass={(cls) => setSelectedClass(cls)}
-          activeTab={activeTab}
-          onChangeTab={(tab) => {
-            setActiveTab(tab);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -202,14 +187,14 @@ export default function App() {
           {activeTab === 'teacher' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               {/* Class Title & Info Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#27272a] p-5 rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46]">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#27272a] p-5 rounded-[16px]">
                 <div className="space-y-1">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <h2 className="text-lg md:text-xl font-semibold text-[#404040] dark:text-[#e4e4e7] tracking-tight flex items-center gap-2">
                       <Users className="w-5 h-5 text-[#475569] dark:text-[#a1a1aa]" /> Lớp {selectedClass.className} — {selectedClass.courseName}
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[#DB0829]/10 text-[#DB0829] border border-[#DB0829]/20 w-fit">
-                      On-going (Buổi {selectedClass.progress.completedSessions}/{selectedClass.progress.totalSessions})
+                    <span className="text-xs font-mono font-semibold text-[#404040]/60 dark:text-[#a1a1aa] w-fit">
+                      On-going · Buổi {selectedClass.progress.completedSessions}/{selectedClass.progress.totalSessions}
                     </span>
                   </div>
                   <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex flex-wrap items-center gap-4">
@@ -226,13 +211,13 @@ export default function App() {
                     onClick={() => setIsCallModalOpen(true)}
                     className="px-3.5 py-2 rounded-[8px] bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 font-bold text-xs transition-all hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5" /> Gọi gấp (3)
+                    <AlertTriangle className="w-3.5 h-3.5" /> Gọi gấp ({urgentCallCount})
                   </button>
                   <button
                     onClick={() => setIsZaloModalOpen(true)}
                     className="px-3.5 py-2 rounded-[8px] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-orange-600 dark:text-orange-400 font-bold text-xs transition-all hover:bg-orange-100 dark:hover:bg-orange-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" /> Nhắc Zalo (5)
+                    <MessageSquare className="w-3.5 h-3.5" /> Nhắc Zalo ({homeworkReminderCount})
                   </button>
                 </div>
               </div>

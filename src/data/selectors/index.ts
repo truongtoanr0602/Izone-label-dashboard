@@ -9,3 +9,4 @@ export {
   previousPeriodKey,
   type Period,
 } from './periods';
+export { isUrgentCallStudent, isHomeworkReminderStudent } from './studentFilters';

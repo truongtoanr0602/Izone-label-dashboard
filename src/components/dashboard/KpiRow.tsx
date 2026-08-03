@@ -12,26 +12,16 @@ export interface KpiDeltas {
   labelNet: MetricDelta;
 }
 
-/** `null` = tuần đó chưa xác định; sparkline sẽ ngắt tại đó, không vẽ tụt về 0. */
-export interface KpiSparklines {
-  attendance: (number | null)[];
-  homework: (number | null)[];
-  passChuan: (number | null)[];
-  passMem: (number | null)[];
-}
-
 interface KpiRowProps {
   aggregate: KhoiAggregate;
   deltas: KpiDeltas;
   labelFlow: LabelFlowSummary;
-  sparklines: KpiSparklines;
 }
 
 export const KpiRow: React.FC<KpiRowProps> = ({
   aggregate,
   deltas,
   labelFlow,
-  sparklines,
 }) => {
   const passNote =
     aggregate.classesWithTests === 0
@@ -59,7 +49,6 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         unit="percent"
         delta={deltas.attendance}
         higherIsBetter
-        sparkline={sparklines.attendance}
       />
       <KpiCard
         icon={<BookOpen className="w-4 h-4" />}
@@ -68,7 +57,6 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         unit="percent"
         delta={deltas.homework}
         higherIsBetter
-        sparkline={sparklines.homework}
       />
       <KpiCard
         icon={<CheckCircle2 className="w-4 h-4" />}
@@ -77,7 +65,6 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         unit="percent"
         delta={deltas.passChuan}
         higherIsBetter
-        sparkline={sparklines.passChuan}
         note={passNote}
       />
       <KpiCard
@@ -87,7 +74,6 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         unit="percent"
         delta={deltas.passMem}
         higherIsBetter
-        sparkline={sparklines.passMem}
         note={passNote}
       />
       <KpiCard

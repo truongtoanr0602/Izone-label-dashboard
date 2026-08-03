@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { SectionHeader } from './SectionHeader';
 export type TrendMetric = 'attendanceAvg' | 'homeworkAvg' | 'passChuanRate' | 'passMemRate';
 
 /**
@@ -119,7 +120,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] p-5">
+      <div className="rounded-[16px] bg-white dark:bg-[#27272a] p-5">
         <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7]">{title}</h3>
         <p className="text-xs text-[#404040]/50 dark:text-[#71717a] mt-6 text-center">
           Chưa có dữ liệu cho kỳ này.
@@ -131,11 +132,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   const axisColor = isDarkMode ? '#71717a' : '#9ca3af';
 
   return (
-    <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] flex flex-col">
-      <div className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] border-l-4 border-l-[#db0829] px-5 py-4 rounded-t-[16px]">
-        <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7]">{title}</h3>
-        <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-1">{subtitle}</p>
-      </div>
+    <div className="rounded-[16px] bg-white dark:bg-[#27272a] flex flex-col">
+      <SectionHeader title={title} subtitle={subtitle} />
 
       <div className="h-64 w-full p-5">
         <ResponsiveContainer width="100%" height="100%">

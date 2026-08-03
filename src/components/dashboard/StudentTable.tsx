@@ -3,8 +3,49 @@ import {
   Search, TrendingDown, AlertTriangle, 
   PhoneCall, MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
-import type { StudentDetail } from '../../data/mockData';
+import { MOCK_LABEL_CHANGES, labelFromAverage } from '../../data/mockData';
+import type { LabelCode, StudentDetail } from '../../data/mockData';
+import { isUrgentCallStudent } from '../../data/selectors';
+import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
+
+const LABEL_TEXT: Record<LabelCode, string> = {
+  red: 'ĐỎ',
+  yellow: 'VÀNG',
+  grey: 'XÁM',
+  no_data: 'CHƯA CÓ DL',
+};
+
+const LABEL_BADGE_CLASS: Record<LabelCode, string> = {
+  red: 'bg-red-500/10 text-red-500 border-red-500/20',
+  yellow: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  grey: 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]',
+  no_data: 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]',
+};
+
+/**
+ * Nhãn TẠI TỪNG MỐC TEST, suy trực tiếp từ ĐIỂM CỦA CHÍNH BÀI ĐÓ qua
+ * `labelFromAverage` (ngưỡng ≥60 Vàng / 45–59 Đỏ / &lt;45 Xám — cùng ngưỡng
+ * đang tô màu cột "Điểm Test" trong bảng) — không phải điểm TB cộng dồn, và
+ * không phải chỉ những lần nhãn ĐỔI BẬC như `MOCK_LABEL_CHANGES`. Một học
+ * viên thi 4 lần mà TB cộng dồn không đổi bậc lần nào sẽ có 0 dòng trong
+ * `MOCK_LABEL_CHANGES` — dùng riêng log đó làm timeline sẽ vẽ ra một học
+ * viên "chưa từng có nhãn" dù đã thi đủ 4 bài, sai lệch với sparkline điểm
+ * test ngay bên cạnh.
+ */
+function labelTimeline(s: StudentDetail) {
+  const scores = [...s.testPerformance.scores]
+    .filter((t) => t.finalScore !== null)
+    .sort((a, b) => a.testOrder - b.testOrder);
+
+  return scores.map((t) => {
+    const label = labelFromAverage(round1(t.finalScore as number));
+    const changeLog = MOCK_LABEL_CHANGES.find(
+      (log) => log.studentId === s.studentId && log.checkpoint === t.testName,
+    );
+    return { key: `t${t.testOrder}`, checkpoint: t.testName, label, reason: changeLog?.reason };
+  });
+}
 
 interface StudentTableProps {
   students: StudentDetail[];
@@ -37,7 +78,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
     // Tab match
     if (activeFilter === 'urgent') {
-      return s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' || s.attendance.percentage < 80;
+      return isUrgentCallStudent(s);
     }
     if (activeFilter === 'pass') {
       return s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm';
@@ -53,17 +94,17 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   const counts = {
     all: students.length,
-    urgent: students.filter((s) => s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' || s.attendance.percentage < 80).length,
+    urgent: students.filter(isUrgentCallStudent).length,
     pass: students.filter((s) => s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm').length,
     review: students.filter((s) => s.evaluation.isEligibleForReview).length,
   };
 
   return (
-    <div className="bg-white dark:bg-[#27272a] rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] overflow-hidden">
+    <div className="bg-white dark:bg-[#27272a] rounded-[16px] shadow-sm overflow-hidden">
       {/* Table Toolbar & Workflow Tabs */}
       <div className="p-5 border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6] dark:bg-[#18181b] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Workflow Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-white dark:bg-[#27272a] p-1.5 rounded-[12px] border border-[#f3f4f6] dark:border-[#3f3f46]">
+        <div className="flex flex-wrap items-center gap-1.5 bg-white dark:bg-[#27272a] p-1.5 rounded-[12px]">
           <button
             onClick={() => onChangeFilter('all')}
             className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
@@ -73,7 +114,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             }`}
           >
             <Users className="w-3.5 h-3.5" /> Tất cả học viên
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeFilter === 'all' ? 'bg-white/20' : 'bg-[#f3f4f6] dark:bg-[#3f3f46]'}`}>{counts.all}</span>
+            <span className="font-mono text-[11px] opacity-60">({counts.all})</span>
           </button>
           <button
             onClick={() => onChangeFilter('urgent')}
@@ -84,7 +125,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" /> Nguy cấp &amp; Tụt nhãn
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeFilter === 'urgent' ? 'bg-white/20' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>{counts.urgent}</span>
+            <span className="font-mono text-[11px] opacity-70">({counts.urgent})</span>
           </button>
           <button
             onClick={() => onChangeFilter('pass')}
@@ -95,7 +136,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             }`}
           >
             <Target className="w-3.5 h-3.5" /> Đủ điều kiện Pass
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeFilter === 'pass' ? 'bg-emerald-500/20 text-emerald-600' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>{counts.pass}</span>
+            <span className="font-mono text-[11px] opacity-70">({counts.pass})</span>
           </button>
           <button
             onClick={() => onChangeFilter('review')}
@@ -106,7 +147,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             }`}
           >
             <Clock className="w-3.5 h-3.5" /> Chờ GV Duyệt Pass
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeFilter === 'review' ? 'bg-amber-500/20 text-amber-600' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>{counts.review}</span>
+            <span className="font-mono text-[11px] opacity-70">({counts.review})</span>
           </button>
         </div>
 
@@ -304,7 +345,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         {s.testPerformance.scores.map((t) => (
                           <td key={t.testOrder} className="py-3.5 px-2 text-center font-mono">
                             {t.finalScore !== null ? (
-                              <span className={`text-[12px] font-bold ${
+                              <span className={`text-sm font-bold ${
                                 t.finalScore < 45 ? 'text-[#404040]/50 dark:text-[#71717a]' :
                                 t.finalScore < 60 ? 'text-red-500' : 'text-amber-500'
                               }`} title={t.isMakeup ? `Thi bù (Lần 1: ${t.rawScore}, Lần 2: ${t.makeupScore})` : ''}>
@@ -318,9 +359,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         ))}
                         <td className="py-3.5 px-3 text-center font-mono">
                           {s.testPerformance.averageScore !== null ? (
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold ${
-                              s.testPerformance.averageScore < 45 ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/70 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46]' :
-                              s.testPerformance.averageScore < 60 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            <span className={`text-sm font-extrabold ${
+                              s.testPerformance.averageScore < 45 ? 'text-[#404040]/70 dark:text-[#a1a1aa]' :
+                              s.testPerformance.averageScore < 60 ? 'text-red-500' : 'text-amber-500'
                             }`}>
                               {s.testPerformance.averageScore}
                             </span>
@@ -332,11 +373,11 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     ) : (
                       <>
                         <td className="py-3.5 px-4 text-center">
-                          {/* Big Avg Number Badge */}
+                          {/* Big Avg Number */}
                           {s.testPerformance.averageScore !== null ? (
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold font-mono ${
-                              s.testPerformance.averageScore < 45 ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/70 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46]' :
-                              s.testPerformance.averageScore < 60 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                            <span className={`text-sm font-extrabold font-mono ${
+                              s.testPerformance.averageScore < 45 ? 'text-[#404040]/70 dark:text-[#a1a1aa]' :
+                              s.testPerformance.averageScore < 60 ? 'text-red-500' : 'text-amber-500'
                             }`}>
                               {s.testPerformance.averageScore}
                             </span>
@@ -388,7 +429,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
                         <button
                           onClick={onOpenCallModal}
-                          className="px-3 py-1.5 rounded-[8px] bg-transparent text-[#DB0829] border border-[#DB0829] hover:bg-[#DB0829] hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                          className="px-3 py-1.5 rounded-[8px] bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                         >
                           <PhoneCall className="w-3 h-3" /> Gọi gấp
                         </button>
@@ -440,33 +481,44 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                                   <History className="w-4 h-4 text-blue-500" />
                                   Lộ trình chuyển nhãn
                                 </h4>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a] font-mono">Test 1</span>
-                                    <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46]">XÁM</span>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-[#404040]/30 dark:text-[#52525b]" />
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a] font-mono">Test 2</span>
-                                    <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">VÀNG</span>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-[#404040]/30 dark:text-[#52525b]" />
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a] font-mono">Test 3</span>
-                                    <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">VÀNG</span>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-[#404040]/30 dark:text-[#52525b]" />
-                                  <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a] font-mono">Hiện tại</span>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
-                                      s.labeling.currentLabel === 'red' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                      s.labeling.currentLabel === 'yellow' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                      'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]'
-                                    }`}>
-                                      {s.labeling.currentLabel === 'red' ? 'ĐỎ' : s.labeling.currentLabel === 'yellow' ? 'VÀNG' : 'XÁM'}
-                                    </span>
-                                  </div>
-                                </div>
+                                {(() => {
+                                  const timeline = labelTimeline(s);
+                                  // "Hiện tại" phải cùng công thức (điểm bài gần nhất) với các mốc Test
+                                  // phía trước — không lấy `currentLabel` (TB cộng dồn), nếu không ô cuối
+                                  // có thể khác màu với ô Test ngay trước nó dù cùng một bài test.
+                                  const currentLabel = timeline.length > 0
+                                    ? timeline[timeline.length - 1].label
+                                    : s.labeling.currentLabel;
+                                  const steps: { key: string; checkpoint: string; label: LabelCode; reason?: string }[] = [
+                                    ...timeline,
+                                    { key: 'current', checkpoint: 'Hiện tại', label: currentLabel },
+                                  ];
+
+                                  return (
+                                    <>
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        {steps.map((step, idx) => (
+                                          <div key={step.key} className="flex items-center gap-3">
+                                            <div className="flex flex-col items-center gap-1" title={step.reason}>
+                                              <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a] font-mono">{step.checkpoint}</span>
+                                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${LABEL_BADGE_CLASS[step.label]}`}>
+                                                {LABEL_TEXT[step.label]}
+                                              </span>
+                                            </div>
+                                            {idx < steps.length - 1 && (
+                                              <ChevronRight className="w-4 h-4 text-[#404040]/30 dark:text-[#52525b]" />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {steps.length === 1 && (
+                                        <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a] italic">
+                                          Chưa có bài test nào để tính nhãn theo mốc.
+                                        </p>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a] italic">
                                   Học viên có xu hướng {s.testPerformance.trendDirection === 'improving' ? 'cải thiện tích cực' : s.testPerformance.trendDirection === 'declining' ? 'sa sút nghiêm trọng' : 'duy trì nhãn ổn định'}.
                                 </p>

@@ -20,7 +20,8 @@ import {
 } from '../../data/selectors';
 import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
-import { KpiRow, type KpiDeltas, type KpiSparklines } from './KpiRow';
+import { KpiRow, type KpiDeltas } from './KpiRow';
+import { SectionHeader } from './SectionHeader';
 import { TrendChart, type TrendPoint, type TrendSeries } from './TrendChart';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -134,15 +135,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       };
     });
 
-    // `khoiSeries` đã là đúng 13 tuần cuối tính đến hết kỳ đang xem — sparkline
-    // và biểu đồ diễn biến dùng CHUNG cửa sổ này để không kể hai câu chuyện.
-    const sparklines: KpiSparklines = {
-      attendance: khoiSeries.map((p) => p.attendanceAvg),
-      homework: khoiSeries.map((p) => p.homeworkAvg),
-      passChuan: khoiSeries.map((p) => p.passChuanRate),
-      passMem: khoiSeries.map((p) => p.passMemRate),
-    };
-
     /*
      * Lấy từ `currentSnaps` (đúng kỳ đang xem), KHÔNG lấy từ prop `classes` —
      * `classes` luôn phản ánh thời điểm hiện tại nên khi chọn kỳ cũ, tử số
@@ -156,7 +148,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       aggregate,
       labelFlow,
       deltas,
-      sparklines,
       trendSeries: khoiSeries,
       newClasses: [...currentIds].filter((id) => !previousIds.has(id)).length,
       endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
@@ -192,15 +183,15 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   const getMetricColor = (value: number) => {
     if (value > 80) return 'text-emerald-600 dark:text-emerald-400';
     if (value >= 70) return 'text-amber-600 dark:text-amber-400';
-    return 'text-[#DB0829]';
+    return 'text-red-600 dark:text-red-400';
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div>
         <h2 className="text-lg md:text-xl font-semibold text-[#404040] dark:text-[#e4e4e7] tracking-tight flex flex-wrap items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#a1a1aa]" /> Lead Khối Dashboard — Quản lý Rủi ro Toàn Khối 3-4
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-[#DB0829]/10 text-[#DB0829] font-mono border border-[#DB0829]/20">
+          <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#a1a1aa]" /> Lead Khối Dashboard
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#404040]/50 dark:text-[#71717a]">
             Macro View
           </span>
         </h2>
@@ -224,7 +215,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         aggregate={view.aggregate}
         deltas={view.deltas}
         labelFlow={view.labelFlow}
-        sparklines={view.sparklines}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -250,41 +240,38 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 3: Master Class Table */}
-      <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
-        <div className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] border-l-4 border-l-[#db0829] px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/*
-            Khối này vẫn đọc prop `classes` (trạng thái hiện tại), chưa nối vào
-            bộ chọn kỳ — việc đó thuộc đợt 2. Cho tới lúc đó phải nói thẳng ra:
-            nếu không, thanh ngữ cảnh ghi "6 lớp đang chạy" cho Tháng 5 trong khi
-            bảng ngay dưới liệt kê 15 dòng, và người xem không biết tin số nào.
-          */}
-          <div>
-            <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
-              <Table2 className="w-4 h-4 text-[#db0829]" /> Bảng Quản Lý Toàn Bộ Lớp (Master Table)
-            </h3>
-            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
-              Hiện trạng hôm nay của toàn bộ lớp — KHÔNG lọc theo kỳ báo cáo đã chọn ở trên.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[#404040]/40 dark:text-[#71717a] absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Lọc lớp/GV..."
-                value={searchClass}
-                onChange={(e) => setSearchClass(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#3f3f46] text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] w-full sm:w-56 transition-all"
-              />
+      <div className="rounded-[16px] bg-white dark:bg-[#27272a] shadow-sm flex flex-col overflow-hidden">
+        {/*
+          Khối này vẫn đọc prop `classes` (trạng thái hiện tại), chưa nối vào
+          bộ chọn kỳ — việc đó thuộc đợt 2. Cho tới lúc đó phải nói thẳng ra:
+          nếu không, thanh ngữ cảnh ghi "6 lớp đang chạy" cho Tháng 5 trong khi
+          bảng ngay dưới liệt kê 15 dòng, và người xem không biết tin số nào.
+        */}
+        <SectionHeader
+          icon={<Table2 className="w-4 h-4 text-[#db0829]" />}
+          title="Bảng Quản Lý Toàn Bộ Lớp (Master Table)"
+          subtitle="Hiện trạng hôm nay của toàn bộ lớp — KHÔNG lọc theo kỳ báo cáo đã chọn ở trên."
+          right={
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-[#404040]/40 dark:text-[#71717a] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Lọc lớp/GV..."
+                  value={searchClass}
+                  onChange={(e) => setSearchClass(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#3f3f46] text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] w-full sm:w-56 transition-all"
+                />
+              </div>
+              <span className="hidden sm:inline text-[10px] text-[#404040]/50 dark:text-[#71717a]">Bấm vào hàng để vào lớp</span>
             </div>
-            <span className="hidden sm:inline text-[10px] text-[#404040]/50 dark:text-[#71717a]">Bấm vào hàng để vào lớp</span>
-          </div>
-        </div>
+          }
+        />
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
+          <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
             <thead>
-              <tr className="border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6] dark:bg-[#18181b] text-[#404040]/60 dark:text-[#71717a] font-semibold uppercase tracking-wider">
+              <tr className="border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6] dark:bg-[#18181b] text-[#404040]/60 dark:text-[#71717a] font-semibold uppercase tracking-wider text-xs">
                 <th className="py-3 px-4">Mã lớp / Khóa</th>
                 <th className="py-3 px-4">Giáo viên chủ nhiệm</th>
                 <th className="py-3 px-4 text-center">Sĩ số (Active)</th>
@@ -322,10 +309,10 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     <td className="py-3.5 px-4 text-center font-mono font-bold text-[#404040] dark:text-[#e4e4e7]">
                       {c.studentCounts.active} / {c.studentCounts.totalEnrolled}
                     </td>
-                    <td className="py-3.5 px-4 text-center text-xs">
-                      <span className={`${getMetricColor(c.healthMetrics.attendanceAverage)} font-medium`}>ĐH: {c.healthMetrics.attendanceAverage}%</span>
+                    <td className="py-3.5 px-4 text-center">
+                      <span className={`${getMetricColor(c.healthMetrics.attendanceAverage)} font-medium font-mono`}>ĐH: {c.healthMetrics.attendanceAverage}%</span>
                       <span className="text-[#404040]/30 dark:text-[#52525b] mx-1">•</span>
-                      <span className={`${getMetricColor(c.healthMetrics.homeworkAverage)} font-medium`}>BT: {c.healthMetrics.homeworkAverage}%</span>
+                      <span className={`${getMetricColor(c.healthMetrics.homeworkAverage)} font-medium font-mono`}>BT: {c.healthMetrics.homeworkAverage}%</span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-mono font-bold text-[#404040] dark:text-[#e4e4e7]">{c.progress.percentage}%</span>
@@ -357,20 +344,14 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       {/* Layer 4: Stacked Bar Chart - Label Distribution */}
-      <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
-        <div className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46] border-l-4 border-l-[#db0829] px-5 py-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#db0829]" /> Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)
-            </h3>
-            {/* Cùng lý do như Master Table: chưa nối vào bộ chọn kỳ (đợt 2). */}
-            <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
-              So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối · Hiện trạng hôm nay,
-              KHÔNG lọc theo kỳ báo cáo đã chọn ở trên.
-            </p>
-          </div>
-          <BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />
-        </div>
+      <div className="rounded-[16px] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
+        {/* Cùng lý do như Master Table: chưa nối vào bộ chọn kỳ (đợt 2). */}
+        <SectionHeader
+          icon={<BarChart3 className="w-4 h-4 text-[#db0829]" />}
+          title="Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)"
+          subtitle="So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối · Hiện trạng hôm nay, KHÔNG lọc theo kỳ báo cáo đã chọn ở trên."
+          right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
+        />
         
         <div className="h-80 w-full p-5 pb-6">
           <ResponsiveContainer width="100%" height="100%">

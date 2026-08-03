@@ -35,7 +35,7 @@ export const ContextBar: React.FC<ContextBarProps> = ({
       : Math.round((noDataStudents / aggregate.activeStudents) * 100);
 
   return (
-    <div className="rounded-[16px] border border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] px-5 py-4 flex flex-col gap-2">
+    <div className="rounded-[16px] bg-white dark:bg-[#27272a] px-5 py-4 flex flex-col gap-2">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-2">
           <CalendarRange className="w-4 h-4 text-[#db0829]" />

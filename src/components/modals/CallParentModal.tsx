@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, PhoneCall, Copy, Check, AlertTriangle, Lightbulb, Mic } from 'lucide-react';
 import type { StudentDetail } from '../../data/mockData';
+import { isUrgentCallStudent } from '../../data/selectors';
 
 interface CallParentModalProps {
   isOpen: boolean;
@@ -22,9 +23,7 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const urgentStudents = students.filter(
-    (s) => s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' || s.attendance.percentage < 80
-  );
+  const urgentStudents = students.filter(isUrgentCallStudent);
 
   const handleCopyPhone = (phone: string) => {
     navigator.clipboard.writeText(phone);
@@ -51,9 +50,7 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
             <div>
               <h2 className="text-base font-semibold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
                 Danh sách Cần gọi điện Phụ huynh gấp
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/10 text-red-500 font-mono">
-                  {urgentStudents.length} Học viên
-                </span>
+                <span className="text-xs font-mono text-red-500">{urgentStudents.length} Học viên</span>
               </h2>
               <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa]">
                 Can thiệp 30 giây: Copy SĐT gọi ngay &amp; sử dụng kịch bản nói chuyện chuẩn hóa IZONE.
@@ -115,7 +112,7 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
                         className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
                           copiedPhone === s.phone
                             ? 'bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
-                            : 'bg-transparent border border-[#db0829] text-[#db0829] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95'
+                            : 'bg-transparent border border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95'
                         }`}
                       >
                         {copiedPhone === s.phone ? (
@@ -146,14 +143,14 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
                       <button
                         onClick={() => handleCopyScript(idx, s.fullName, reason)}
                         className={`text-xs font-semibold flex items-center gap-1 px-2 py-0.5 rounded-[8px] transition-all ${
-                          copiedScript === idx ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-[#DB0829] hover:underline'
+                          copiedScript === idx ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-red-500 hover:underline'
                         }`}
                       >
                         {copiedScript === idx ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                         {copiedScript === idx ? 'Đã copy lời thoại' : 'Copy lời thoại thoại'}
                       </button>
                     </div>
-                    <p className="text-[#404040]/70 dark:text-[#a1a1aa] italic leading-relaxed pl-2 border-l-2 border-[#DB0829]">
+                    <p className="text-[#404040]/70 dark:text-[#a1a1aa] italic leading-relaxed pl-2 border-l-2 border-red-500">
                       "Chào anh/chị, em là <b className="text-[#404040] dark:text-[#e4e4e7]">{teacherName}</b>, GVCN lớp <b className="text-[#404040] dark:text-[#e4e4e7]">{className}</b> của IZONE. Em gọi trao đổi về bạn <b className="text-[#404040] dark:text-[#e4e4e7]">{s.fullName}</b>. Hiện bạn đang gặp vấn đề: <span className="text-red-500">{reason}</span>. Rất mong gia đình đồng hành nhắc nhở bạn ạ!"
                     </p>
                   </div>
