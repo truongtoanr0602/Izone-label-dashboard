@@ -62,10 +62,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
 
       {/*
         Hai dòng mẫu số riêng biệt khi có `note`: dòng trên thuộc về con số lớn,
-        dòng dưới thuộc về delta. Phân biệt bằng CÂU CHỮ chứ không bằng kiểu
-        dáng — `formatComparisonNote` luôn mở đầu bằng "thay đổi". Cố ý không làm
-        dòng dưới mờ đi: đây chính là dòng cần đọc được, hạ tương phản ở cỡ 10px
-        là xoá nó khỏi màn hình.
+        dòng dưới thuộc về delta. Phân biệt bằng CÂU CHỮ (formatComparisonNote
+        luôn mở đầu bằng "thay đổi") VÀ bằng một đường kẻ mảnh phía trên dòng
+        delta — hai câu gần giống nhau về hình thức nên chỉ câu chữ là chưa đủ
+        để mắt phân biệt nhanh. Cố ý không làm dòng dưới mờ đi: đây chính là
+        dòng cần đọc được, hạ tương phản ở cỡ 10px là xoá nó khỏi màn hình.
       */}
       {note !== undefined && (
         <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-1.5">
@@ -74,7 +75,9 @@ export const KpiCard: React.FC<KpiCardProps> = ({
       )}
       <p
         className={`text-[10px] text-[#404040]/50 dark:text-[#71717a] ${
-          note !== undefined ? 'mt-0.5' : 'mt-1.5'
+          note !== undefined
+            ? 'mt-1.5 pt-1.5 border-t border-[#f3f4f6] dark:border-[#3f3f46]'
+            : 'mt-1.5'
         }`}
       >
         {formatComparisonNote(delta)}
