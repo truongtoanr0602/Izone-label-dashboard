@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ExternalLink, Download, Menu, Moon, Sun } from 'lucide-react';
+import { ChevronDown, ExternalLink, Download, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
 import type { ClassSummary } from '../../data/mockData';
 
 interface HeaderProps {
@@ -9,6 +9,8 @@ interface HeaderProps {
   onOpenMobileMenu?: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  isSidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,7 +19,9 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectClass,
   onOpenMobileMenu,
   isDarkMode,
-  onToggleDarkMode
+  onToggleDarkMode,
+  isSidebarCollapsed,
+  onToggleSidebar
 }) => {
   const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
   const classMenuRef = useRef<HTMLDivElement>(null);
@@ -49,13 +53,20 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
             {onOpenMobileMenu && (
-              <button 
+              <button
                 onClick={onOpenMobileMenu}
                 className="xl:hidden p-2 -ml-2 rounded-[8px] text-[#404040]/60 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] transition-colors"
               >
                 <Menu className="w-6 h-6" />
               </button>
             )}
+            <button
+              onClick={onToggleSidebar}
+              className="hidden xl:flex p-2 -ml-2 rounded-[8px] text-[#404040]/60 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] transition-colors"
+              title={isSidebarCollapsed ? 'Hiện sidebar' : 'Ẩn sidebar'}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
 
             <div>
               <span className="text-xs font-bold tracking-widest text-[#DB0829] uppercase">

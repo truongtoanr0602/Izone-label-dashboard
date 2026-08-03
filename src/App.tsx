@@ -20,6 +20,7 @@ export default function App() {
   const urgentCallCount = students.filter(isUrgentCallStudent).length;
   const homeworkReminderCount = students.filter(isHomeworkReminderStudent).length;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Navigation & Tabs
@@ -56,7 +57,7 @@ export default function App() {
       )}
 
       {/* Left Sidebar (Desktop & Mobile Drawer) */}
-      <aside className={`fixed inset-y-0 left-0 w-64 h-full flex-shrink-0 flex flex-col z-[60] xl:z-20 border-r border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#404040] dark:text-[#e4e4e7] p-5 space-y-6 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 w-64 h-full flex-shrink-0 flex flex-col z-[60] xl:z-20 border-r border-[#f3f4f6] dark:border-[#3f3f46] bg-white dark:bg-[#27272a] text-[#404040] dark:text-[#e4e4e7] p-5 space-y-6 transform transition-all duration-300 xl:relative xl:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} ${isSidebarCollapsed ? 'xl:w-0 xl:p-0 xl:border-0 xl:overflow-hidden' : ''}`}>
         {/* Logo / Header in Sidebar */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
@@ -174,6 +175,8 @@ export default function App() {
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebar={() => setIsSidebarCollapsed((v) => !v)}
         />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
           {activeTab === 'lead' && (
