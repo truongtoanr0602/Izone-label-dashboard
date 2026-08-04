@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, MessageSquare, Copy, Check, TrendingDown, Send, MessageCircle } from 'lucide-react';
 import type { ContactLog, StudentDetail } from '../../data/mockData';
-import { isContacted, isHomeworkReminderStudent } from '../../data/selectors';
-import { LABEL_TEXT } from '../../data/labels';
+import { closingContact, isHomeworkReminderStudent } from '../../data/selectors';
+import { LABEL_TEXT, TRIGGER_DONE_TEXT } from '../../data/labels';
 import { ContactTickButton } from '../common/ContactTickButton';
 
 interface ZaloRemindModalProps {
@@ -77,7 +77,12 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
             </div>
           ) : (
             hwStudents.map((s, idx) => {
-              const contacted = isContacted(contactLogs, s.studentId, 'homework_reminder', checkpoint);
+              // Có thể đã được đóng hộ bởi một cuộc gọi phụ huynh ở cùng mốc —
+              // kịch bản gọi đã nêu vấn đề BTVN nên nhắn lại là nói hai lần.
+              const closedBy = closingContact(contactLogs, s.studentId, 'homework_reminder', checkpoint);
+              const contacted = closedBy?.trigger === 'homework_reminder';
+              const coveredByText =
+                closedBy && !contacted ? TRIGGER_DONE_TEXT[closedBy.trigger] : undefined;
 
               return (
                 <div key={s.studentId} className="p-4 rounded-[12px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] hover:border-[#e5e7eb] dark:hover:border-[#52525b] transition-all space-y-3">
@@ -136,6 +141,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                   <div className="flex items-center justify-end border-t border-[#f3f4f6] dark:border-[#3f3f46] pt-3">
                     <ContactTickButton
                       contacted={contacted}
+                      coveredByText={coveredByText}
                       checkpoint={checkpoint}
                       onMark={() => onMarkContacted(s)}
                       onUndo={() => onUndoContacted(s)}
