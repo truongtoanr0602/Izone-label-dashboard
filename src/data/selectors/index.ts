@@ -9,4 +9,20 @@ export {
   previousPeriodKey,
   type Period,
 } from './periods';
-export { isUrgentCallStudent, isHomeworkReminderStudent } from './studentFilters';
+export {
+  isUrgentCallStudent,
+  isHomeworkReminderStudent,
+  isRelearnAdviceStudent,
+} from './studentFilters';
+export {
+  NO_CHECKPOINT,
+  contactCoverage,
+  currentCheckpoint,
+  episodeKey,
+  isContacted,
+  lastContact,
+  openEpisodes,
+  remainingCount,
+  type ContactCoverage,
+  type Episode,
+} from './contactLog';

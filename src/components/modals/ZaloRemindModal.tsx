@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, MessageSquare, Copy, Check, TrendingDown, Send, MessageCircle } from 'lucide-react';
-import type { StudentDetail } from '../../data/mockData';
-import { isHomeworkReminderStudent } from '../../data/selectors';
+import type { ContactLog, StudentDetail } from '../../data/mockData';
+import { isContacted, isHomeworkReminderStudent } from '../../data/selectors';
+import { LABEL_TEXT } from '../../data/labels';
+import { ContactTickButton } from '../common/ContactTickButton';
 
 interface ZaloRemindModalProps {
   isOpen: boolean;
@@ -9,6 +11,10 @@ interface ZaloRemindModalProps {
   students: StudentDetail[];
   className: string;
   teacherName: string;
+  contactLogs: ContactLog[];
+  checkpoint: string;
+  onMarkContacted: (student: StudentDetail) => void;
+  onUndoContacted: (student: StudentDetail) => void;
 }
 
 export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
@@ -16,7 +22,11 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
   onClose,
   students,
   className,
-  teacherName
+  teacherName,
+  contactLogs,
+  checkpoint,
+  onMarkContacted,
+  onUndoContacted
 }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -66,61 +76,81 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
               <p className="font-semibold text-[#404040] dark:text-[#e4e4e7]">Tuyệt vời! Tất cả học viên đều nộp BTVN rất đầy đủ.</p>
             </div>
           ) : (
-            hwStudents.map((s, idx) => (
-              <div key={s.studentId} className="p-4 rounded-[12px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] hover:border-[#e5e7eb] dark:hover:border-[#52525b] transition-all flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
-                    {s.fullName}
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 font-semibold font-mono">
-                      BTVN: {s.homework.percentage}% ({s.homework.completedCount}/{s.homework.totalCount})
-                    </span>
-                  </h4>
-                  <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
-                    <TrendingDown className="w-3.5 h-3.5 text-amber-500 inline" />
-                    <span>SĐT Zalo: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.phone}</b></span>
-                    <span>•</span>
-                    <span>ĐH: <b className="text-[#404040] dark:text-[#e4e4e7]">{s.attendance.percentage}%</b></span>
-                  </p>
-                </div>
+            hwStudents.map((s, idx) => {
+              const contacted = isContacted(contactLogs, s.studentId, 'homework_reminder', checkpoint);
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleCopyMessage(idx, s.fullName, s.homework.percentage)}
-                    className={`px-3 py-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                      copiedIndex === idx
-                        ? 'bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
-                        : 'bg-transparent border border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95'
-                    }`}
-                  >
-                    {copiedIndex === idx ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" /> Đã Copy tin nhắn
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" /> Copy tin nhắn Zalo
-                      </>
-                    )}
-                  </button>
-                  <a
-                    href={`https://zalo.me/${s.phone}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 rounded-[8px] bg-transparent border border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                    title="Mở chat Zalo web"
-                  >
-                    <Send className="w-4 h-4" />
-                  </a>
+              return (
+                <div key={s.studentId} className="p-4 rounded-[12px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] hover:border-[#e5e7eb] dark:hover:border-[#52525b] transition-all space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-[#404040] dark:text-[#e4e4e7] flex flex-wrap items-center gap-2">
+                        {s.fullName}
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/20 font-semibold font-mono">
+                          BTVN: {s.homework.percentage}% ({s.homework.completedCount}/{s.homework.totalCount})
+                        </span>
+                        {/* Nhãn hiện ở đây để thấy rõ HV Xám VẪN được nhắc BTVN —
+                            luồng tư vấn học lại không nuốt mất họ khỏi danh sách này. */}
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-[#404040]/5 dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#52525b] font-semibold uppercase">
+                          {LABEL_TEXT[s.labeling.currentLabel]}
+                        </span>
+                      </h4>
+                      <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
+                        <TrendingDown className="w-3.5 h-3.5 text-amber-500 inline" />
+                        <span>SĐT Zalo: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.phone}</b></span>
+                        <span>•</span>
+                        <span>ĐH: <b className="text-[#404040] dark:text-[#e4e4e7]">{s.attendance.percentage}%</b></span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleCopyMessage(idx, s.fullName, s.homework.percentage)}
+                        className={`px-3 py-2 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                          copiedIndex === idx
+                            ? 'bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                            : 'bg-transparent border border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 active:scale-95'
+                        }`}
+                      >
+                        {copiedIndex === idx ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" /> Đã Copy tin nhắn
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" /> Copy tin nhắn Zalo
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href={`https://zalo.me/${s.phone}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-2 rounded-[8px] bg-transparent border border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        title="Mở chat Zalo web"
+                      >
+                        <Send className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end border-t border-[#f3f4f6] dark:border-[#3f3f46] pt-3">
+                    <ContactTickButton
+                      contacted={contacted}
+                      checkpoint={checkpoint}
+                      onMark={() => onMarkContacted(s)}
+                      onUndo={() => onUndoContacted(s)}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
         {/* Modal Footer */}
         <div className="px-6 py-4 bg-[#f3f4f6] dark:bg-[#18181b] border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-between">
           <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
-            <MessageCircle className="w-3.5 h-3.5 text-[#475569] dark:text-[#a1a1aa]" /> <b className="text-[#404040] dark:text-[#e4e4e7]">Lưu ý:</b> Bấm biểu tượng máy bay xanh để mở thẳng Zalo Web chat với học viên.
+            <MessageCircle className="w-3.5 h-3.5 text-[#475569] dark:text-[#a1a1aa]" /> <b className="text-[#404040] dark:text-[#e4e4e7]">Lưu ý:</b> Gửi xong bấm "Đã liên hệ" — xác nhận gắn với mốc <b className="text-[#404040] dark:text-[#e4e4e7]">{checkpoint}</b>.
           </p>
           <button
             onClick={onClose}

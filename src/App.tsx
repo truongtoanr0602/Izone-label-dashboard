@@ -5,10 +5,19 @@ import { StudentTable } from './components/dashboard/StudentTable';
 import { LeadDashboard } from './components/dashboard/LeadDashboard';
 import { CallParentModal } from './components/modals/CallParentModal';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
+import { RelearnAdviceModal } from './components/modals/RelearnAdviceModal';
+import type { TableFilter } from './components/dashboard/StudentTable';
 import { MOCK_CLASSES, getStudentsByClass } from './data/mockData';
-import type { ClassSummary } from './data/mockData';
-import { isHomeworkReminderStudent, isUrgentCallStudent } from './data/selectors';
-import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare } from 'lucide-react';
+import type { ClassSummary, ContactChannel, ContactLog, ContactTrigger, StudentDetail } from './data/mockData';
+import {
+  currentCheckpoint,
+  isHomeworkReminderStudent,
+  isRelearnAdviceStudent,
+  isUrgentCallStudent,
+  remainingCount,
+} from './data/selectors';
+import { appendLog, loadLogs, removeLog } from './data/contactStore';
+import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare, Compass } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
 
 export default function App() {
@@ -19,17 +28,48 @@ export default function App() {
   const students = getStudentsByClass(selectedClass.classId);
   const urgentCallCount = students.filter(isUrgentCallStudent).length;
   const homeworkReminderCount = students.filter(isHomeworkReminderStudent).length;
+  const relearnCount = students.filter(isRelearnAdviceStudent).length;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  /**
+   * Nhật ký liên hệ. Ở đây vì App.tsx là component có state duy nhất — không có
+   * context, không có store. `loadLogs` truyền dạng hàm để chỉ đọc localStorage
+   * một lần lúc mount, không phải mỗi lần render.
+   */
+  const [contactLogs, setContactLogs] = useState<ContactLog[]>(loadLogs);
+  const checkpoint = currentCheckpoint(students);
+
+  const markContacted = (trigger: ContactTrigger, channel: ContactChannel) => (s: StudentDetail) =>
+    setContactLogs((logs) =>
+      appendLog(logs, {
+        studentId: s.studentId,
+        classId: selectedClass.classId,
+        teacherId: selectedClass.teacher.teacherId,
+        channel,
+        trigger,
+        checkpoint,
+      }),
+    );
+
+  const undoContacted = (trigger: ContactTrigger) => (s: StudentDetail) =>
+    setContactLogs((logs) => removeLog(logs, s.studentId, trigger, checkpoint));
+
+  const remaining = {
+    urgent: remainingCount(students, contactLogs, 'urgent_call', checkpoint),
+    relearn: remainingCount(students, contactLogs, 'relearn_advice', checkpoint),
+    homework: remainingCount(students, contactLogs, 'homework_reminder', checkpoint),
+  };
+
   // Navigation & Tabs
   const [activeTab, setActiveTab] = useState<'lead' | 'teacher'>('lead');
-  const [tableFilter, setTableFilter] = useState<'all' | 'urgent' | 'pass' | 'review'>('all');
+  const [tableFilter, setTableFilter] = useState<TableFilter>('all');
 
   // Modal states
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [isZaloModalOpen, setIsZaloModalOpen] = useState(false);
+  const [isRelearnModalOpen, setIsRelearnModalOpen] = useState(false);
 
   const handleDrillDownToClass = (cls: ClassSummary) => {
     setSelectedClass(cls);
@@ -184,6 +224,7 @@ export default function App() {
               classes={classes}
               onSelectClassAndDrillDown={handleDrillDownToClass}
               isDarkMode={isDarkMode}
+              contactLogs={contactLogs}
             />
           )}
 
@@ -209,12 +250,18 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => setIsCallModalOpen(true)}
                     className="px-3.5 py-2 rounded-[8px] bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 font-bold text-xs transition-all hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
                     <AlertTriangle className="w-3.5 h-3.5" /> Gọi gấp ({urgentCallCount})
+                  </button>
+                  <button
+                    onClick={() => setIsRelearnModalOpen(true)}
+                    className="px-3.5 py-2 rounded-[8px] bg-slate-100 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all hover:bg-slate-200 dark:hover:bg-slate-800/70 active:scale-95 inline-flex items-center gap-1.5"
+                  >
+                    <Compass className="w-3.5 h-3.5" /> Tư vấn học lại ({relearnCount})
                   </button>
                   <button
                     onClick={() => setIsZaloModalOpen(true)}
@@ -228,9 +275,13 @@ export default function App() {
               {/* Top Ribbon (30-Second Intervention Cards) */}
               <TopRibbon
                 selectedClass={selectedClass}
+                relearnCount={relearnCount}
+                remaining={remaining}
                 onOpenCallModal={() => setIsCallModalOpen(true)}
                 onOpenZaloModal={() => setIsZaloModalOpen(true)}
+                onOpenRelearnModal={() => setIsRelearnModalOpen(true)}
                 onFilterUrgent={() => setTableFilter('urgent')}
+                onFilterRelearn={() => setTableFilter('relearn')}
               />
 
               {/* Student Table */}
@@ -238,8 +289,11 @@ export default function App() {
                 students={students}
                 onOpenCallModal={() => setIsCallModalOpen(true)}
                 onOpenZaloModal={() => setIsZaloModalOpen(true)}
+                onOpenRelearnModal={() => setIsRelearnModalOpen(true)}
                 activeFilter={tableFilter}
                 onChangeFilter={(f) => setTableFilter(f)}
+                contactLogs={contactLogs}
+                checkpoint={checkpoint}
               />
             </div>
           )}
@@ -253,6 +307,21 @@ export default function App() {
         students={students}
         className={selectedClass.className}
         teacherName={selectedClass.teacher.fullName}
+        contactLogs={contactLogs}
+        checkpoint={checkpoint}
+        onMarkContacted={markContacted('urgent_call', 'call')}
+        onUndoContacted={undoContacted('urgent_call')}
+      />
+      <RelearnAdviceModal
+        isOpen={isRelearnModalOpen}
+        onClose={() => setIsRelearnModalOpen(false)}
+        students={students}
+        className={selectedClass.className}
+        teacherName={selectedClass.teacher.fullName}
+        contactLogs={contactLogs}
+        checkpoint={checkpoint}
+        onMarkContacted={markContacted('relearn_advice', 'call')}
+        onUndoContacted={undoContacted('relearn_advice')}
       />
       <ZaloRemindModal
         isOpen={isZaloModalOpen}
@@ -260,6 +329,10 @@ export default function App() {
         students={students}
         className={selectedClass.className}
         teacherName={selectedClass.teacher.fullName}
+        contactLogs={contactLogs}
+        checkpoint={checkpoint}
+        onMarkContacted={markContacted('homework_reminder', 'zalo')}
+        onUndoContacted={undoContacted('homework_reminder')}
       />
     </div>
   );

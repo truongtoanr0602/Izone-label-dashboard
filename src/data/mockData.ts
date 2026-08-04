@@ -25,9 +25,11 @@ import {
   labelFromAverage,
 } from './generator/generate';
 import { REFERENCE_DATE } from './generator/classPlan';
+import { currentCheckpoint, openEpisodes } from './selectors/contactLog';
 import type {
   ClassSnapshot,
   ClassSummary,
+  ContactLog,
   LabelChangeLog,
   PendingReviewEnriched,
   StudentDetail,
@@ -37,6 +39,9 @@ import type {
 export type {
   ClassSnapshot,
   ClassSummary,
+  ContactChannel,
+  ContactLog,
+  ContactTrigger,
   LabelChangeLog,
   LabelCode,
   PendingReviewEnriched,
@@ -110,3 +115,58 @@ export const MOCK_HISTORICAL_LABEL_CHANGES: LabelChangeLog[] = HISTORICAL_CLASSE
 );
 
 export const MOCK_PENDING_REVIEWS: PendingReviewEnriched[] = buildPendingReviews();
+
+/* ------------------------------------------------------------------ *
+ * Nhật ký liên hệ
+ * ------------------------------------------------------------------ */
+
+/**
+ * Nền có sẵn cho nhật ký liên hệ, sinh TẤT ĐỊNH (không `Math.random`) để hai
+ * lần tải trang cho ra cùng một con số độ phủ.
+ *
+ * Cố ý ghi một phần log vào checkpoint TRƯỚC mốc hiện tại: đó là cách duy nhất
+ * để nhìn thấy ngay hành vi quan trọng nhất của mô hình này — tick cũ không
+ * còn hiệu lực sau khi lớp thi bài mới, nên cảnh báo tự nổi lại.
+ */
+export const MOCK_CONTACT_LOGS: ContactLog[] = ACTIVE_CLASSES.flatMap((c) => {
+  const checkpoint = currentCheckpoint(c.students);
+  const previous = previousCheckpoint(checkpoint);
+
+  return openEpisodes(c.students).flatMap((ep, idx) => {
+    // 1 trong 3 episode chưa ai đụng tới — để bảng của Lead không hiện 100%
+    // ở mọi lớp, vì một dashboard lúc nào cũng xanh thì không ai nhìn.
+    if (idx % 3 === 2) return [];
+
+    // Cứ 4 log thì 1 log rơi vào mốc cũ → episode đó hiện ra là CHƯA liên hệ.
+    const atPrevious = idx % 4 === 1 && previous !== null;
+    const student = c.students.find((s) => s.studentId === ep.studentId);
+
+    return [
+      {
+        contactId: `CT${c.plan.classId}-${ep.studentId}-${ep.trigger}`,
+        studentId: ep.studentId,
+        classId: c.plan.classId,
+        teacherId: c.summary.teacher.teacherId,
+        channel: ep.trigger === 'homework_reminder' ? ('zalo' as const) : ('call' as const),
+        trigger: ep.trigger,
+        checkpoint: atPrevious ? (previous as string) : checkpoint,
+        note: '',
+        createdAt: student?.updatedAt ?? REFERENCE_DATE,
+      },
+    ];
+  });
+});
+
+/**
+ * Mốc test liền trước, suy từ tên (`'Test 3'` → `'Test 2'`).
+ *
+ * Chỉ dùng để dựng dữ liệu mock. Bản thật đọc thẳng lịch sử checkpoint từ
+ * `09_Weekly_Snapshot`, không đoán từ chuỗi.
+ */
+function previousCheckpoint(checkpoint: string): string | null {
+  const match = /^Test (\d+)$/.exec(checkpoint);
+  if (!match) return null;
+
+  const order = Number(match[1]);
+  return order > 1 ? `Test ${order - 1}` : null;
+}
