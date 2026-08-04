@@ -7,16 +7,27 @@ import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import type { TableFilter } from './components/dashboard/StudentTable';
 import { MOCK_CLASSES, getStudentsByClass } from './data/mockData';
 import type { ClassSummary, ContactLog, ContactTrigger, StudentDetail } from './data/mockData';
-import {
-  currentCheckpoint,
-  isHomeworkReminderStudent,
-  isRelearnAdviceStudent,
-  isUrgentRemindStudent,
-  remainingCount,
-} from './data/selectors';
+import { currentCheckpoint, matchesTrigger, remainingCount } from './data/selectors';
 import { appendLog, loadLogs, removeLog } from './data/contactStore';
-import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, AlertTriangle, MessageSquare, Compass } from 'lucide-react';
+import { TRIGGER_SHORT_TITLE } from './data/labels';
+import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
+
+/** Nút tắt trên đầu màn hình lớp — cùng thứ tự thang can thiệp như dải thẻ. */
+const QUICK_BUTTONS: { trigger: ContactTrigger; className: string }[] = [
+  {
+    trigger: 'habit_reminder',
+    className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40',
+  },
+  {
+    trigger: 'red_followup',
+    className: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40',
+  },
+  {
+    trigger: 'relearn_advice',
+    className: 'bg-slate-100 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800/70',
+  },
+];
 
 export default function App() {
   const [classes] = useState<ClassSummary[]>(MOCK_CLASSES);
@@ -24,9 +35,6 @@ export default function App() {
   // Danh sách HV bám theo lớp đang chọn. Trước đây bị ghim cứng vào IC2174 —
   // với 3 lớp thì khó thấy, với 15 lớp thì mọi lớp đều hiện nhầm học viên.
   const students = getStudentsByClass(selectedClass.classId);
-  const urgentCallCount = students.filter(isUrgentRemindStudent).length;
-  const homeworkReminderCount = students.filter(isHomeworkReminderStudent).length;
-  const relearnCount = students.filter(isRelearnAdviceStudent).length;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -57,10 +65,20 @@ export default function App() {
   const undoContacted = (trigger: ContactTrigger, s: StudentDetail) =>
     setContactLogs((logs) => removeLog(logs, s.studentId, trigger, checkpoint));
 
-  const remaining = {
-    urgent: remainingCount(students, contactLogs, 'urgent_remind', checkpoint),
-    relearn: remainingCount(students, contactLogs, 'relearn_advice', checkpoint),
-    homework: remainingCount(students, contactLogs, 'homework_reminder', checkpoint),
+  /**
+   * Tổng và số còn lại của cả ba luồng, gõ theo `ContactTrigger` để thêm luồng
+   * mới là TypeScript bắt lỗi ngay ở đây, thay vì để một thẻ hiện số 0 âm thầm.
+   */
+  const totals: Record<ContactTrigger, number> = {
+    habit_reminder: students.filter((s) => matchesTrigger(s, 'habit_reminder')).length,
+    red_followup: students.filter((s) => matchesTrigger(s, 'red_followup')).length,
+    relearn_advice: students.filter((s) => matchesTrigger(s, 'relearn_advice')).length,
+  };
+
+  const remaining: Record<ContactTrigger, number> = {
+    habit_reminder: remainingCount(students, contactLogs, 'habit_reminder', checkpoint),
+    red_followup: remainingCount(students, contactLogs, 'red_followup', checkpoint),
+    relearn_advice: remainingCount(students, contactLogs, 'relearn_advice', checkpoint),
   };
 
   // Navigation & Tabs
@@ -254,36 +272,32 @@ export default function App() {
                   </p>
                 </div>
 
+                {/* Ba nút tắt, sinh từ cùng một danh sách luồng như dải thẻ và
+                    tab lọc — không viết tay từng nút nữa, vì đó chính là cách
+                    ba chỗ trước đây gọi cùng một nhóm bằng ba cái tên khác nhau. */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setOpenTrigger('urgent_remind')}
-                    className="px-3.5 py-2 rounded-[8px] bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 font-bold text-xs transition-all hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 inline-flex items-center gap-1.5"
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5" /> Nhắc gấp ({urgentCallCount})
-                  </button>
-                  <button
-                    onClick={() => setOpenTrigger('relearn_advice')}
-                    className="px-3.5 py-2 rounded-[8px] bg-slate-100 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all hover:bg-slate-200 dark:hover:bg-slate-800/70 active:scale-95 inline-flex items-center gap-1.5"
-                  >
-                    <Compass className="w-3.5 h-3.5" /> Nhóm Xám ({relearnCount})
-                  </button>
-                  <button
-                    onClick={() => setOpenTrigger('homework_reminder')}
-                    className="px-3.5 py-2 rounded-[8px] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-orange-600 dark:text-orange-400 font-bold text-xs transition-all hover:bg-orange-100 dark:hover:bg-orange-900/40 active:scale-95 inline-flex items-center gap-1.5"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" /> Nhắc BTVN ({homeworkReminderCount})
-                  </button>
+                  {QUICK_BUTTONS.map(({ trigger, className: btnClass }) => (
+                    <button
+                      key={trigger}
+                      onClick={() => setOpenTrigger(trigger)}
+                      className={`px-3.5 py-2 rounded-[8px] border font-bold text-xs transition-all active:scale-95 inline-flex items-center gap-1.5 ${btnClass}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> {TRIGGER_SHORT_TITLE[trigger]}
+                      <span className="font-mono opacity-70">
+                        {remaining[trigger]}/{totals[trigger]}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Top Ribbon (30-Second Intervention Cards) */}
               <TopRibbon
                 selectedClass={selectedClass}
-                relearnCount={relearnCount}
+                totals={totals}
                 remaining={remaining}
                 onOpenTrigger={setOpenTrigger}
-                onFilterUrgent={() => setTableFilter('urgent')}
-                onFilterRelearn={() => setTableFilter('relearn')}
+                onFilterTrigger={setTableFilter}
               />
 
               {/* Student Table */}

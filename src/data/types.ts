@@ -309,7 +309,7 @@ export type ContactChannel = 'call' | 'zalo' | 'in_person';
  * predicate trong `selectors/studentFilters.ts` — thêm loại mới ở đây thì
  * phải thêm predicate tương ứng, nếu không `openEpisodes` sẽ đếm thiếu.
  */
-export type ContactTrigger = 'urgent_remind' | 'homework_reminder' | 'relearn_advice';
+export type ContactTrigger = 'habit_reminder' | 'red_followup' | 'relearn_advice';
 
 /**
  * MỘT DÒNG = MỘT LƯỢT LIÊN HỆ. Append-only, không bao giờ sửa hay ghi đè.

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildZaloMessage } from './messageScripts';
 import type { ContactTrigger, StudentDetail, TestScore } from './types';
 
-const TRIGGERS: ContactTrigger[] = ['urgent_remind', 'relearn_advice', 'homework_reminder'];
+const TRIGGERS: ContactTrigger[] = ['red_followup', 'relearn_advice', 'habit_reminder'];
 
 function student(over: {
   attendance?: number;
@@ -103,13 +103,13 @@ describe('kịch bản nhóm Đỏ', () => {
   it('giọng động viên, nói rõ là còn kịp', () => {
     // Nhóm Đỏ là nhóm 50/50 — can thiệp có tác dụng thật, nên tin nhắn phải
     // nói cho em biết còn cứu được, không phải cảnh cáo.
-    const msg = buildZaloMessage('urgent_remind', student(), 'Ngọc Anh', 'IC2174');
+    const msg = buildZaloMessage('red_followup', student(), 'Ngọc Anh', 'IC2174');
     expect(msg).toContain('còn kịp');
     expect(msg).not.toMatch(/cảnh báo|nghiêm khắc|vi phạm|kỷ luật/i);
   });
 
   it('có nêu điểm trung bình khi đã thi', () => {
-    const msg = buildZaloMessage('urgent_remind', student({ testsTaken: 4, average: 48.5 }), 'Ngọc Anh', 'IC2174');
+    const msg = buildZaloMessage('red_followup', student({ testsTaken: 4, average: 48.5 }), 'Ngọc Anh', 'IC2174');
     expect(msg).toContain('48.5');
     expect(msg).toContain('4 bài test');
   });
@@ -134,24 +134,33 @@ describe('kịch bản nhóm Xám', () => {
   });
 });
 
-describe('kịch bản nhắc BTVN', () => {
-  it('nêu đúng số bài còn thiếu', () => {
-    const msg = buildZaloMessage('homework_reminder', student(), 'Ngọc Anh', 'IC2174');
+describe('kịch bản nhắc chăm học', () => {
+  it('nêu đúng số buổi và số bài', () => {
+    const msg = buildZaloMessage('habit_reminder', student(), 'Ngọc Anh', 'IC2174');
+    expect(msg).toContain('18/25 buổi');
     expect(msg).toContain('13/20 bài');
-    expect(msg).toContain('còn thiếu 7 bài');
+  });
+
+  it('NÓI RÕ ngưỡng 90%', () => {
+    // Ngưỡng nhắc là 90 (điều kiện pass) chứ không phải 80 (ngưỡng cảnh báo).
+    // Không nói ra con số thì một HV đang có BTVN 89% đọc xong sẽ không hiểu vì
+    // sao mình bị nhắc khi nhìn vào thấy "gần đủ rồi".
+    const msg = buildZaloMessage('habit_reminder', student({ homework: 89 }), 'Ngọc Anh', 'IC2174');
+    expect(msg).toContain('90%');
+    expect(msg).toContain('chuẩn đầu ra');
   });
 });
 
 describe('biên', () => {
   it('lớp chưa thi bài nào thì KHÔNG bịa ra dòng điểm', () => {
     // Thà thiếu một dòng còn hơn nói sai với học viên về điểm của chính bạn ấy.
-    const msg = buildZaloMessage('urgent_remind', student({ testsTaken: 0, average: null }), 'Ngọc Anh', 'IC2174');
+    const msg = buildZaloMessage('red_followup', student({ testsTaken: 0, average: null }), 'Ngọc Anh', 'IC2174');
     expect(msg).not.toContain('Điểm TB');
     expect(msg).toContain('Đi học:');
   });
 
   it('HV đã đạt cả ĐH lẫn BTVN vẫn nhận được lời ghi nhận, không phải lời trách', () => {
-    const msg = buildZaloMessage('urgent_remind', student({ attendance: 95, homework: 95 }), 'Ngọc Anh', 'IC2174');
+    const msg = buildZaloMessage('red_followup', student({ attendance: 95, homework: 95 }), 'Ngọc Anh', 'IC2174');
     expect(msg).toContain('cô/thầy ghi nhận điều đó');
   });
 });

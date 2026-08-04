@@ -232,7 +232,7 @@ Config: `soft_g1_test_min/max = 50/55`, `soft_g1_dh_min = soft_g1_btvn_min = 100
 | Tổng số test | 6 | `total_tests_per_course = 6` |
 | Lịch cron | `0 10 * * *` (10h sáng hàng ngày) | `cron_schedule` |
 
-⚠️ **Lưu ý ngưỡng chồng chéo**: `alert_dh_tut_pct = 80` (ngưỡng cảnh báo) khác `pass_dh_min = 90` (ngưỡng pass). `StudentTable.tsx` đang dùng `attendance.percentage < 80` cho bộ lọc "urgent" — trùng với ngưỡng cảnh báo, nhưng đó là **trùng hợp chứ không phải đọc từ config**. Nếu nghiệp vụ đổi `alert_dh_tut_pct`, frontend sẽ lệch âm thầm.
+⚠️ **Lưu ý ngưỡng chồng chéo**: `alert_dh_tut_pct = 80` (ngưỡng cảnh báo) khác `pass_dh_min = 90` (ngưỡng pass). Đây không phải chi tiết vụn — cái khe 80–90 từng khiến 27 HV nhãn Đỏ không nhận được lời nhắc nào dù chắc chắn không đủ điều kiện pass. Frontend nay chốt **ngưỡng nhắc = ngưỡng pass = 90** (`PASS_THRESHOLD_PCT` trong `src/data/selectors/studentFilters.ts`); xem §8 để biết vì sao và cái giá phải trả.
 
 ---
 
@@ -374,12 +374,12 @@ Một cột `da_lien_he: TRUE/FALSE` trên `02_DuLieu_HocVien` chỉ trả lời
 
 | Cột | Kiểu | Ví dụ | Ghi chú |
 |---|---|---|---|
-| `contact_id` | text | `CT-19428-urgent_remind-2026-08-04T03:12:55Z` | Khoá chính |
+| `contact_id` | text | `CT-19428-habit_reminder-2026-08-04T03:12:55Z` | Khoá chính |
 | `student_id` | number | `19428` | → `02.student_id` |
 | `class_id` | number | `2174` | → `01.class_id` |
 | `teacher_id` | number | `7` | → `08.teacher_id`. AI của độ phủ theo GV |
 | `channel` | enum | `zalo` \| `call` \| `in_person` | Giao diện hiện chỉ sinh ra `zalo` — xem ghi chú dưới |
-| `trigger` | enum | `urgent_remind` \| `homework_reminder` \| `relearn_advice` | Loại cảnh báo được đóng |
+| `trigger` | enum | `habit_reminder` \| `red_followup` \| `relearn_advice` | Mức can thiệp được đóng — xem bảng ba mức ở trên |
 | `checkpoint` | text | `Test 3` \| `Chưa có test` | **Phải cùng hệ giá trị với `04.checkpoint`** |
 | `note` | text | `''` | Bản v1 luôn rỗng, giữ cột sẵn |
 | `created_at` | ISO8601 | `2026-08-04T03:12:55Z` | |
@@ -396,6 +396,22 @@ Một cảnh báo được coi là "đã xử lý" khi tồn tại ít nhất m�
 
 Ba `trigger` ứng với ba predicate trong `src/data/selectors/studentFilters.ts`. Thêm trigger mới thì phải thêm predicate, nếu không `openEpisodes` đếm thiếu.
 
+### Ba mức can thiệp — quy tắc phân nhóm
+
+Cách chia cũ trộn hai trục vào nhau: nhóm "cần gọi gấp" định nghĩa là `nhãn Đỏ HOẶC điểm danh <80%` — một cái OR bắc cầu giữa trục **kết quả** (điểm test) và trục **hành vi** (đi học, nộp bài). Hai HV cùng nằm trong nhóm đó có thể vào vì hai lý do chẳng liên quan gì nhau, và không có quy tắc nào giải thích được vì sao lại là ba nhóm ấy.
+
+Cách chia hiện tại: **mỗi nhóm đúng một tiêu chí, xếp theo mức can thiệp tăng dần.**
+
+| Mức | `trigger` | Tiêu chí | Vì sao ở mức này |
+|---|---|---|---|
+| 1 | `habit_reminder` | `attendance_pct < 90` **hoặc** `homework_pct < 90` | Chưa đủ điều kiện pass. **Nhắc nhở giải quyết được.** Không đọc nhãn — đây thuần trục hành vi |
+| 2 | `red_followup` | `nhan_hien_tai = 'Đỏ'` (TB test 45–59) | Dưới ngưỡng đạt nhưng §4 cho thấy còn cứu được: can thiệp + ĐH & BTVN > 90% → tỷ lệ đạt vượt 60%. Tin nhắn **động viên**, không phải cảnh báo |
+| 3 | `relearn_advice` | `nhan_hien_tai = 'Xám'` (TB test <45) | §4: "gần như không cứu được dù ĐH & BTVN đạt 83%". **Nhắc nhở KHÔNG giải quyết được** — nhóm duy nhất cần một loại trao đổi khác về chất |
+
+Nhãn Đỏ **không** còn được coi là "gấp": việc cần làm với họ đúng bằng việc cần làm với bất kỳ ai đang lơ là, không có gì khẩn cấp theo giờ.
+
+⚠️ **Ngưỡng mức 1 là 90, không phải 80.** Trước đây frontend dùng `alert_dh_tut_pct = 80`, trong khi điều kiện pass là `pass_dh_min = pass_btvn_min = 90`. Cái khe 80–90 khiến **27 HV nhãn Đỏ** có ĐH/BTVN kiểu 89% không nhận được lời nhắc nào — trên ngưỡng cảnh báo nên hệ thống im lặng, nhưng dưới ngưỡng pass nên chắc chắn trượt. Đổi sang 90 làm nhóm mức 1 tăng từ 18 lên **121 HV / 264** (~15 tin mỗi lớp mỗi mốc test). Nếu nghiệp vụ đổi `pass_dh_min` thì phải đổi `PASS_THRESHOLD_PCT` trong `src/data/selectors/studentFilters.ts`, nếu không lời nhắc sẽ lệch âm thầm với điều kiện thật.
+
 ### Kênh liên hệ: chỉ Zalo, gửi cho HỌC VIÊN
 
 Chốt với nghiệp vụ: **GV thực tế không gọi phụ huynh.** Họ nhắn Zalo cho chính học viên. Toàn bộ giao diện đã bỏ luồng gọi phụ huynh; mọi kịch bản trong `src/data/messageScripts.ts` xưng hô "em" và có test chặn việc lỡ viết cho phụ huynh.
@@ -405,23 +421,23 @@ Chốt với nghiệp vụ: **GV thực tế không gọi phụ huynh.** Họ nh
 ### Đóng hộ giữa các luồng — **một chiều**
 
 ```
-urgent_remind   ──┐
-                  ├──đóng hộ──►  homework_reminder
+red_followup    ──┐
+                  ├──đóng hộ──►  habit_reminder
 relearn_advice  ──┘
 ```
 
 Một HV có thể mở nhiều episode cùng lúc. Đo trên dữ liệu mock: trong 17 HV của danh sách nhắc BTVN có **6 HV đồng thời thuộc nhóm Đỏ hoặc Xám**. Vì **mọi kịch bản đều nêu cả đi học lẫn BTVN kèm số cụ thể**, bắt GV nhắn thêm một tin riêng để nhắc nộp bài cho chính HV vừa nhắn là gửi hai tin nói cùng một việc, và làm thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
 
-Nên: một dòng `trigger = 'urgent_remind'` hoặc `'relearn_advice'` cũng đóng luôn episode `homework_reminder` của cùng `student_id` tại **cùng `checkpoint`**.
+Nên: một dòng `trigger = 'red_followup'` hoặc `'relearn_advice'` cũng đóng luôn episode `habit_reminder` của cùng `student_id` tại **cùng `checkpoint`**.
 
 ⚠️ **Luật này phụ thuộc vào nội dung kịch bản.** Nếu ai sửa `messageScripts.ts` bỏ phần bài tập ra khỏi tin nhóm Đỏ/Xám thì luật đóng hộ thành ra nói dối. Cái chặn là test trong `messageScripts.test.ts` — nó khẳng định cả ba kịch bản đều chứa số ĐH và số BTVN. Đừng xoá test đó.
 
 Chiều ngược lại **không** được phép, và đây là ràng buộc nghiệp vụ chứ không phải chi tiết cài đặt:
 
-- `homework_reminder` **không** đóng `urgent_remind` hay `relearn_advice` — tin nhắc bài tập không nói gì về việc đi học sa sút hay về lộ trình học. Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
-- `urgent_remind` và `relearn_advice` **không** đóng lẫn nhau — nội dung hai tin khác hẳn nhau về chất.
+- `habit_reminder` **không** đóng `red_followup` hay `relearn_advice` — tin nhắc chăm học không nói gì về điểm test hay về lộ trình. Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
+- `red_followup` và `relearn_advice` **không** đóng lẫn nhau — một bên động viên tăng tốc, một bên mở lời bàn lại lộ trình, khác hẳn nhau về chất.
 
-Trên giao diện, episode bị đóng hộ hiện huy hiệu xám *"Đã nhắn (nhóm gấp) · Test 3"* (khác hẳn huy hiệu xanh của lượt GV tự tick) kèm liên kết *"Vẫn nhắn thêm"* — hệ thống không giả vờ rằng đã có một tin nhắn riêng được gửi.
+Trên giao diện, episode bị đóng hộ hiện huy hiệu xám *"Đã nhắn (nhóm Đỏ) · Test 3"* (khác hẳn huy hiệu xanh của lượt GV tự tick) kèm liên kết *"Vẫn nhắn thêm"* — hệ thống không giả vờ rằng đã có một tin nhắn riêng được gửi.
 
 ### Ghi ngược qua n8n
 
@@ -452,7 +468,13 @@ Hệ quả: một HV **nhãn Xám** đi học đều và nộp bài đủ nhận
 
 Frontend đã vá bằng cách thêm luồng riêng `relearn_advice` (predicate `isRelearnAdviceStudent`), độc lập với `suggestedAction`. Nếu backend sinh `suggestedAction` thật thì phải xử lý nhánh nhãn Xám ở đó, nếu không hai bên sẽ lệch nhau.
 
-Cũng lưu ý: giá trị `'call_parent'` trong `suggestedAction` giờ **sai tên so với nghiệp vụ** — hành động thật là nhắn Zalo cho học viên, không phải gọi phụ huynh. Frontend chưa đổi vì đó là hợp đồng backend; nếu backend sinh trường này thì nên đổi tên luôn.
+Cũng lưu ý ba tên **đã sai so với nghiệp vụ hiện tại**, frontend chưa đổi vì chúng là hợp đồng backend:
+
+- `evaluation.suggestedAction = 'call_parent'` — hành động thật là nhắn Zalo cho học viên
+- `ClassSummary.actionItems.urgentCallsNeeded` — không còn khái niệm "gấp", cũng không còn cuộc gọi nào
+- `ClassSummary.actionItems.homeworkRemindersNeeded` — nhóm này giờ gồm cả đi học, không riêng BTVN
+
+Giao diện đã ngừng đọc hai trường `actionItems` đó và tự đếm từ danh sách HV. Nếu backend sinh chúng thì nên đổi tên cùng lúc với `suggestedAction`.
 
 ---
 

@@ -1,9 +1,9 @@
 import type { ContactLog, ContactTrigger, StudentDetail } from '../types';
 import { round1 } from '../number';
 import {
-  isHomeworkReminderStudent,
+  isHabitReminderStudent,
   isRelearnAdviceStudent,
-  isUrgentRemindStudent,
+  isRedFollowUpStudent,
 } from './studentFilters';
 
 /**
@@ -32,11 +32,17 @@ export interface ContactCoverage {
   pct: number | null;
 }
 
-/** Ba luồng cảnh báo hiện có, theo thứ tự ưu tiên hiển thị. */
+/**
+ * Ba luồng, xếp theo THANG CAN THIỆP tăng dần — cũng là thứ tự hiển thị trên
+ * dải thẻ và thứ tự tab trong bảng.
+ *
+ * Mức 1 nhắc nhở giải quyết được, mức 3 thì không. Giữ đúng một thứ tự ở mọi
+ * nơi để GV không phải học lại cách đọc màn hình mỗi lần đổi chỗ nhìn.
+ */
 const TRIGGERS: { trigger: ContactTrigger; match: (s: StudentDetail) => boolean }[] = [
-  { trigger: 'urgent_remind', match: isUrgentRemindStudent },
+  { trigger: 'habit_reminder', match: isHabitReminderStudent },
+  { trigger: 'red_followup', match: isRedFollowUpStudent },
   { trigger: 'relearn_advice', match: isRelearnAdviceStudent },
-  { trigger: 'homework_reminder', match: isHomeworkReminderStudent },
 ];
 
 /**
@@ -48,6 +54,25 @@ const TRIGGERS: { trigger: ContactTrigger; match: (s: StudentDetail) => boolean 
  */
 export function matchesTrigger(s: StudentDetail, trigger: ContactTrigger): boolean {
   return TRIGGERS.find((t) => t.trigger === trigger)?.match(s) ?? false;
+}
+
+/**
+ * Thứ tự ưu tiên khi một HV mở nhiều luồng và giao diện chỉ hiện được MỘT —
+ * NGƯỢC với thứ tự trên: can thiệp nặng nhất thắng.
+ *
+ * Hai thứ tự khác nhau là chủ đích. Dải thẻ đọc từ nhẹ tới nặng vì đó là thứ
+ * tự khối lượng công việc; ô "Hành động" của một HV thì phải chỉ ra việc quan
+ * trọng nhất với chính bạn ấy.
+ */
+export const TRIGGER_PRIORITY: ContactTrigger[] = [
+  'relearn_advice',
+  'red_followup',
+  'habit_reminder',
+];
+
+/** Luồng cần xử lý nhất của một HV, `null` nếu HV không mở cảnh báo nào. */
+export function primaryTrigger(s: StudentDetail): ContactTrigger | null {
+  return TRIGGER_PRIORITY.find((t) => matchesTrigger(s, t)) ?? null;
 }
 
 export function episodeKey(
@@ -84,8 +109,8 @@ export function currentCheckpoint(students: StudentDetail[]): string {
 /**
  * Mọi cảnh báo đang mở của một danh sách học viên.
  *
- * Một HV có thể mở nhiều episode cùng lúc (vừa cần nhắc gấp vừa cần nhắc BTVN)
- * và đó là chủ đích: đóng một việc không có nghĩa là đã làm việc kia.
+ * Một HV có thể mở nhiều episode cùng lúc (vừa nhãn Đỏ vừa chưa đủ chăm) và đó
+ * là chủ đích: đóng một việc không có nghĩa là đã làm việc kia.
  */
 export function openEpisodes(students: StudentDetail[]): Episode[] {
   const episodes: Episode[] = [];
@@ -102,11 +127,11 @@ export function openEpisodes(students: StudentDetail[]): Episode[] {
 /**
  * Luồng nào ĐÓNG HỘ được luồng nào — cố ý MỘT CHIỀU.
  *
- * Đo trên dữ liệu: trong 17 HV của danh sách nhắc BTVN có 6 HV đồng thời thuộc
- * nhóm Đỏ hoặc Xám. Vì MỌI kịch bản trong `messageScripts.ts` đều nêu cả đi học
- * lẫn BTVN kèm số cụ thể, GV nhắn xong tin nhóm Đỏ/Xám — tin đó đã nói về bài
- * tập — rồi hệ thống vẫn bắt nhắn thêm một tin nữa để nhắc nộp bài. Hai tin nói
- * cùng một việc, đếm hai lần, và thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
+ * Đo trên dữ liệu: 32/63 HV nhãn Đỏ và 8/11 HV nhãn Xám đồng thời chưa đủ chăm.
+ * Vì MỌI kịch bản trong `messageScripts.ts` đều nêu cả đi học lẫn BTVN kèm số
+ * cụ thể, GV nhắn xong tin nhóm Đỏ/Xám — tin đó đã nói về đi học và bài tập —
+ * rồi hệ thống vẫn bắt nhắn thêm một tin nữa. Hai tin nói cùng một việc, đếm
+ * hai lần, và thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
  *
  * Chiều ngược lại KHÔNG được phép: tin nhắc bài tập không nói gì về việc đi học
  * sa sút hay về lộ trình học. Đây là lý do bảng này không đối xứng — nếu để hai
@@ -118,9 +143,9 @@ export function openEpisodes(students: StudentDetail[]): Episode[] {
  * ra nói dối — test trong `messageScripts.test.ts` chính là cái chặn.
  */
 const COVERED_BY: Record<ContactTrigger, ContactTrigger[]> = {
-  urgent_remind: [],
+  habit_reminder: ['red_followup', 'relearn_advice'],
+  red_followup: [],
   relearn_advice: [],
-  homework_reminder: ['urgent_remind', 'relearn_advice'],
 };
 
 /**
