@@ -396,6 +396,23 @@ Một cảnh báo được coi là "đã xử lý" khi tồn tại ít nhất m�
 
 Ba `trigger` ứng với ba predicate trong `src/data/selectors/studentFilters.ts`. Thêm trigger mới thì phải thêm predicate, nếu không `openEpisodes` đếm thiếu.
 
+### Đóng hộ giữa các luồng — **một chiều**
+
+```
+urgent_call  ──đóng hộ──►  homework_reminder
+```
+
+Một HV có thể mở nhiều episode cùng lúc. Đo trên dữ liệu mock: trong 17 HV của danh sách nhắc BTVN có **5 HV đồng thời nằm trong "Gọi gấp"**, và **cả 5 đều đã có `BTVN <90%` nằm sẵn trong `pass_chuan_reasons`** — tức là kịch bản gọi phụ huynh đã nêu đúng vấn đề đó. Bắt GV nhắn thêm Zalo nhắc nộp bài cho chính HV vừa gọi là nói cùng một việc hai lần, và làm thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
+
+Nên: một dòng `trigger = 'urgent_call'` cũng đóng luôn episode `homework_reminder` của cùng `student_id` tại **cùng `checkpoint`**.
+
+Hai chiều **không** được phép, và đây là ràng buộc nghiệp vụ chứ không phải chi tiết cài đặt:
+
+- `homework_reminder` **không** đóng `urgent_call` — một tin nhắn Zalo cho học viên không thay thế được cuộc gọi cho phụ huynh. Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
+- `relearn_advice` **không** đóng `homework_reminder` — buổi tư vấn bàn về học lại / bảo lưu, không bàn về việc nộp bài. HV nhãn Xám vẫn phải được nhắc BTVN như mọi HV khác.
+
+Trên giao diện, episode bị đóng hộ hiện huy hiệu xám *"Đã gọi PH · Test 3"* (khác hẳn huy hiệu xanh của lượt GV tự tick) kèm liên kết *"Vẫn nhắn thêm"* — hệ thống không giả vờ rằng tin nhắn đã được gửi.
+
 ### Ghi ngược qua n8n
 
 Cùng mẫu với Review Center (§5): `POST {n8n}/webhook/contact-log`, body đúng hình dạng một dòng ở trên, n8n append vào sheet. Frontend chỉ cần đổi ruột `persist()` trong `contactStore.ts` — chữ ký hàm đã giữ nguyên hình dạng lời gọi API.

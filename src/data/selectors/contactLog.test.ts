@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   NO_CHECKPOINT,
+  closingContact,
   contactCoverage,
   currentCheckpoint,
   episodeKey,
@@ -170,13 +171,64 @@ describe('isContacted', () => {
     expect(isContacted(logs, 1, 'urgent_call', 'Test 2')).toBe(true);
   });
 
-  it('tick luồng này không đóng luồng khác của cùng HV', () => {
+  it('nhật ký rỗng → chưa liên hệ', () => {
+    expect(isContacted([], 1, 'urgent_call', 'Test 3')).toBe(false);
+  });
+});
+
+describe('đóng hộ giữa các luồng (một chiều)', () => {
+  it('gọi PH ĐÓNG HỘ việc nhắc BTVN ở cùng mốc', () => {
+    // Kịch bản gọi PH đã nêu "BTVN <90%" — bắt GV nhắn Zalo nhắc nộp bài cho
+    // chính HV vừa gọi là nói cùng một việc hai lần.
     const logs = [log({ trigger: 'urgent_call' })];
+    expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(true);
+  });
+
+  it('nhắn BTVN KHÔNG đóng hộ việc gọi PH — chiều ngược lại phải chặn', () => {
+    // Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% cho Lead.
+    const logs = [log({ trigger: 'homework_reminder' })];
+    expect(isContacted(logs, 1, 'urgent_call', 'Test 3')).toBe(false);
+  });
+
+  it('tư vấn học lại KHÔNG đóng hộ việc nhắc BTVN', () => {
+    // Buổi tư vấn bàn về học lại/bảo lưu, không bàn về việc nộp bài — HV nhãn
+    // Xám vẫn phải được nhắc BTVN như mọi HV khác.
+    const logs = [log({ trigger: 'relearn_advice' })];
     expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(false);
   });
 
-  it('nhật ký rỗng → chưa liên hệ', () => {
-    expect(isContacted([], 1, 'urgent_call', 'Test 3')).toBe(false);
+  it('đóng hộ KHÔNG vượt qua ranh giới checkpoint', () => {
+    const logs = [log({ trigger: 'urgent_call', checkpoint: 'Test 2' })];
+    expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(false);
+  });
+
+  it('closingContact ưu tiên lượt của CHÍNH luồng đó', () => {
+    // GV vừa gọi PH vừa thật sự nhắn Zalo → giao diện phải hiện "đã nhắn" (có
+    // nút hoàn tác), không phải "đã gọi PH nên khỏi nhắn".
+    const logs = [
+      log({ contactId: 'call', trigger: 'urgent_call' }),
+      log({ contactId: 'zalo', trigger: 'homework_reminder' }),
+    ];
+    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.contactId).toBe('zalo');
+  });
+
+  it('closingContact trả lượt của luồng bao khi luồng đó chưa có lượt riêng', () => {
+    const logs = [log({ contactId: 'call', trigger: 'urgent_call' })];
+    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.trigger).toBe('urgent_call');
+  });
+
+  it('đóng hộ được tính vào độ phủ của Lead', () => {
+    // HV ĐH 70% + BTVN 60% mở 2 episode; một cuộc gọi đóng cả hai → 100%.
+    const students = [student(1, { attendance: 70, homework: 60 })];
+    const logs = [log({ trigger: 'urgent_call' })];
+    expect(contactCoverage(students, logs, 'Test 3')).toEqual({ done: 2, total: 2, pct: 100 });
+  });
+
+  it('đóng hộ làm giảm số việc còn lại của luồng BTVN', () => {
+    const students = [student(1, { attendance: 70, homework: 60 })];
+    const logs = [log({ trigger: 'urgent_call' })];
+    expect(remainingCount(students, logs, 'homework_reminder', 'Test 3')).toBe(0);
+    expect(remainingCount(students, logs, 'urgent_call', 'Test 3')).toBe(0);
   });
 });
 
@@ -197,10 +249,10 @@ describe('lastContact', () => {
 
 describe('contactCoverage', () => {
   it('đếm theo episode chứ không theo học viên', () => {
-    // HV 1 mở 2 episode, mới đóng 1 → 1/2, KHÔNG phải 1/1 chỉ vì "đã liên hệ
-    // bạn ấy rồi".
-    const students = [student(1, { attendance: 70, homework: 60 })];
-    const logs = [log({ studentId: 1, trigger: 'urgent_call', checkpoint: 'Test 3' })];
+    // HV Xám + BTVN 60% mở 2 episode. Hai luồng này KHÔNG đóng hộ nhau, nên
+    // đóng một cái phải ra 1/2 — không phải 1/1 chỉ vì "đã liên hệ bạn ấy rồi".
+    const students = [student(1, { label: 'grey', homework: 60 })];
+    const logs = [log({ studentId: 1, trigger: 'relearn_advice', checkpoint: 'Test 3' })];
     expect(contactCoverage(students, logs, 'Test 3')).toEqual({ done: 1, total: 2, pct: 50 });
   });
 

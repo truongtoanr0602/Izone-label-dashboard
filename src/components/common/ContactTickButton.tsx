@@ -2,7 +2,14 @@ import React from 'react';
 import { Check, CheckCircle2, Undo2 } from 'lucide-react';
 
 interface ContactTickButtonProps {
+  /** Có lượt liên hệ của CHÍNH luồng này (GV đã tự tick). */
   contacted: boolean;
+  /**
+   * Luồng khác đã đóng hộ episode này — ví dụ HV vừa trong "Gọi gấp" vừa trong
+   * "Nhắc BTVN", GV gọi PH xong thì việc nhắc BTVN coi như đã nằm trong cuộc
+   * gọi đó. Chỉ có nghĩa khi `contacted` là false.
+   */
+  coveredByText?: string;
   /** Mốc test mà cái tick này thuộc về — hiện lên để GV biết nó hết hạn khi nào. */
   checkpoint: string;
   onMark: () => void;
@@ -19,10 +26,33 @@ interface ContactTickButtonProps {
  */
 export const ContactTickButton: React.FC<ContactTickButtonProps> = ({
   contacted,
+  coveredByText,
   checkpoint,
   onMark,
   onUndo,
 }) => {
+  if (!contacted && coveredByText) {
+    // Việc đã được luồng khác lo. KHÔNG hiện huy hiệu xanh giống trường hợp GV
+    // tự tick, và không có nút hoàn tác — hoàn tác ở đây sẽ phải gỡ lượt liên
+    // hệ của luồng kia, tức là sửa một thứ mà màn hình này không sở hữu.
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span
+          className="px-3 py-1.5 rounded-[8px] text-xs font-semibold flex items-center gap-1.5 bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/70 dark:text-[#a1a1aa] border border-[#e5e7eb] dark:border-[#52525b]"
+          title={`Đã nằm trong nội dung cuộc trao đổi với phụ huynh tại mốc ${checkpoint} — không cần nhắc lại`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" /> {coveredByText} · {checkpoint}
+        </span>
+        <button
+          onClick={onMark}
+          className="text-[11px] font-medium text-[#404040]/50 dark:text-[#71717a] hover:text-[#404040] dark:hover:text-[#e4e4e7] underline underline-offset-2 transition-colors"
+        >
+          Vẫn nhắn thêm
+        </button>
+      </div>
+    );
+  }
+
   if (!contacted) {
     return (
       <button

@@ -16,6 +16,7 @@ export {
 } from './studentFilters';
 export {
   NO_CHECKPOINT,
+  closingContact,
   contactCoverage,
   currentCheckpoint,
   episodeKey,

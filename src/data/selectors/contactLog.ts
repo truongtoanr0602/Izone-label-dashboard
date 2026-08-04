@@ -88,15 +88,64 @@ export function openEpisodes(students: StudentDetail[]): Episode[] {
   return episodes;
 }
 
+/**
+ * Luồng nào ĐÓNG HỘ được luồng nào — cố ý MỘT CHIỀU.
+ *
+ * Đo trên dữ liệu: trong 17 HV của danh sách nhắc BTVN có 5 HV đồng thời nằm
+ * trong "Gọi gấp", và cả 5 đều đã có `BTVN <90%` nằm sẵn trong lý do của kịch
+ * bản gọi phụ huynh. GV gọi PH xong — cuộc gọi đó đã nói về bài tập — rồi hệ
+ * thống vẫn bắt nhắn Zalo cho chính HV đó để nhắc nộp bài. Một việc, đếm hai
+ * lần, và thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
+ *
+ * Chiều ngược lại KHÔNG được phép: một tin nhắn Zalo cho học viên không thay
+ * thế được cuộc gọi cho phụ huynh. Đây cũng là lý do bảng này không phải quan
+ * hệ đối xứng — nếu để hai chiều thì GV đóng việc dễ rồi bỏ việc khó vẫn hiện
+ * 100% trên bảng của Lead.
+ *
+ * `relearn_advice` KHÔNG đóng hộ `homework_reminder`: buổi tư vấn phương án học
+ * bàn về việc học lại / bảo lưu, không phải về việc nộp bài — HV nhãn Xám vẫn
+ * cần được nhắc BTVN như mọi HV khác.
+ */
+const COVERED_BY: Record<ContactTrigger, ContactTrigger[]> = {
+  urgent_call: [],
+  relearn_advice: [],
+  homework_reminder: ['urgent_call'],
+};
+
+/**
+ * Lượt liên hệ đã đóng episode này — có thể là lượt của chính luồng đó, hoặc
+ * của một luồng bao nó (xem {@link COVERED_BY}). `null` nếu chưa ai đụng tới.
+ *
+ * Trả về cả bản ghi chứ không chỉ true/false, vì giao diện cần phân biệt "đã
+ * nhắn Zalo" với "đã gọi PH nên khỏi nhắn" — hai chuyện đó GV phải thấy khác
+ * nhau, nếu không họ sẽ tưởng mình đã gửi tin nhắn mà thật ra chưa.
+ */
+export function closingContact(
+  logs: ContactLog[],
+  studentId: number,
+  trigger: ContactTrigger,
+  checkpoint: string,
+): ContactLog | null {
+  // Ưu tiên lượt của CHÍNH luồng này trước khi xét luồng bao: nếu GV vừa gọi
+  // PH vừa nhắn Zalo thật, giao diện phải hiện "đã nhắn" (có nút hoàn tác) chứ
+  // không phải "đã gọi PH nên khỏi nhắn".
+  for (const t of [trigger, ...COVERED_BY[trigger]]) {
+    const hit = logs.find(
+      (l) => l.studentId === studentId && l.checkpoint === checkpoint && l.trigger === t,
+    );
+    if (hit) return hit;
+  }
+
+  return null;
+}
+
 export function isContacted(
   logs: ContactLog[],
   studentId: number,
   trigger: ContactTrigger,
   checkpoint: string,
 ): boolean {
-  return logs.some(
-    (l) => l.studentId === studentId && l.trigger === trigger && l.checkpoint === checkpoint,
-  );
+  return closingContact(logs, studentId, trigger, checkpoint) !== null;
 }
 
 /** Lượt liên hệ gần nhất của một episode, bất kể checkpoint. `null` nếu chưa từng. */
