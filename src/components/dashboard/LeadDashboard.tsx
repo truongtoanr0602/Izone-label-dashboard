@@ -221,7 +221,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TrendChart
           title="Chất lượng vận hành"
-          subtitle={`Tỷ lệ điểm danh và BTVN toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}. Vạch dọc là mốc bài test.`}
+          subtitle={`Tỷ lệ điểm danh và BTVN toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}.`}
           points={view.trendSeries}
           series={OPERATIONS_SERIES}
           domain={[70, 100]}
@@ -229,13 +229,14 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         />
         <TrendChart
           title="Kết quả"
-          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}, chỉ tính trên lớp đã có bài test. Đường ngắt là tuần chưa lớp nào thi.`}
+          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}, chỉ tính trên lớp đã có bài test. Đường ngắt là tuần chưa lớp nào thi; hover để xem tuần đó tính trên mấy lớp.`}
           points={view.trendSeries}
           series={OUTCOME_SERIES}
           // Pass mềm chạm 94.4 trên dữ liệu hiện tại, nên [0,80] là con số ghi
           // một đằng vẽ một nẻo — recharts nới ra tới ~94 mà nhãn trục vẫn nói
           // 80. Dùng đúng dải thật của một tỷ lệ phần trăm.
           domain={[0, 100]}
+          showTestCountInTooltip
           isDarkMode={isDarkMode}
         />
       </div>

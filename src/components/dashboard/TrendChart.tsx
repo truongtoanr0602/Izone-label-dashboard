@@ -1,11 +1,9 @@
 import React from 'react';
 import {
   CartesianGrid,
-  Label,
   LabelList,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -55,6 +53,17 @@ interface TrendChartProps {
    * (tỷ lệ pass: 0–100), nếu không trục hiện ra sẽ khác con số ghi ở đây.
    */
   domain: [number, number];
+  /**
+   * Hiện `testCheckpoint` (dạng `"N lớp thi"`) kèm ngày trong tooltip.
+   *
+   * Đây là chú thích **cỡ mẫu**, không phải chú thích sự kiện: chỉ bật cho những
+   * chỉ số mà mẫu số là "số lớp đã thi" — tỷ lệ pass 60% trên 1 lớp và trên 7
+   * lớp là hai con số có độ tin cậy khác hẳn nhau, và biểu đồ không nói điều đó
+   * ở chỗ nào khác. Với chỉ số vận hành (điểm danh, BTVN) thì mẫu số là toàn bộ
+   * học viên đang học, không liên quan gì tới lịch thi, nên bật vào chỉ là số
+   * lạc đề — để mặc định tắt.
+   */
+  showTestCountInTooltip?: boolean;
   isDarkMode: boolean;
 }
 
@@ -71,6 +80,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   points,
   series,
   domain,
+  showTestCountInTooltip = false,
   isDarkMode,
 }) => {
   const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
@@ -99,6 +109,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   const data = sorted.map((point, index) => {
     const row: Record<string, number | string | null> = {
       t: Date.parse(`${point.date}T00:00:00Z`),
+      // Không phải dataKey của đường nào — chỉ để tooltip đọc lại số lớp đã thi.
+      checkpointLabel: point.testCheckpoint,
       attendanceAvg: point.attendanceAvg,
       homeworkAvg: point.homeworkAvg,
       passChuanRate: point.passChuanRate,
@@ -110,13 +122,20 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     return row;
   });
 
-  // Mốc test là SỰ KIỆN — vẽ thành vạch dọc chú thích, không phải một ô trên trục.
-  const testMarkers = sorted
-    .filter((point) => point.testCheckpoint !== null)
-    .map((point) => ({
-      t: Date.parse(`${point.date}T00:00:00Z`),
-      label: point.testCheckpoint as string,
-    }));
+  /*
+   * KHÔNG vẽ vạch dọc đánh dấu tuần có bài test. Đã thử và đã bỏ, đừng thêm lại.
+   *
+   * Vạch mốc test có nghĩa ở cấp LỚP, nơi Test 1..6 bám vòng đời một lớp nên
+   * thưa và tách bạch. Biểu đồ này ở cấp KHỐI, mà ở cấp khối thì 12/13 tuần đều
+   * có ít nhất một lớp thi: một tín hiệu bật 92% thời gian không giải thích được
+   * cú tụt nào của đường nào, nó chỉ chia nát vùng vẽ thành 12 khoang. Bản có
+   * nhãn `<Label position="top">` còn tệ hơn — 12 nhãn ~55px chen trong ~450px
+   * thành dải chữ nhòe ở mép trên.
+   *
+   * Thứ duy nhất còn giữ lại từ `testCheckpoint` là con số trong tooltip, và
+   * giữ với tư cách CỠ MẪU chứ không phải mốc sự kiện — xem
+   * `showTestCountInTooltip`.
+   */
 
   if (data.length === 0) {
     return (
@@ -151,7 +170,14 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             />
             <YAxis stroke={axisColor} fontSize={11} domain={domain} width={40} />
             <Tooltip
-              labelFormatter={(t) => new Date(Number(t)).toISOString().slice(0, 10)}
+              labelFormatter={(t, payload) => {
+                const date = new Date(Number(t)).toISOString().slice(0, 10);
+                if (!showTestCountInTooltip) return date;
+                // `payload` là các điểm của CÙNG một tuần, nên hàng nào cũng mang
+                // đúng `checkpointLabel` đó; lấy hàng đầu tiên là đủ.
+                const checkpoint = payload?.[0]?.payload?.checkpointLabel as string | null | undefined;
+                return checkpoint ? `${date} · ${checkpoint}` : date;
+              }}
               contentStyle={{
                 background: isDarkMode ? '#27272a' : '#ffffff',
                 border: `1px solid ${isDarkMode ? '#3f3f46' : '#f3f4f6'}`,
@@ -160,17 +186,6 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 color: isDarkMode ? '#e4e4e7' : '#404040',
               }}
             />
-
-            {testMarkers.map((marker) => (
-              <ReferenceLine
-                key={marker.t}
-                x={marker.t}
-                stroke={axisColor}
-                strokeDasharray="4 4"
-              >
-                <Label value={marker.label} position="top" fontSize={10} fill={axisColor} />
-              </ReferenceLine>
-            ))}
 
             {series.map((s) => (
               <Line
