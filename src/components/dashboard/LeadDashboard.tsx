@@ -356,7 +356,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         />
         
         <div className="h-80 w-full p-5 pb-6">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" debounce={200}>
             <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
               <XAxis type="number" stroke="#9ca3af" fontSize={11} />
               <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={12} fontStyle="bold" width={60} />

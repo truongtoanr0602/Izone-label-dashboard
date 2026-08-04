@@ -155,7 +155,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
       <SectionHeader title={title} subtitle={subtitle} />
 
       <div className="h-64 w-full p-5">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" debounce={200}>
           <LineChart data={data} margin={{ top: 8, right: 64, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#3f3f46' : '#e5e7eb'} opacity={0.6} vertical={false} />
             <XAxis
