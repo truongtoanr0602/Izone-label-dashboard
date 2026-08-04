@@ -1,27 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  Search, TrendingDown, AlertTriangle, 
+import {
+  Search, TrendingDown, AlertTriangle, Compass, CheckCircle2,
   PhoneCall, MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
 import { MOCK_LABEL_CHANGES, labelFromAverage } from '../../data/mockData';
-import type { LabelCode, StudentDetail } from '../../data/mockData';
-import { isUrgentCallStudent } from '../../data/selectors';
+import type { ContactLog, ContactTrigger, LabelCode, StudentDetail } from '../../data/mockData';
+import { isContacted, isRelearnAdviceStudent, isUrgentCallStudent } from '../../data/selectors';
+import { LABEL_BADGE_CLASS, LABEL_TEXT } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
 
-const LABEL_TEXT: Record<LabelCode, string> = {
-  red: 'ĐỎ',
-  yellow: 'VÀNG',
-  grey: 'XÁM',
-  no_data: 'CHƯA CÓ DL',
-};
-
-const LABEL_BADGE_CLASS: Record<LabelCode, string> = {
-  red: 'bg-red-500/10 text-red-500 border-red-500/20',
-  yellow: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-  grey: 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]',
-  no_data: 'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]',
-};
+export type TableFilter = 'all' | 'urgent' | 'relearn' | 'pass' | 'review';
 
 /**
  * Nhãn TẠI TỪNG MỐC TEST, suy trực tiếp từ ĐIỂM CỦA CHÍNH BÀI ĐÓ qua
@@ -51,16 +40,22 @@ interface StudentTableProps {
   students: StudentDetail[];
   onOpenCallModal: () => void;
   onOpenZaloModal: () => void;
-  activeFilter: 'all' | 'urgent' | 'pass' | 'review';
-  onChangeFilter: (filter: 'all' | 'urgent' | 'pass' | 'review') => void;
+  onOpenRelearnModal: () => void;
+  activeFilter: TableFilter;
+  onChangeFilter: (filter: TableFilter) => void;
+  contactLogs: ContactLog[];
+  checkpoint: string;
 }
 
 export const StudentTable: React.FC<StudentTableProps> = ({
   students,
   onOpenCallModal,
   onOpenZaloModal,
+  onOpenRelearnModal,
   activeFilter,
-  onChangeFilter
+  onChangeFilter,
+  contactLogs,
+  checkpoint
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isGridView, setIsGridView] = useState(false); // false = Collapsed Sparkline view, true = 6 columns grid view
@@ -69,7 +64,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   // Filter students based on active tab and search term
   const filteredStudents = students.filter((s) => {
     // Search match
-    const matchesSearch = 
+    const matchesSearch =
       s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.studentCode.includes(searchTerm) ||
       s.phone.includes(searchTerm);
@@ -79,6 +74,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     // Tab match
     if (activeFilter === 'urgent') {
       return isUrgentCallStudent(s);
+    }
+    if (activeFilter === 'relearn') {
+      return isRelearnAdviceStudent(s);
     }
     if (activeFilter === 'pass') {
       return s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm';
@@ -95,8 +93,22 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   const counts = {
     all: students.length,
     urgent: students.filter(isUrgentCallStudent).length,
+    relearn: students.filter(isRelearnAdviceStudent).length,
     pass: students.filter((s) => s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm').length,
     review: students.filter((s) => s.evaluation.isEligibleForReview).length,
+  };
+
+  /**
+   * Luồng cảnh báo mà ô "Hành động" của HV này đang trỏ tới — cũng chính là
+   * luồng mà dấu ✓ bên cạnh nói về. Trả `null` khi HV không mở cảnh báo nào.
+   */
+  const primaryTrigger = (s: StudentDetail): ContactTrigger | null => {
+    if (isUrgentCallStudent(s)) return 'urgent_call';
+    if (isRelearnAdviceStudent(s)) return 'relearn_advice';
+    if (s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently) {
+      return 'homework_reminder';
+    }
+    return null;
   };
 
   return (
@@ -126,6 +138,17 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           >
             <AlertTriangle className="w-3.5 h-3.5" /> Nguy cấp &amp; Tụt nhãn
             <span className="font-mono text-[11px] opacity-70">({counts.urgent})</span>
+          </button>
+          <button
+            onClick={() => onChangeFilter('relearn')}
+            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
+              activeFilter === 'relearn'
+                ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium border border-slate-300 dark:border-slate-700'
+                : 'font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" /> Cần tư vấn học lại
+            <span className="font-mono text-[11px] opacity-70">({counts.relearn})</span>
           </button>
           <button
             onClick={() => onChangeFilter('pass')}
@@ -228,12 +251,21 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                   .filter((t) => t.finalScore !== null)
                   .map((t) => ({ name: t.testName, score: t.finalScore }));
 
+                const trigger = primaryTrigger(s);
+                const contacted =
+                  trigger !== null && isContacted(contactLogs, s.studentId, trigger, checkpoint);
+
                 return (
                   <React.Fragment key={s.studentId}>
-                    <tr 
+                    <tr
                       className={`transition-colors hover:bg-[#f3f4f6]/50 dark:hover:bg-[#3f3f46]/30 ${
                         s.labeling.currentLabel === 'red' || s.evaluation.suggestedAction === 'call_parent'
                           ? 'bg-red-50 dark:bg-red-950/15'
+                          // Nhãn Xám là mức rủi ro cao nhất theo TB test nhưng trước đây
+                          // hiện y hệt một dòng bình thường. Tô nhẹ bằng slate — đủ để
+                          // mắt bắt được khi lướt bảng, không phá tông phẳng của giao diện.
+                          : s.labeling.currentLabel === 'grey'
+                          ? 'bg-slate-100/70 dark:bg-slate-800/20'
                           : expandedStudentId === s.studentId ? 'bg-[#f3f4f6] dark:bg-[#18181b]' : ''
                       }`}
                     >
@@ -268,12 +300,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           
                           {/* Mobile Only Badge */}
                            <div className="md:hidden ml-2 shrink-0">
-                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                               s.labeling.currentLabel === 'red' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                               s.labeling.currentLabel === 'yellow' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                               'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] border-[#f3f4f6] dark:border-[#3f3f46]'
-                             }`}>
-                              {s.labeling.currentLabel === 'red' ? 'ĐỎ' : s.labeling.currentLabel === 'yellow' ? 'VÀNG' : 'XÁM'}
+                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${LABEL_BADGE_CLASS[s.labeling.currentLabel]}`}>
+                              {LABEL_TEXT[s.labeling.currentLabel]}
                             </span>
                           </div>
                         </div>
@@ -390,16 +418,13 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
                     {/* Current Label Badge */}
                     <td className="py-3.5 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 ${
-                        s.labeling.currentLabel === 'red'
-                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
-                          : s.labeling.currentLabel === 'yellow'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
-                      }`}>
+                      <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 border ${LABEL_BADGE_CLASS[s.labeling.currentLabel]}`}>
                         {s.labeling.currentLabel === 'red' && <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />}
                         {s.labeling.currentLabel === 'yellow' && <Award className="w-3.5 h-3.5" />}
-                        {s.labeling.currentLabel === 'red' ? 'ĐỎ' : s.labeling.currentLabel === 'yellow' ? 'VÀNG' : 'XÁM'}
+                        {/* Xám cũng có icon: badge trần màu slate đọc như "bình thường",
+                            trong khi đây mới là nhóm TB test thấp nhất. */}
+                        {s.labeling.currentLabel === 'grey' && <Compass className="w-3.5 h-3.5" />}
+                        {LABEL_TEXT[s.labeling.currentLabel]}
                       </span>
                     </td>
 
@@ -424,34 +449,60 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       )}
                     </td>
 
-                    {/* Action Suggestion */}
+                    {/*
+                      Ô Hành động. Chuỗi ưu tiên: Gọi gấp → Tư vấn học lại → Nhắc
+                      Zalo → Duyệt Portal. Nhánh Xám được chèn vào giữa vì trước đây
+                      HV Xám đi học đều, nộp bài đủ sẽ rơi thẳng xuống nhánh cuối và
+                      hiện "--" — màn hình GV im lặng về đúng nhóm rủi ro nhất.
+
+                      HV Xám có BTVN kém vẫn nằm trong danh sách modal "Nhắc BTVN"
+                      (bộ lọc đó dựa trên chỉ số, không dựa trên nhãn); ở đây chỉ là
+                      ô bảng hiện việc ưu tiên cao hơn.
+                    */}
                     <td className="py-3.5 px-4 text-right">
-                      {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
-                        <button
-                          onClick={onOpenCallModal}
-                          className="px-3 py-1.5 rounded-[8px] bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
-                        >
-                          <PhoneCall className="w-3 h-3" /> Gọi gấp
-                        </button>
-                      ) : s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently ? (
-                        <button
-                          onClick={onOpenZaloModal}
-                          className="px-3 py-1.5 rounded-[8px] bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500 hover:bg-amber-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
-                        >
-                          <MessageSquare className="w-3 h-3" /> Nhắc Zalo
-                        </button>
-                      ) : s.evaluation.isEligibleForReview ? (
-                        <a
-                          href="https://portal.izone.edu.vn"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-[8px] bg-transparent text-[#DB0829] border border-[#DB0829] hover:bg-[#DB0829] hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
-                        >
-                          <Clock className="w-3 h-3" /> Duyệt trên Portal
-                        </a>
-                      ) : (
-                        <span className="text-[#404040]/40 dark:text-[#52525b] text-xs font-mono">--</span>
-                      )}
+                      <div className="inline-flex items-center gap-2">
+                        {contacted && (
+                          <span
+                            className="text-emerald-600 dark:text-emerald-400 shrink-0"
+                            title={`Đã xác nhận liên hệ tại mốc ${checkpoint}`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                        {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
+                          <button
+                            onClick={onOpenCallModal}
+                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                          >
+                            <PhoneCall className="w-3 h-3" /> Gọi gấp
+                          </button>
+                        ) : s.labeling.currentLabel === 'grey' ? (
+                          <button
+                            onClick={onOpenRelearnModal}
+                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 hover:bg-slate-600 hover:text-white hover:border-slate-600 font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                          >
+                            <Compass className="w-3 h-3" /> Tư vấn học lại
+                          </button>
+                        ) : s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently ? (
+                          <button
+                            onClick={onOpenZaloModal}
+                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500 hover:bg-amber-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                          >
+                            <MessageSquare className="w-3 h-3" /> Nhắc Zalo
+                          </button>
+                        ) : s.evaluation.isEligibleForReview ? (
+                          <a
+                            href="https://portal.izone.edu.vn"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-[#DB0829] border border-[#DB0829] hover:bg-[#DB0829] hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                          >
+                            <Clock className="w-3 h-3" /> Duyệt trên Portal
+                          </a>
+                        ) : (
+                          <span className="text-[#404040]/40 dark:text-[#52525b] text-xs font-mono">--</span>
+                        )}
+                      </div>
                     </td>
                     {/* History Toggle */}
                     <td className="py-3.5 px-4 text-center">
@@ -587,7 +638,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         <div className="flex items-center gap-6">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Nhãn Đỏ / Cần gọi gấp</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Nhãn Vàng / Pass Mềm</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Nhãn Xám</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Nhãn Xám / Cần tư vấn học lại</span>
+          <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Đã liên hệ tại mốc {checkpoint}</span>
         </div>
       </div>
     </div>

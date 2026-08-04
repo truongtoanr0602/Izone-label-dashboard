@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, PhoneCall, Copy, Check, AlertTriangle, Lightbulb, Mic } from 'lucide-react';
-import type { StudentDetail } from '../../data/mockData';
-import { isUrgentCallStudent } from '../../data/selectors';
+import type { ContactLog, StudentDetail } from '../../data/mockData';
+import { isContacted, isUrgentCallStudent } from '../../data/selectors';
+import { LABEL_TEXT } from '../../data/labels';
+import { ContactTickButton } from '../common/ContactTickButton';
 
 interface CallParentModalProps {
   isOpen: boolean;
@@ -9,6 +11,10 @@ interface CallParentModalProps {
   students: StudentDetail[];
   className: string;
   teacherName: string;
+  contactLogs: ContactLog[];
+  checkpoint: string;
+  onMarkContacted: (student: StudentDetail) => void;
+  onUndoContacted: (student: StudentDetail) => void;
 }
 
 export const CallParentModal: React.FC<CallParentModalProps> = ({
@@ -16,7 +22,11 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
   onClose,
   students,
   className,
-  teacherName
+  teacherName,
+  contactLogs,
+  checkpoint,
+  onMarkContacted,
+  onUndoContacted
 }) => {
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const [copiedScript, setCopiedScript] = useState<number | null>(null);
@@ -75,7 +85,8 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
           ) : (
             urgentStudents.map((s, idx) => {
               const reason = s.portalEvidence.teacherNote || (s.evaluation.passChuanReasons.length > 0 ? s.evaluation.passChuanReasons.join(', ') : 'Điểm Test hoặc chuyên cần tụt giảm');
-              
+              const contacted = isContacted(contactLogs, s.studentId, 'urgent_call', checkpoint);
+
               return (
                 <div key={s.studentId} className="p-4 rounded-[12px] bg-[#f3f4f6] dark:bg-[#18181b] border border-[#f3f4f6] dark:border-[#3f3f46] hover:border-[#e5e7eb] dark:hover:border-[#52525b] transition-all space-y-3">
                   {/* Student Top Row */}
@@ -87,8 +98,12 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
                       <div>
                         <h4 className="text-sm font-bold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-2">
                           {s.fullName}
+                          {/* Bảng tra, KHÔNG phải tam thức hai nhánh: HV lọt vào
+                              danh sách này vì điểm danh <80% có thể đang mang nhãn
+                              Vàng, và trước đây bị dán nhầm thành "XÁM" ngay trên
+                              màn hình GV sắp gọi cho phụ huynh. */}
                           <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 font-semibold uppercase">
-                            Nhãn {s.labeling.currentLabel === 'red' ? 'ĐỎ' : 'XÁM'}
+                            Nhãn {LABEL_TEXT[s.labeling.currentLabel]}
                           </span>
                         </h4>
                         <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-3 mt-0.5">
@@ -154,6 +169,15 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
                       "Chào anh/chị, em là <b className="text-[#404040] dark:text-[#e4e4e7]">{teacherName}</b>, GVCN lớp <b className="text-[#404040] dark:text-[#e4e4e7]">{className}</b> của IZONE. Em gọi trao đổi về bạn <b className="text-[#404040] dark:text-[#e4e4e7]">{s.fullName}</b>. Hiện bạn đang gặp vấn đề: <span className="text-red-500">{reason}</span>. Rất mong gia đình đồng hành nhắc nhở bạn ạ!"
                     </p>
                   </div>
+
+                  <div className="flex items-center justify-end">
+                    <ContactTickButton
+                      contacted={contacted}
+                      checkpoint={checkpoint}
+                      onMark={() => onMarkContacted(s)}
+                      onUndo={() => onUndoContacted(s)}
+                    />
+                  </div>
                 </div>
               );
             })
@@ -163,7 +187,7 @@ export const CallParentModal: React.FC<CallParentModalProps> = ({
         {/* Modal Footer */}
         <div className="px-6 py-4 bg-[#f3f4f6] dark:bg-[#18181b] border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-between">
           <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex items-center gap-1.5">
-            <Lightbulb className="w-3.5 h-3.5 text-[#475569] dark:text-[#a1a1aa]" /> <b className="text-[#404040] dark:text-[#e4e4e7]">Tip:</b> Sau khi gọi điện xong, hãy ghi chú vào cột <code>gv_note</code> trên Google Sheets.
+            <Lightbulb className="w-3.5 h-3.5 text-[#475569] dark:text-[#a1a1aa]" /> <b className="text-[#404040] dark:text-[#e4e4e7]">Tip:</b> Gọi xong bấm "Đã liên hệ" — xác nhận này gắn với mốc <b className="text-[#404040] dark:text-[#e4e4e7]">{checkpoint}</b>, sang bài test sau sẽ được hỏi lại.
           </p>
           <button
             onClick={onClose}

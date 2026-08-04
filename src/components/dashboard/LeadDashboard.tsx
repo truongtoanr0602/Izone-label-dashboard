@@ -2,14 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
-import type { ClassSummary } from '../../data/mockData';
+import type { ClassSummary, ContactLog } from '../../data/mockData';
 import {
   MOCK_LABEL_CHANGES,
   MOCK_SNAPSHOTS,
   REFERENCE_DATE,
+  getStudentsByClass,
 } from '../../data/mockData';
 import {
   aggregateKhoi,
+  contactCoverage,
+  currentCheckpoint,
   labelFlowDelta,
   labelFlowInPeriod,
   latestSnapshotPerClass,
@@ -30,6 +33,7 @@ interface LeadDashboardProps {
   classes: ClassSummary[];
   onSelectClassAndDrillDown: (cls: ClassSummary) => void;
   isDarkMode: boolean;
+  contactLogs: ContactLog[];
 }
 
 /** Hai nhóm chỉ số KHÁC THANG ĐO → hai biểu đồ riêng (§3.2 của tài liệu thiết kế). */
@@ -43,10 +47,22 @@ const OUTCOME_SERIES: TrendSeries[] = [
   { key: 'passMemRate', name: 'Pass mềm', lightColor: '#a855f7', darkColor: '#a855f7' },
 ];
 
+/**
+ * Độ phủ liên hệ của một lớp tại mốc test đang mở của chính lớp đó.
+ *
+ * Mỗi lớp có mốc riêng — lớp mới khai giảng chưa thi bài nào, lớp cuối khóa đã
+ * thi 5 bài — nên không thể dùng một checkpoint chung cho cả bảng.
+ */
+function coverageOf(classId: number, logs: ContactLog[]) {
+  const students = getStudentsByClass(classId);
+  return contactCoverage(students, logs, currentCheckpoint(students));
+}
+
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
   onSelectClassAndDrillDown,
   isDarkMode,
+  contactLogs,
 }) => {
   const [searchClass, setSearchClass] = useState('');
 
@@ -280,6 +296,9 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 <th className="py-3 px-4 text-center">Điểm danh / BTVN</th>
                 <th className="py-3 px-4 text-center">Tiến độ</th>
                 <th className="py-3 px-4 text-center">Trạng thái Cảnh báo</th>
+                <th className="py-3 px-4 text-center" title="Số cảnh báo GV đã xác nhận đã liên hệ, tại mốc test hiện tại của lớp">
+                  Độ phủ liên hệ
+                </th>
                 <th className="py-3 px-4 text-center">Tỷ lệ Pass (Chuẩn/Mềm)</th>
                 <th className="py-3 px-4 text-right">Hành động</th>
               </tr>
@@ -287,13 +306,14 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
             <tbody className="divide-y divide-[#f3f4f6] dark:divide-[#3f3f46]">
               {filteredClasses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-[#404040]/50 dark:text-[#71717a] text-xs">
+                  <td colSpan={9} className="py-8 text-center text-[#404040]/50 dark:text-[#71717a] text-xs">
                     Không tìm thấy lớp nào khớp với từ khóa tìm kiếm.
                   </td>
                 </tr>
               ) : (
                 filteredClasses.map((c) => {
                   const warning = getWarningStatus(c);
+                  const coverage = coverageOf(c.classId, contactLogs);
                   return (
                   <tr
                     key={c.classId}
@@ -326,6 +346,25 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border ${warning.color}`}>
                         {warning.label}
                       </span>
+                    </td>
+                    {/*
+                      Đây là thứ khiến cái tick "Đã liên hệ" có sức nặng: bản thân
+                      nó là GV tự khai, nhưng việc KHÔNG liên hệ thì lộ ra thành một
+                      con số trên bảng của Lead.
+                    */}
+                    <td className="py-3.5 px-4 text-center">
+                      {coverage.pct === null ? (
+                        // Lớp không có cảnh báo nào đang mở. KHÔNG hiện 0% — lớp khoẻ
+                        // mạnh và lớp bỏ mặc toàn bộ cảnh báo phải trông khác nhau.
+                        <span className="font-mono text-[#404040]/40 dark:text-[#52525b]" title="Lớp không có cảnh báo nào đang mở">--</span>
+                      ) : (
+                        <>
+                          <span className={`font-bold font-mono ${getMetricColor(coverage.pct)}`}>{coverage.pct}%</span>
+                          <p className="text-[11px] font-mono text-[#404040]/50 dark:text-[#71717a] mt-0.5">
+                            {coverage.done}/{coverage.total} cảnh báo
+                          </p>
+                        </>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">{c.healthMetrics.passChuanRate}%</span>

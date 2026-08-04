@@ -23,3 +23,20 @@ export function isHomeworkReminderStudent(s: StudentDetail): boolean {
     s.homework.isDroppingRecently
   );
 }
+
+/**
+ * HV cần tư vấn học lại / bảo lưu / đổi lớp.
+ *
+ * Nhãn Xám nghĩa là TB test < 45 — theo dữ liệu lịch sử (ARCHITECTURE §4) đây
+ * là mức "gần như không cứu được dù ĐH & BTVN đạt 83%". Trước đây nhóm này
+ * KHÔNG rơi vào bất kỳ luồng hành động nào: `suggestedAction` chỉ suy từ điểm
+ * danh và BTVN, không hề đọc nhãn, nên một HV Xám đi học đều và nộp bài đủ sẽ
+ * hiện ô hành động là "--" — màn hình GV im lặng về chính nhóm rủi ro nhất.
+ *
+ * CỐ Ý tách khỏi `isUrgentCallStudent`: đây không phải việc "gấp trong ngày"
+ * mà là việc phải trao đổi khác về chất — đặt lại phương án học, chứ không
+ * phải hối thúc nộp bài. Gộp hai danh sách sẽ làm loãng đúng thứ cần gấp.
+ */
+export function isRelearnAdviceStudent(s: StudentDetail): boolean {
+  return s.labeling.currentLabel === 'grey' && s.registrationStatus === 'active';
+}

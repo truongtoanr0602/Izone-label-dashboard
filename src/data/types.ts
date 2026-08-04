@@ -299,6 +299,47 @@ export interface LabelChangeLog {
 }
 
 /* ------------------------------------------------------------------ *
+ * Nhật ký liên hệ  (sheet 10_NhatKy_LienHe)
+ * ------------------------------------------------------------------ */
+
+export type ContactChannel = 'call' | 'zalo' | 'in_person';
+
+/**
+ * Loại cảnh báo mà lượt liên hệ này đóng lại. Mỗi loại ứng với đúng một
+ * predicate trong `selectors/studentFilters.ts` — thêm loại mới ở đây thì
+ * phải thêm predicate tương ứng, nếu không `openEpisodes` sẽ đếm thiếu.
+ */
+export type ContactTrigger = 'urgent_call' | 'homework_reminder' | 'relearn_advice';
+
+/**
+ * MỘT DÒNG = MỘT LƯỢT LIÊN HỆ. Append-only, không bao giờ sửa hay ghi đè.
+ *
+ * `checkpoint` là thứ làm cái tick tự hết hiệu lực: nó ghim lượt liên hệ vào
+ * mốc test đang mở tại thời điểm GV bấm. Có bài test mới → nhãn được tính lại
+ * → khoá episode đổi → cảnh báo nổi lại mà không cần ai đi reset cờ.
+ *
+ * Đây là lý do KHÔNG dùng một cờ boolean `daLienHe` trên `StudentDetail`: cờ
+ * đó chỉ trả lời được "đã bao giờ liên hệ chưa", nên vô dụng từ lần thứ hai
+ * trở đi, và cũng không nói được ai liên hệ, lúc nào, vì cảnh báo gì.
+ */
+export interface ContactLog {
+  contactId: string;
+  studentId: number;
+  classId: number;
+  teacherId: number;
+  channel: ContactChannel;
+  trigger: ContactTrigger;
+  /**
+   * Tên mốc test (`'Test 3'`) hoặc `'Chưa có test'`. Phải cùng hệ giá trị với
+   * `LabelChangeLog.checkpoint` để hai nhật ký join được với nhau.
+   */
+  checkpoint: string;
+  /** Bản v1 luôn rỗng. Giữ cột sẵn cho backend, chưa hiện lên giao diện. */
+  note: string;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------------ *
  * Cấu hình hệ thống  (sheet 06_CauHinh_HeThong)
  * ------------------------------------------------------------------ */
 
