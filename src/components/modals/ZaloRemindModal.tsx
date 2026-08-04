@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  X, Check, Copy, Send, MessageCircle, MessageSquare, AlertTriangle, Compass,
+  X, Check, Copy, Send, MessageCircle, MessageSquare, TrendingUp, Compass,
 } from 'lucide-react';
 import type { ContactLog, ContactTrigger, StudentDetail } from '../../data/mockData';
 import { closingContact, matchesTrigger } from '../../data/selectors';
@@ -28,26 +28,26 @@ const GROUP: Record<
     emptyText: string;
   }
 > = {
-  urgent_remind: {
-    title: 'Cần nhắc gấp',
-    subtitle: 'HV nhãn Đỏ hoặc đi học tụt dưới 80% — tin nhắn động viên, nêu rõ đi học & BTVN.',
-    icon: <AlertTriangle className="w-5 h-5" />,
+  habit_reminder: {
+    title: 'Mức 1 · Nhắc chăm học',
+    subtitle: 'Đi học hoặc BTVN dưới 90% — chưa đủ điều kiện pass đầu ra. Nhắc nhở giải quyết được.',
+    icon: <MessageSquare className="w-5 h-5" />,
+    accent: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+    emptyText: 'Tuyệt vời! Cả lớp đều đạt đi học và BTVN từ 90%.',
+  },
+  red_followup: {
+    title: 'Mức 2 · Cần theo sát',
+    subtitle: 'Nhãn Đỏ — TB test 45–59, dưới ngưỡng đạt nhưng còn cứu được. Tin nhắn động viên.',
+    icon: <TrendingUp className="w-5 h-5" />,
     accent: 'bg-red-500/10 border-red-500/20 text-red-500',
-    emptyText: 'Tuyệt vời! Lớp không có học viên nào cần nhắc gấp.',
+    emptyText: 'Lớp không có học viên nào ở nhãn Đỏ.',
   },
   relearn_advice: {
-    title: 'Nhóm Xám — nhắc học & mở lời về lộ trình',
-    subtitle: 'TB test <45. Tin nhắn nhắc đi học & BTVN, kèm lời mời trao đổi riêng về lộ trình.',
+    title: 'Mức 3 · Bàn lại lộ trình',
+    subtitle: 'Nhãn Xám — TB test <45. Nhắc nhở không đủ; cần mở lời trao đổi về lộ trình học.',
     icon: <Compass className="w-5 h-5" />,
     accent: 'bg-slate-500/10 border-slate-500/25 text-slate-600 dark:text-slate-400',
     emptyText: 'Lớp không có học viên nào ở nhãn Xám.',
-  },
-  homework_reminder: {
-    title: 'Cần nhắc nhở BTVN',
-    subtitle: 'Tỷ lệ nộp bài tụt dưới 80% — tin nhắn ngắn, nhắc đúng phần bài tập.',
-    icon: <MessageSquare className="w-5 h-5" />,
-    accent: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
-    emptyText: 'Tuyệt vời! Tất cả học viên đều nộp BTVN rất đầy đủ.',
   },
 };
 

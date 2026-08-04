@@ -1,16 +1,50 @@
 import React, { useState } from 'react';
 import {
-  Search, TrendingDown, AlertTriangle, Compass, CheckCircle2,
+  Search, TrendingDown, TrendingUp, AlertTriangle, Compass, CheckCircle2,
   MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
 import { MOCK_LABEL_CHANGES, labelFromAverage } from '../../data/mockData';
 import type { ContactLog, ContactTrigger, LabelCode, StudentDetail } from '../../data/mockData';
-import { isContacted, isRelearnAdviceStudent, isUrgentRemindStudent } from '../../data/selectors';
-import { LABEL_BADGE_CLASS, LABEL_TEXT } from '../../data/labels';
+import { isContacted, matchesTrigger, primaryTrigger } from '../../data/selectors';
+import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
 
-export type TableFilter = 'all' | 'urgent' | 'relearn' | 'pass' | 'review';
+/**
+ * Bộ lọc bảng HV. Ba giá trị đầu là ba luồng nhắc (dùng luôn `ContactTrigger`
+ * làm khoá) — nhờ vậy tab lọc, thẻ trên dải và nút hành động không thể lệch
+ * nhau về định nghĩa nhóm, vì cả ba đọc chung một predicate.
+ */
+export type TableFilter = 'all' | ContactTrigger | 'pass' | 'review';
+
+/** Màu của ba tab luồng, khớp màu thẻ tương ứng trên dải. */
+const TRIGGER_TAB_CLASS: Record<ContactTrigger, { on: string; off: string }> = {
+  habit_reminder: {
+    on: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-800/50',
+    off: 'font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40',
+  },
+  red_followup: {
+    on: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800/50',
+    off: 'font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40',
+  },
+  relearn_advice: {
+    on: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium border border-slate-300 dark:border-slate-700',
+    off: 'font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40',
+  },
+};
+
+/** Màu nút hành động trong bảng, khớp màu tab và thẻ của cùng luồng. */
+const TRIGGER_ACTION_CLASS: Record<ContactTrigger, string> = {
+  habit_reminder: 'text-amber-600 dark:text-amber-400 border-amber-500 hover:bg-amber-600 hover:text-white',
+  red_followup: 'text-red-600 dark:text-red-400 border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white',
+  relearn_advice: 'text-slate-700 dark:text-slate-300 border-slate-400 dark:border-slate-500 hover:bg-slate-600 hover:text-white hover:border-slate-600',
+};
+
+const TRIGGER_TABS: { trigger: ContactTrigger; icon: React.ReactNode }[] = [
+  { trigger: 'habit_reminder', icon: <MessageSquare className="w-3.5 h-3.5" /> },
+  { trigger: 'red_followup', icon: <TrendingUp className="w-3.5 h-3.5" /> },
+  { trigger: 'relearn_advice', icon: <Compass className="w-3.5 h-3.5" /> },
+];
 
 /**
  * Nhãn TẠI TỪNG MỐC TEST, suy trực tiếp từ ĐIỂM CỦA CHÍNH BÀI ĐÓ qua
@@ -68,11 +102,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     if (!matchesSearch) return false;
 
     // Tab match
-    if (activeFilter === 'urgent') {
-      return isUrgentRemindStudent(s);
-    }
-    if (activeFilter === 'relearn') {
-      return isRelearnAdviceStudent(s);
+    if (activeFilter === 'habit_reminder' || activeFilter === 'red_followup' || activeFilter === 'relearn_advice') {
+      return matchesTrigger(s, activeFilter);
     }
     if (activeFilter === 'pass') {
       return s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm';
@@ -88,23 +119,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   const counts = {
     all: students.length,
-    urgent: students.filter(isUrgentRemindStudent).length,
-    relearn: students.filter(isRelearnAdviceStudent).length,
     pass: students.filter((s) => s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm').length,
     review: students.filter((s) => s.evaluation.isEligibleForReview).length,
-  };
-
-  /**
-   * Luồng cảnh báo mà ô "Hành động" của HV này đang trỏ tới — cũng chính là
-   * luồng mà dấu ✓ bên cạnh nói về. Trả `null` khi HV không mở cảnh báo nào.
-   */
-  const primaryTrigger = (s: StudentDetail): ContactTrigger | null => {
-    if (isUrgentRemindStudent(s)) return 'urgent_remind';
-    if (isRelearnAdviceStudent(s)) return 'relearn_advice';
-    if (s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently) {
-      return 'homework_reminder';
-    }
-    return null;
   };
 
   return (
@@ -124,28 +140,20 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             <Users className="w-3.5 h-3.5" /> Tất cả học viên
             <span className="font-mono text-[11px] opacity-60">({counts.all})</span>
           </button>
-          <button
-            onClick={() => onChangeFilter('urgent')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
-              activeFilter === 'urgent'
-                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800/50'
-                : 'font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" /> Nguy cấp &amp; Tụt nhãn
-            <span className="font-mono text-[11px] opacity-70">({counts.urgent})</span>
-          </button>
-          <button
-            onClick={() => onChangeFilter('relearn')}
-            className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
-              activeFilter === 'relearn'
-                ? 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium border border-slate-300 dark:border-slate-700'
-                : 'font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" /> Cần tư vấn học lại
-            <span className="font-mono text-[11px] opacity-70">({counts.relearn})</span>
-          </button>
+          {TRIGGER_TABS.map(({ trigger, icon }) => (
+            <button
+              key={trigger}
+              onClick={() => onChangeFilter(trigger)}
+              className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
+                activeFilter === trigger ? TRIGGER_TAB_CLASS[trigger].on : TRIGGER_TAB_CLASS[trigger].off
+              }`}
+            >
+              {icon} {TRIGGER_SHORT_TITLE[trigger]}
+              <span className="font-mono text-[11px] opacity-70">
+                ({students.filter((s) => matchesTrigger(s, trigger)).length})
+              </span>
+            </button>
+          ))}
           <button
             onClick={() => onChangeFilter('pass')}
             className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
@@ -446,44 +454,30 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     </td>
 
                     {/*
-                      Ô Hành động. Chuỗi ưu tiên: Nhắc gấp → Nhắc & tư vấn (Xám) →
-                      Nhắc BTVN → Duyệt Portal. Nhánh Xám được chèn vào giữa vì trước đây
-                      HV Xám đi học đều, nộp bài đủ sẽ rơi thẳng xuống nhánh cuối và
-                      hiện "--" — màn hình GV im lặng về đúng nhóm rủi ro nhất.
+                      Ô Hành động. Chỉ MỘT nút, nhãn lấy từ `primaryTrigger` —
+                      cùng một selector mà thẻ trên dải và tab lọc dùng, nên ba
+                      chỗ không thể gọi cùng một nhóm bằng ba tên khác nhau.
 
-                      HV Xám có BTVN kém vẫn được nhắc bài tập — tin nhắn nhóm Xám
-                      nêu sẵn cả đi học lẫn BTVN, nên một tin là đủ.
+                      Ưu tiên NGƯỢC với thứ tự thẻ: thẻ đọc từ nhẹ tới nặng vì
+                      đó là thứ tự khối lượng việc, còn ô này phải chỉ ra việc
+                      quan trọng nhất với chính học viên đó.
                     */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         {contacted && (
                           <span
                             className="text-emerald-600 dark:text-emerald-400 shrink-0"
-                            title={`Đã xác nhận liên hệ tại mốc ${checkpoint}`}
+                            title={`Đã xác nhận đã nhắn tại mốc ${checkpoint}`}
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                           </span>
                         )}
-                        {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
+                        {trigger !== null ? (
                           <button
-                            onClick={() => onOpenTrigger('urgent_remind')}
-                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
+                            onClick={() => onOpenTrigger(trigger)}
+                            className={`px-3 py-1.5 rounded-[8px] bg-transparent border font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95 ${TRIGGER_ACTION_CLASS[trigger]}`}
                           >
-                            <MessageSquare className="w-3 h-3" /> Nhắc gấp
-                          </button>
-                        ) : s.labeling.currentLabel === 'grey' ? (
-                          <button
-                            onClick={() => onOpenTrigger('relearn_advice')}
-                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 hover:bg-slate-600 hover:text-white hover:border-slate-600 font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
-                          >
-                            <Compass className="w-3 h-3" /> Nhắc &amp; tư vấn
-                          </button>
-                        ) : s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently ? (
-                          <button
-                            onClick={() => onOpenTrigger('homework_reminder')}
-                            className="px-3 py-1.5 rounded-[8px] bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500 hover:bg-amber-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
-                          >
-                            <MessageSquare className="w-3 h-3" /> Nhắc Zalo
+                            <MessageSquare className="w-3 h-3" /> {TRIGGER_SHORT_TITLE[trigger]}
                           </button>
                         ) : s.evaluation.isEligibleForReview ? (
                           <a
@@ -631,9 +625,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           Hiển thị <b className="text-[#404040] dark:text-[#e4e4e7]">{sortedStudents.length}</b> / <span className="text-[#404040] dark:text-[#e4e4e7]">{students.length}</span> học viên
         </div>
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Nhãn Đỏ / Cần nhắc gấp</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Nhãn Vàng / Pass Mềm</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Nhãn Xám / Cần tư vấn học lại</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Mức 1 · Nhắc chăm học (ĐH/BTVN &lt;90%)</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Mức 2 · Cần theo sát (nhãn Đỏ)</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Mức 3 · Bàn lại lộ trình (nhãn Xám)</span>
           <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Đã liên hệ tại mốc {checkpoint}</span>
         </div>
       </div>

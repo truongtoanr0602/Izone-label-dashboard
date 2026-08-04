@@ -10,14 +10,16 @@ export {
   type Period,
 } from './periods';
 export {
-  isUrgentRemindStudent,
-  isHomeworkReminderStudent,
+  isRedFollowUpStudent,
+  isHabitReminderStudent,
   isRelearnAdviceStudent,
 } from './studentFilters';
 export {
   NO_CHECKPOINT,
   closingContact,
   matchesTrigger,
+  primaryTrigger,
+  TRIGGER_PRIORITY,
   contactCoverage,
   currentCheckpoint,
   episodeKey,

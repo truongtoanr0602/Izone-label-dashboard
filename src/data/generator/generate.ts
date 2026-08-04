@@ -20,7 +20,7 @@ import type {
   Teacher,
   TestScore,
 } from '../types';
-import { isHomeworkReminderStudent, isUrgentRemindStudent } from '../selectors/studentFilters';
+import { isHabitReminderStudent, isRedFollowUpStudent } from '../selectors/studentFilters';
 import { clamp, createRng, round1, type Rng } from './rng';
 import {
   fakeEmail,
@@ -767,8 +767,8 @@ function buildSummary(
       // mà StudentTable, CallParentModal, ZaloRemindModal dùng để LIỆT KÊ (toàn bộ
       // `students` của lớp, không lọc registrationStatus) — nếu không, thẻ TopRibbon
       // báo một số còn bảng/modal mở ra lại liệt kê số khác hẳn.
-      urgentCallsNeeded: students.filter(isUrgentRemindStudent).length,
-      homeworkRemindersNeeded: students.filter(isHomeworkReminderStudent).length,
+      urgentCallsNeeded: students.filter(isRedFollowUpStudent).length,
+      homeworkRemindersNeeded: students.filter(isHabitReminderStudent).length,
       pendingPassReviews: students.filter((s) => s.evaluation.isEligibleForReview).length,
     },
     portalUrl: `https://portal.izone.edu.vn/academic-affairs/course-classes/${plan.classId}`,

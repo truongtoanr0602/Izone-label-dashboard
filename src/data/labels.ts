@@ -1,10 +1,20 @@
 import type { ContactTrigger, LabelCode } from './types';
 
+/**
+ * Tên ngắn của ba luồng, xếp theo thang can thiệp. Dùng chung cho thẻ, tab lọc
+ * và nút hành động để ba chỗ đó không bao giờ gọi cùng một nhóm bằng ba tên.
+ */
+export const TRIGGER_SHORT_TITLE: Record<ContactTrigger, string> = {
+  habit_reminder: 'Nhắc chăm học',
+  red_followup: 'Cần theo sát',
+  relearn_advice: 'Bàn lại lộ trình',
+};
+
 /** Chữ hiện trên huy hiệu "đã xong" của từng luồng liên hệ. */
 export const TRIGGER_DONE_TEXT: Record<ContactTrigger, string> = {
-  urgent_remind: 'Đã nhắn (nhóm gấp)',
+  habit_reminder: 'Đã nhắn chăm học',
+  red_followup: 'Đã nhắn (nhóm Đỏ)',
   relearn_advice: 'Đã nhắn (nhóm Xám)',
-  homework_reminder: 'Đã nhắn BTVN',
 };
 
 /**

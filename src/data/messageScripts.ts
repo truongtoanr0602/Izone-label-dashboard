@@ -15,9 +15,12 @@ import type { ContactTrigger, StudentDetail } from './types';
  *  2. Giọng thân thiện, không hành chính. Đây là tin nhắn giữa cô/thầy và học
  *     trò, không phải công văn.
  *  3. MỌI kịch bản đều nêu cả đi học lẫn BTVN, kèm số cụ thể. Đây chính là lý
- *     do một tin nhắn của nhóm Đỏ/Xám đóng hộ được episode nhắc BTVN — nội
+ *     do một tin nhắn của nhóm Đỏ/Xám đóng hộ được episode "chăm học" — nội
  *     dung đã bao trùm rồi.
  */
+
+/** Điều kiện pass đầu ra, cũng là ngưỡng nhắc. Khớp `pass_dh_min`/`pass_btvn_min`. */
+const PASS_THRESHOLD_PCT = 90;
 
 /** Ba dòng "nhịp tim" của học viên, dùng chung cho mọi kịch bản. */
 function statsBlock(s: StudentDetail): string {
@@ -44,8 +47,8 @@ function statsBlock(s: StudentDetail): string {
  * biết phải làm gì. Nêu đúng một việc cụ thể thì khác.
  */
 function focusLine(s: StudentDetail): string {
-  const lowAttendance = s.attendance.percentage < 90;
-  const lowHomework = s.homework.percentage < 90;
+  const lowAttendance = s.attendance.percentage < PASS_THRESHOLD_PCT;
+  const lowHomework = s.homework.percentage < PASS_THRESHOLD_PCT;
 
   if (lowAttendance && lowHomework) {
     return 'Trước mắt em cố gắng đi học đều hơn và làm cho đủ bài tập nhé — hai cái này kéo lên là mọi thứ khác đỡ hẳn.';
@@ -64,11 +67,13 @@ function greeting(s: StudentDetail, teacherName: string, className: string): str
 }
 
 /**
- * Nhóm Đỏ: theo dữ liệu lịch sử đây là nhóm 50/50, can thiệp có tác dụng thật
- * (ĐH & BTVN > 90% → tỷ lệ đạt vượt 60%). Nên giọng phải là ĐỘNG VIÊN chứ
- * không phải cảnh cáo — nói cho em biết là còn kịp.
+ * Mức 2 — nhóm Đỏ, cần bám sát.
+ *
+ * Theo dữ liệu lịch sử đây là nhóm 50/50, can thiệp có tác dụng thật (ĐH & BTVN
+ * > 90% → tỷ lệ đạt vượt 60%). Giọng phải là ĐỘNG VIÊN chứ không phải cảnh cáo:
+ * nói cho em biết là còn kịp, và nói rõ đòn bẩy nằm ở đâu.
  */
-function urgentMessage(s: StudentDetail, teacherName: string, className: string): string {
+function redFollowUpMessage(s: StudentDetail, teacherName: string, className: string): string {
   return [
     greeting(s, teacherName, className),
     '',
@@ -79,7 +84,7 @@ function urgentMessage(s: StudentDetail, teacherName: string, className: string)
     // có thể đang đi học 100% và nộp bài 89%, nói vậy là nói sai với chính bạn
     // ấy về số liệu bạn ấy nhìn thấy ngay phía trên. Câu chung chung ở đây, còn
     // `focusLine` mới gọi tên đúng phần cần cải thiện.
-    'Em có vài phần cần cải thiện trước khi hết khoá, nhưng còn kịp hoàn toàn để kéo lên.',
+    'Điểm test của em đang dưới ngưỡng đạt đầu ra một chút, nhưng còn kịp hoàn toàn để kéo lên. Các bạn ở mức điểm như em mà giữ được đi học và bài tập trên 90% thì phần lớn đều đạt.',
     focusLine(s),
     '',
     'Có phần nào khó hay có việc gì khiến em chưa theo được thì cứ nhắn cho cô/thầy nhé, mình tìm cách gỡ cùng nhau 💪',
@@ -87,7 +92,7 @@ function urgentMessage(s: StudentDetail, teacherName: string, className: string)
 }
 
 /**
- * Nhóm Xám: TB test <45. Vừa nhắc ĐH/BTVN như mọi HV, VỪA mở lời về lộ trình
+ * Mức 3 — nhóm Xám, TB test <45. Vừa nhắc ĐH/BTVN như mọi HV, VỪA mở lời về lộ trình
  * học — nhưng nhẹ, và tuyệt đối không dùng chữ "bỏ", "nghỉ học", "không đạt".
  *
  * Đây là tin nhắn gửi thẳng cho một đứa trẻ đang học kém. Câu chữ ở đây quy
@@ -108,14 +113,24 @@ function relearnMessage(s: StudentDetail, teacherName: string, className: string
   ].join('\n');
 }
 
-/** Nhóm chỉ hụt BTVN: ngắn gọn, nhắc đúng một việc. */
-function homeworkMessage(s: StudentDetail, teacherName: string, className: string): string {
+/**
+ * Mức 1 — chưa đủ chăm để đạt điều kiện pass.
+ *
+ * Ngưỡng ở đây là 90 (điều kiện pass) chứ không phải 80 (ngưỡng cảnh báo), nên
+ * tin nhắn PHẢI nói rõ con số 90 — nếu không, một HV đang có BTVN 89% đọc xong
+ * sẽ không hiểu vì sao mình bị nhắc khi nhìn vào thì thấy "gần đủ rồi".
+ */
+function habitReminderMessage(s: StudentDetail, teacherName: string, className: string): string {
   return [
     greeting(s, teacherName, className),
     '',
-    `BTVN của em đang là ${s.homework.percentage}% (${s.homework.completedCount}/${s.homework.totalCount} bài), còn thiếu ${Math.max(0, s.homework.totalCount - s.homework.completedCount)} bài đó em. Đi học thì em vẫn giữ được ${s.attendance.percentage}%, tốt lắm — chỉ còn phần bài tập nữa thôi.`,
+    'Cô/Thầy điểm qua tình hình của em nhé:',
+    statsBlock(s),
     '',
-    'Em tranh thủ hoàn thành nốt giúp cô/thầy nhé, làm bài đều thì lên lớp nghe sẽ nhẹ hơn nhiều. Bài nào khó cứ nhắn hỏi cô/thầy nha 💪',
+    `Để đạt chuẩn đầu ra của khoá thì cả đi học và bài tập đều cần từ ${PASS_THRESHOLD_PCT}% trở lên, nên em còn cần cố thêm một chút nữa.`,
+    focusLine(s),
+    '',
+    'Bài nào khó hay buổi nào em vướng lịch thì cứ nhắn cho cô/thầy nha, mình sắp xếp được 💪',
   ].join('\n');
 }
 
@@ -123,9 +138,9 @@ const BUILDERS: Record<
   ContactTrigger,
   (s: StudentDetail, teacherName: string, className: string) => string
 > = {
-  urgent_remind: urgentMessage,
+  habit_reminder: habitReminderMessage,
+  red_followup: redFollowUpMessage,
   relearn_advice: relearnMessage,
-  homework_reminder: homeworkMessage,
 };
 
 export function buildZaloMessage(
