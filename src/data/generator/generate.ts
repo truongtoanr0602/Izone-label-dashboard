@@ -20,7 +20,7 @@ import type {
   Teacher,
   TestScore,
 } from '../types';
-import { isHomeworkReminderStudent, isUrgentCallStudent } from '../selectors/studentFilters';
+import { isHomeworkReminderStudent, isUrgentRemindStudent } from '../selectors/studentFilters';
 import { clamp, createRng, round1, type Rng } from './rng';
 import {
   fakeEmail,
@@ -767,7 +767,7 @@ function buildSummary(
       // mà StudentTable, CallParentModal, ZaloRemindModal dùng để LIỆT KÊ (toàn bộ
       // `students` của lớp, không lọc registrationStatus) — nếu không, thẻ TopRibbon
       // báo một số còn bảng/modal mở ra lại liệt kê số khác hẳn.
-      urgentCallsNeeded: students.filter(isUrgentCallStudent).length,
+      urgentCallsNeeded: students.filter(isUrgentRemindStudent).length,
       homeworkRemindersNeeded: students.filter(isHomeworkReminderStudent).length,
       pendingPassReviews: students.filter((s) => s.evaluation.isEligibleForReview).length,
     },

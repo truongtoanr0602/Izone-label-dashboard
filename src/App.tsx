@@ -3,17 +3,15 @@ import { Header } from './components/common/Header';
 import { TopRibbon } from './components/dashboard/TopRibbon';
 import { StudentTable } from './components/dashboard/StudentTable';
 import { LeadDashboard } from './components/dashboard/LeadDashboard';
-import { CallParentModal } from './components/modals/CallParentModal';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
-import { RelearnAdviceModal } from './components/modals/RelearnAdviceModal';
 import type { TableFilter } from './components/dashboard/StudentTable';
 import { MOCK_CLASSES, getStudentsByClass } from './data/mockData';
-import type { ClassSummary, ContactChannel, ContactLog, ContactTrigger, StudentDetail } from './data/mockData';
+import type { ClassSummary, ContactLog, ContactTrigger, StudentDetail } from './data/mockData';
 import {
   currentCheckpoint,
   isHomeworkReminderStudent,
   isRelearnAdviceStudent,
-  isUrgentCallStudent,
+  isUrgentRemindStudent,
   remainingCount,
 } from './data/selectors';
 import { appendLog, loadLogs, removeLog } from './data/contactStore';
@@ -26,7 +24,7 @@ export default function App() {
   // Danh sách HV bám theo lớp đang chọn. Trước đây bị ghim cứng vào IC2174 —
   // với 3 lớp thì khó thấy, với 15 lớp thì mọi lớp đều hiện nhầm học viên.
   const students = getStudentsByClass(selectedClass.classId);
-  const urgentCallCount = students.filter(isUrgentCallStudent).length;
+  const urgentCallCount = students.filter(isUrgentRemindStudent).length;
   const homeworkReminderCount = students.filter(isHomeworkReminderStudent).length;
   const relearnCount = students.filter(isRelearnAdviceStudent).length;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -41,23 +39,26 @@ export default function App() {
   const [contactLogs, setContactLogs] = useState<ContactLog[]>(loadLogs);
   const checkpoint = currentCheckpoint(students);
 
-  const markContacted = (trigger: ContactTrigger, channel: ContactChannel) => (s: StudentDetail) =>
+  // Kênh luôn là `zalo`: nghiệp vụ chốt GV không gọi phụ huynh mà nhắn Zalo cho
+  // học viên. Trường `channel` vẫn giữ trong schema cho backend, chỉ là hiện
+  // giao diện không sinh ra giá trị nào khác.
+  const markContacted = (trigger: ContactTrigger, s: StudentDetail) =>
     setContactLogs((logs) =>
       appendLog(logs, {
         studentId: s.studentId,
         classId: selectedClass.classId,
         teacherId: selectedClass.teacher.teacherId,
-        channel,
+        channel: 'zalo',
         trigger,
         checkpoint,
       }),
     );
 
-  const undoContacted = (trigger: ContactTrigger) => (s: StudentDetail) =>
+  const undoContacted = (trigger: ContactTrigger, s: StudentDetail) =>
     setContactLogs((logs) => removeLog(logs, s.studentId, trigger, checkpoint));
 
   const remaining = {
-    urgent: remainingCount(students, contactLogs, 'urgent_call', checkpoint),
+    urgent: remainingCount(students, contactLogs, 'urgent_remind', checkpoint),
     relearn: remainingCount(students, contactLogs, 'relearn_advice', checkpoint),
     homework: remainingCount(students, contactLogs, 'homework_reminder', checkpoint),
   };
@@ -66,10 +67,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'lead' | 'teacher'>('lead');
   const [tableFilter, setTableFilter] = useState<TableFilter>('all');
 
-  // Modal states
-  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
-  const [isZaloModalOpen, setIsZaloModalOpen] = useState(false);
-  const [isRelearnModalOpen, setIsRelearnModalOpen] = useState(false);
+  /**
+   * Luồng đang mở trong modal nhắc Zalo, `null` là đóng.
+   *
+   * Một biến thay cho ba cờ boolean: ba modal cũ đã gộp làm một, và ba cờ độc
+   * lập còn cho phép biểu diễn trạng thái không tồn tại (hai modal cùng mở).
+   */
+  const [openTrigger, setOpenTrigger] = useState<ContactTrigger | null>(null);
 
   const handleDrillDownToClass = (cls: ClassSummary) => {
     setSelectedClass(cls);
@@ -252,22 +256,22 @@ export default function App() {
 
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    onClick={() => setIsCallModalOpen(true)}
+                    onClick={() => setOpenTrigger('urgent_remind')}
                     className="px-3.5 py-2 rounded-[8px] bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 font-bold text-xs transition-all hover:bg-red-100 dark:hover:bg-red-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5" /> Gọi gấp ({urgentCallCount})
+                    <AlertTriangle className="w-3.5 h-3.5" /> Nhắc gấp ({urgentCallCount})
                   </button>
                   <button
-                    onClick={() => setIsRelearnModalOpen(true)}
+                    onClick={() => setOpenTrigger('relearn_advice')}
                     className="px-3.5 py-2 rounded-[8px] bg-slate-100 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all hover:bg-slate-200 dark:hover:bg-slate-800/70 active:scale-95 inline-flex items-center gap-1.5"
                   >
-                    <Compass className="w-3.5 h-3.5" /> Tư vấn học lại ({relearnCount})
+                    <Compass className="w-3.5 h-3.5" /> Nhóm Xám ({relearnCount})
                   </button>
                   <button
-                    onClick={() => setIsZaloModalOpen(true)}
+                    onClick={() => setOpenTrigger('homework_reminder')}
                     className="px-3.5 py-2 rounded-[8px] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-orange-600 dark:text-orange-400 font-bold text-xs transition-all hover:bg-orange-100 dark:hover:bg-orange-900/40 active:scale-95 inline-flex items-center gap-1.5"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" /> Nhắc Zalo ({homeworkReminderCount})
+                    <MessageSquare className="w-3.5 h-3.5" /> Nhắc BTVN ({homeworkReminderCount})
                   </button>
                 </div>
               </div>
@@ -277,9 +281,7 @@ export default function App() {
                 selectedClass={selectedClass}
                 relearnCount={relearnCount}
                 remaining={remaining}
-                onOpenCallModal={() => setIsCallModalOpen(true)}
-                onOpenZaloModal={() => setIsZaloModalOpen(true)}
-                onOpenRelearnModal={() => setIsRelearnModalOpen(true)}
+                onOpenTrigger={setOpenTrigger}
                 onFilterUrgent={() => setTableFilter('urgent')}
                 onFilterRelearn={() => setTableFilter('relearn')}
               />
@@ -287,9 +289,7 @@ export default function App() {
               {/* Student Table */}
               <StudentTable
                 students={students}
-                onOpenCallModal={() => setIsCallModalOpen(true)}
-                onOpenZaloModal={() => setIsZaloModalOpen(true)}
-                onOpenRelearnModal={() => setIsRelearnModalOpen(true)}
+                onOpenTrigger={setOpenTrigger}
                 activeFilter={tableFilter}
                 onChangeFilter={(f) => setTableFilter(f)}
                 contactLogs={contactLogs}
@@ -300,39 +300,17 @@ export default function App() {
         </main>
       </div>
 
-      {/* Modals */}
-      <CallParentModal
-        isOpen={isCallModalOpen}
-        onClose={() => setIsCallModalOpen(false)}
-        students={students}
-        className={selectedClass.className}
-        teacherName={selectedClass.teacher.fullName}
-        contactLogs={contactLogs}
-        checkpoint={checkpoint}
-        onMarkContacted={markContacted('urgent_call', 'call')}
-        onUndoContacted={undoContacted('urgent_call')}
-      />
-      <RelearnAdviceModal
-        isOpen={isRelearnModalOpen}
-        onClose={() => setIsRelearnModalOpen(false)}
-        students={students}
-        className={selectedClass.className}
-        teacherName={selectedClass.teacher.fullName}
-        contactLogs={contactLogs}
-        checkpoint={checkpoint}
-        onMarkContacted={markContacted('relearn_advice', 'call')}
-        onUndoContacted={undoContacted('relearn_advice')}
-      />
+      {/* Một modal cho cả ba luồng — chỉ khác bộ lọc, kịch bản và màu. */}
       <ZaloRemindModal
-        isOpen={isZaloModalOpen}
-        onClose={() => setIsZaloModalOpen(false)}
+        trigger={openTrigger}
+        onClose={() => setOpenTrigger(null)}
         students={students}
         className={selectedClass.className}
         teacherName={selectedClass.teacher.fullName}
         contactLogs={contactLogs}
         checkpoint={checkpoint}
-        onMarkContacted={markContacted('homework_reminder', 'zalo')}
-        onUndoContacted={undoContacted('homework_reminder')}
+        onMarkContacted={markContacted}
+        onUndoContacted={undoContacted}
       />
     </div>
   );

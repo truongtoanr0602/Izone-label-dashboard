@@ -2,8 +2,8 @@ import type { ContactTrigger, LabelCode } from './types';
 
 /** Chữ hiện trên huy hiệu "đã xong" của từng luồng liên hệ. */
 export const TRIGGER_DONE_TEXT: Record<ContactTrigger, string> = {
-  urgent_call: 'Đã gọi PH',
-  relearn_advice: 'Đã tư vấn PH',
+  urgent_remind: 'Đã nhắn (nhóm gấp)',
+  relearn_advice: 'Đã nhắn (nhóm Xám)',
   homework_reminder: 'Đã nhắn BTVN',
 };
 

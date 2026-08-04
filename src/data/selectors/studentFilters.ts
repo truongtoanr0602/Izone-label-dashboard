@@ -1,13 +1,17 @@
 import type { StudentDetail } from '../types';
 
 /**
- * HV cần gọi phụ huynh gấp. Định nghĩa DUY NHẤT — trước đây bị copy-paste
- * khác nhau ở StudentTable, CallParentModal và bộ sinh dữ liệu mock
- * (`generate.ts` chỉ đếm `suggestedAction === 'call_parent'`, thiếu hẳn
- * nhánh nhãn Đỏ và điểm danh <80%), khiến số trên thẻ TopRibbon/nút Header
- * luôn THẤP HƠN số học viên thật sự liệt kê trong bảng/modal.
+ * HV cần nhắc gấp — nhãn Đỏ hoặc đi học sa sút.
+ *
+ * Định nghĩa DUY NHẤT: trước đây bị copy-paste khác nhau ở ba nơi (bộ sinh mock
+ * chỉ đếm `suggestedAction === 'call_parent'`, thiếu hẳn nhánh nhãn Đỏ và điểm
+ * danh <80%), khiến số trên thẻ luôn THẤP HƠN số HV thật sự nằm trong danh sách.
+ *
+ * Tên hàm cố ý KHÔNG còn chữ "call": nghiệp vụ chốt GV không gọi phụ huynh mà
+ * nhắn Zalo cho học viên. Trường `evaluation.suggestedAction === 'call_parent'`
+ * bên dưới vẫn mang tên cũ vì đó là hợp đồng backend, chưa đổi được ở đây.
  */
-export function isUrgentCallStudent(s: StudentDetail): boolean {
+export function isUrgentRemindStudent(s: StudentDetail): boolean {
   return (
     s.evaluation.suggestedAction === 'call_parent' ||
     s.labeling.currentLabel === 'red' ||
@@ -33,7 +37,7 @@ export function isHomeworkReminderStudent(s: StudentDetail): boolean {
  * danh và BTVN, không hề đọc nhãn, nên một HV Xám đi học đều và nộp bài đủ sẽ
  * hiện ô hành động là "--" — màn hình GV im lặng về chính nhóm rủi ro nhất.
  *
- * CỐ Ý tách khỏi `isUrgentCallStudent`: đây không phải việc "gấp trong ngày"
+ * CỐ Ý tách khỏi `isUrgentRemindStudent`: đây không phải việc "gấp trong ngày"
  * mà là việc phải trao đổi khác về chất — đặt lại phương án học, chứ không
  * phải hối thúc nộp bài. Gộp hai danh sách sẽ làm loãng đúng thứ cần gấp.
  */
