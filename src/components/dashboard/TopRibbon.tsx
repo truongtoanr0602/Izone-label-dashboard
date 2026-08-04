@@ -1,6 +1,6 @@
 import React from 'react';
-import { PhoneCall, MessageSquare, Award, AlertTriangle, TrendingDown, Clock, ArrowUpRight, Compass } from 'lucide-react';
-import type { ClassSummary } from '../../data/mockData';
+import { MessageSquare, Award, AlertTriangle, TrendingDown, Clock, ArrowUpRight, Compass } from 'lucide-react';
+import type { ClassSummary, ContactTrigger } from '../../data/mockData';
 
 interface TopRibbonProps {
   selectedClass: ClassSummary;
@@ -11,9 +11,7 @@ interface TopRibbonProps {
   relearnCount: number;
   /** Số episode CHƯA được xác nhận liên hệ, theo từng luồng, tại mốc hiện tại. */
   remaining: { urgent: number; relearn: number; homework: number };
-  onOpenCallModal: () => void;
-  onOpenZaloModal: () => void;
-  onOpenRelearnModal: () => void;
+  onOpenTrigger: (trigger: ContactTrigger) => void;
   onFilterUrgent: () => void;
   onFilterRelearn: () => void;
 }
@@ -49,9 +47,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
   selectedClass,
   relearnCount,
   remaining,
-  onOpenCallModal,
-  onOpenZaloModal,
-  onOpenRelearnModal,
+  onOpenTrigger,
   onFilterUrgent,
   onFilterRelearn
 }) => {
@@ -62,19 +58,19 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
     // nhất; nhồi thêm thẻ thứ tư vào đó sẽ ép thẻ cuối xuống span-2 và vỡ chữ.
     // Ưu tiên giờ thể hiện bằng THỨ TỰ và MÀU, không bằng kích thước.
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-      {/* Card 1: Cần gọi phụ huynh gấp — ưu tiên cao nhất */}
+      {/* Card 1: Cần nhắc gấp — ưu tiên cao nhất */}
       <div className="relative overflow-hidden rounded-[16px] p-[24px] border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 flex flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-[12px] bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
-              <PhoneCall className="w-5 h-5 animate-bounce" style={{ animationDuration: '3s' }} />
+              <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
                 <AlertTriangle className="w-3 h-3" /> Can thiệp 30 giây
               </span>
               <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] mt-1">
-                Cần gọi phụ huynh gấp
+                Cần nhắc gấp
               </h3>
             </div>
           </div>
@@ -95,10 +91,10 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
             Lọc bảng HV này
           </button>
           <button
-            onClick={onOpenCallModal}
+            onClick={() => onOpenTrigger('urgent_remind')}
             className="px-3 py-2 rounded-[8px] bg-transparent border border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
-            <PhoneCall className="w-3.5 h-3.5" /> Gọi ngay
+            <MessageSquare className="w-3.5 h-3.5" /> Nhắn Zalo
           </button>
         </div>
       </div>
@@ -116,7 +112,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
                 <AlertTriangle className="w-3 h-3" /> Nhãn Xám
               </span>
               <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] mt-1">
-                Cần tư vấn học lại
+                Nhóm Xám cần nhắc
               </h3>
             </div>
           </div>
@@ -124,7 +120,7 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         </div>
 
         <p className="text-xs text-[#404040]/70 dark:text-[#a1a1aa] mt-3">
-          TB test &lt;45 — bàn phương án học lại / bảo lưu / đổi lớp.
+          TB test &lt;45 — nhắc đi học &amp; BTVN, kèm lời mời trao đổi về lộ trình.
         </p>
 
         <div className="mt-auto pt-3 border-t border-slate-300 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
@@ -135,10 +131,10 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
             Lọc bảng HV này
           </button>
           <button
-            onClick={onOpenRelearnModal}
+            onClick={() => onOpenTrigger('relearn_advice')}
             className="px-3 py-2 rounded-[8px] bg-transparent border border-slate-400 dark:border-slate-500 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
-            <Compass className="w-3.5 h-3.5" /> Kịch bản tư vấn
+            <MessageSquare className="w-3.5 h-3.5" /> Nhắn Zalo
           </button>
         </div>
       </div>
@@ -168,10 +164,10 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
 
         <div className="mt-auto pt-3 border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-end">
           <button
-            onClick={onOpenZaloModal}
+            onClick={() => onOpenTrigger('homework_reminder')}
             className="px-3 py-2 rounded-[8px] bg-transparent border border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
           >
-            <MessageSquare className="w-3.5 h-3.5" /> Gửi Zalo nhắc nhở
+            <MessageSquare className="w-3.5 h-3.5" /> Nhắn Zalo
           </button>
         </div>
       </div>

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   Search, TrendingDown, AlertTriangle, Compass, CheckCircle2,
-  PhoneCall, MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
+  MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
 import { MOCK_LABEL_CHANGES, labelFromAverage } from '../../data/mockData';
 import type { ContactLog, ContactTrigger, LabelCode, StudentDetail } from '../../data/mockData';
-import { isContacted, isRelearnAdviceStudent, isUrgentCallStudent } from '../../data/selectors';
+import { isContacted, isRelearnAdviceStudent, isUrgentRemindStudent } from '../../data/selectors';
 import { LABEL_BADGE_CLASS, LABEL_TEXT } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
@@ -38,9 +38,7 @@ function labelTimeline(s: StudentDetail) {
 
 interface StudentTableProps {
   students: StudentDetail[];
-  onOpenCallModal: () => void;
-  onOpenZaloModal: () => void;
-  onOpenRelearnModal: () => void;
+  onOpenTrigger: (trigger: ContactTrigger) => void;
   activeFilter: TableFilter;
   onChangeFilter: (filter: TableFilter) => void;
   contactLogs: ContactLog[];
@@ -49,9 +47,7 @@ interface StudentTableProps {
 
 export const StudentTable: React.FC<StudentTableProps> = ({
   students,
-  onOpenCallModal,
-  onOpenZaloModal,
-  onOpenRelearnModal,
+  onOpenTrigger,
   activeFilter,
   onChangeFilter,
   contactLogs,
@@ -73,7 +69,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
     // Tab match
     if (activeFilter === 'urgent') {
-      return isUrgentCallStudent(s);
+      return isUrgentRemindStudent(s);
     }
     if (activeFilter === 'relearn') {
       return isRelearnAdviceStudent(s);
@@ -92,7 +88,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   const counts = {
     all: students.length,
-    urgent: students.filter(isUrgentCallStudent).length,
+    urgent: students.filter(isUrgentRemindStudent).length,
     relearn: students.filter(isRelearnAdviceStudent).length,
     pass: students.filter((s) => s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm').length,
     review: students.filter((s) => s.evaluation.isEligibleForReview).length,
@@ -103,7 +99,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
    * luồng mà dấu ✓ bên cạnh nói về. Trả `null` khi HV không mở cảnh báo nào.
    */
   const primaryTrigger = (s: StudentDetail): ContactTrigger | null => {
-    if (isUrgentCallStudent(s)) return 'urgent_call';
+    if (isUrgentRemindStudent(s)) return 'urgent_remind';
     if (isRelearnAdviceStudent(s)) return 'relearn_advice';
     if (s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently) {
       return 'homework_reminder';
@@ -450,14 +446,13 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     </td>
 
                     {/*
-                      Ô Hành động. Chuỗi ưu tiên: Gọi gấp → Tư vấn học lại → Nhắc
-                      Zalo → Duyệt Portal. Nhánh Xám được chèn vào giữa vì trước đây
+                      Ô Hành động. Chuỗi ưu tiên: Nhắc gấp → Nhắc & tư vấn (Xám) →
+                      Nhắc BTVN → Duyệt Portal. Nhánh Xám được chèn vào giữa vì trước đây
                       HV Xám đi học đều, nộp bài đủ sẽ rơi thẳng xuống nhánh cuối và
                       hiện "--" — màn hình GV im lặng về đúng nhóm rủi ro nhất.
 
-                      HV Xám có BTVN kém vẫn nằm trong danh sách modal "Nhắc BTVN"
-                      (bộ lọc đó dựa trên chỉ số, không dựa trên nhãn); ở đây chỉ là
-                      ô bảng hiện việc ưu tiên cao hơn.
+                      HV Xám có BTVN kém vẫn được nhắc bài tập — tin nhắn nhóm Xám
+                      nêu sẵn cả đi học lẫn BTVN, nên một tin là đủ.
                     */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-2">
@@ -471,21 +466,21 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         )}
                         {s.evaluation.suggestedAction === 'call_parent' || s.labeling.currentLabel === 'red' ? (
                           <button
-                            onClick={onOpenCallModal}
+                            onClick={() => onOpenTrigger('urgent_remind')}
                             className="px-3 py-1.5 rounded-[8px] bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                           >
-                            <PhoneCall className="w-3 h-3" /> Gọi gấp
+                            <MessageSquare className="w-3 h-3" /> Nhắc gấp
                           </button>
                         ) : s.labeling.currentLabel === 'grey' ? (
                           <button
-                            onClick={onOpenRelearnModal}
+                            onClick={() => onOpenTrigger('relearn_advice')}
                             className="px-3 py-1.5 rounded-[8px] bg-transparent text-slate-700 dark:text-slate-300 border border-slate-400 dark:border-slate-500 hover:bg-slate-600 hover:text-white hover:border-slate-600 font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                           >
-                            <Compass className="w-3 h-3" /> Tư vấn học lại
+                            <Compass className="w-3 h-3" /> Nhắc &amp; tư vấn
                           </button>
                         ) : s.evaluation.suggestedAction === 'assign_hw' || s.homework.isDroppingRecently ? (
                           <button
-                            onClick={onOpenZaloModal}
+                            onClick={() => onOpenTrigger('homework_reminder')}
                             className="px-3 py-1.5 rounded-[8px] bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500 hover:bg-amber-600 hover:text-white font-semibold text-xs transition-colors inline-flex items-center gap-1.5 active:scale-95"
                           >
                             <MessageSquare className="w-3 h-3" /> Nhắc Zalo
@@ -636,7 +631,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           Hiển thị <b className="text-[#404040] dark:text-[#e4e4e7]">{sortedStudents.length}</b> / <span className="text-[#404040] dark:text-[#e4e4e7]">{students.length}</span> học viên
         </div>
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Nhãn Đỏ / Cần gọi gấp</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Nhãn Đỏ / Cần nhắc gấp</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Nhãn Vàng / Pass Mềm</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> Nhãn Xám / Cần tư vấn học lại</span>
           <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Đã liên hệ tại mốc {checkpoint}</span>

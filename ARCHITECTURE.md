@@ -374,12 +374,12 @@ Một cột `da_lien_he: TRUE/FALSE` trên `02_DuLieu_HocVien` chỉ trả lời
 
 | Cột | Kiểu | Ví dụ | Ghi chú |
 |---|---|---|---|
-| `contact_id` | text | `CT-19428-urgent_call-2026-08-04T03:12:55Z` | Khoá chính |
+| `contact_id` | text | `CT-19428-urgent_remind-2026-08-04T03:12:55Z` | Khoá chính |
 | `student_id` | number | `19428` | → `02.student_id` |
 | `class_id` | number | `2174` | → `01.class_id` |
 | `teacher_id` | number | `7` | → `08.teacher_id`. AI của độ phủ theo GV |
-| `channel` | enum | `call` \| `zalo` \| `in_person` | |
-| `trigger` | enum | `urgent_call` \| `homework_reminder` \| `relearn_advice` | Loại cảnh báo được đóng |
+| `channel` | enum | `zalo` \| `call` \| `in_person` | Giao diện hiện chỉ sinh ra `zalo` — xem ghi chú dưới |
+| `trigger` | enum | `urgent_remind` \| `homework_reminder` \| `relearn_advice` | Loại cảnh báo được đóng |
 | `checkpoint` | text | `Test 3` \| `Chưa có test` | **Phải cùng hệ giá trị với `04.checkpoint`** |
 | `note` | text | `''` | Bản v1 luôn rỗng, giữ cột sẵn |
 | `created_at` | ISO8601 | `2026-08-04T03:12:55Z` | |
@@ -396,22 +396,32 @@ Một cảnh báo được coi là "đã xử lý" khi tồn tại ít nhất m�
 
 Ba `trigger` ứng với ba predicate trong `src/data/selectors/studentFilters.ts`. Thêm trigger mới thì phải thêm predicate, nếu không `openEpisodes` đếm thiếu.
 
+### Kênh liên hệ: chỉ Zalo, gửi cho HỌC VIÊN
+
+Chốt với nghiệp vụ: **GV thực tế không gọi phụ huynh.** Họ nhắn Zalo cho chính học viên. Toàn bộ giao diện đã bỏ luồng gọi phụ huynh; mọi kịch bản trong `src/data/messageScripts.ts` xưng hô "em" và có test chặn việc lỡ viết cho phụ huynh.
+
+`channel` vẫn giữ ba giá trị trong schema để backend không phải migrate nếu sau này có kênh khác, nhưng hiện giao diện chỉ ghi `'zalo'`. `StudentDetail.phone` là số của học viên — **không có trường số phụ huynh riêng**; nếu nghiệp vụ cần nhắn cho phụ huynh thì phải bổ sung cột vào `02`.
+
 ### Đóng hộ giữa các luồng — **một chiều**
 
 ```
-urgent_call  ──đóng hộ──►  homework_reminder
+urgent_remind   ──┐
+                  ├──đóng hộ──►  homework_reminder
+relearn_advice  ──┘
 ```
 
-Một HV có thể mở nhiều episode cùng lúc. Đo trên dữ liệu mock: trong 17 HV của danh sách nhắc BTVN có **5 HV đồng thời nằm trong "Gọi gấp"**, và **cả 5 đều đã có `BTVN <90%` nằm sẵn trong `pass_chuan_reasons`** — tức là kịch bản gọi phụ huynh đã nêu đúng vấn đề đó. Bắt GV nhắn thêm Zalo nhắc nộp bài cho chính HV vừa gọi là nói cùng một việc hai lần, và làm thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
+Một HV có thể mở nhiều episode cùng lúc. Đo trên dữ liệu mock: trong 17 HV của danh sách nhắc BTVN có **6 HV đồng thời thuộc nhóm Đỏ hoặc Xám**. Vì **mọi kịch bản đều nêu cả đi học lẫn BTVN kèm số cụ thể**, bắt GV nhắn thêm một tin riêng để nhắc nộp bài cho chính HV vừa nhắn là gửi hai tin nói cùng một việc, và làm thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
 
-Nên: một dòng `trigger = 'urgent_call'` cũng đóng luôn episode `homework_reminder` của cùng `student_id` tại **cùng `checkpoint`**.
+Nên: một dòng `trigger = 'urgent_remind'` hoặc `'relearn_advice'` cũng đóng luôn episode `homework_reminder` của cùng `student_id` tại **cùng `checkpoint`**.
 
-Hai chiều **không** được phép, và đây là ràng buộc nghiệp vụ chứ không phải chi tiết cài đặt:
+⚠️ **Luật này phụ thuộc vào nội dung kịch bản.** Nếu ai sửa `messageScripts.ts` bỏ phần bài tập ra khỏi tin nhóm Đỏ/Xám thì luật đóng hộ thành ra nói dối. Cái chặn là test trong `messageScripts.test.ts` — nó khẳng định cả ba kịch bản đều chứa số ĐH và số BTVN. Đừng xoá test đó.
 
-- `homework_reminder` **không** đóng `urgent_call` — một tin nhắn Zalo cho học viên không thay thế được cuộc gọi cho phụ huynh. Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
-- `relearn_advice` **không** đóng `homework_reminder` — buổi tư vấn bàn về học lại / bảo lưu, không bàn về việc nộp bài. HV nhãn Xám vẫn phải được nhắc BTVN như mọi HV khác.
+Chiều ngược lại **không** được phép, và đây là ràng buộc nghiệp vụ chứ không phải chi tiết cài đặt:
 
-Trên giao diện, episode bị đóng hộ hiện huy hiệu xám *"Đã gọi PH · Test 3"* (khác hẳn huy hiệu xanh của lượt GV tự tick) kèm liên kết *"Vẫn nhắn thêm"* — hệ thống không giả vờ rằng tin nhắn đã được gửi.
+- `homework_reminder` **không** đóng `urgent_remind` hay `relearn_advice` — tin nhắc bài tập không nói gì về việc đi học sa sút hay về lộ trình học. Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
+- `urgent_remind` và `relearn_advice` **không** đóng lẫn nhau — nội dung hai tin khác hẳn nhau về chất.
+
+Trên giao diện, episode bị đóng hộ hiện huy hiệu xám *"Đã nhắn (nhóm gấp) · Test 3"* (khác hẳn huy hiệu xanh của lượt GV tự tick) kèm liên kết *"Vẫn nhắn thêm"* — hệ thống không giả vờ rằng đã có một tin nhắn riêng được gửi.
 
 ### Ghi ngược qua n8n
 
@@ -441,6 +451,8 @@ else → none
 Hệ quả: một HV **nhãn Xám** đi học đều và nộp bài đủ nhận `suggestedAction = 'none'` — không rơi vào luồng hành động nào, ô "Hành động" trên màn hình GV hiện `--`. Trên dữ liệu mock hiện tại là **10 HV trên 15 lớp**, riêng lớp IC2174 có 5. Đây chính là nhóm mà §4 xác định là rủi ro cao nhất.
 
 Frontend đã vá bằng cách thêm luồng riêng `relearn_advice` (predicate `isRelearnAdviceStudent`), độc lập với `suggestedAction`. Nếu backend sinh `suggestedAction` thật thì phải xử lý nhánh nhãn Xám ở đó, nếu không hai bên sẽ lệch nhau.
+
+Cũng lưu ý: giá trị `'call_parent'` trong `suggestedAction` giờ **sai tên so với nghiệp vụ** — hành động thật là nhắn Zalo cho học viên, không phải gọi phụ huynh. Frontend chưa đổi vì đó là hợp đồng backend; nếu backend sinh trường này thì nên đổi tên luôn.
 
 ---
 

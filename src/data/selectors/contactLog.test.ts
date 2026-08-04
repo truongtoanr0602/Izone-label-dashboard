@@ -103,8 +103,8 @@ function log(over: Partial<ContactLog> = {}): ContactLog {
     studentId: 1,
     classId: 1,
     teacherId: 1,
-    channel: 'call',
-    trigger: 'urgent_call',
+    channel: 'zalo',
+    trigger: 'urgent_remind',
     checkpoint: 'Test 3',
     note: '',
     createdAt: '2026-08-01T10:00:00.000Z',
@@ -136,17 +136,17 @@ describe('currentCheckpoint', () => {
 
 describe('openEpisodes', () => {
   it('một HV có thể mở nhiều episode cùng lúc', () => {
-    // Điểm danh 70% → gọi gấp; BTVN 60% → nhắc BTVN. Đóng việc này không có
+    // Điểm danh 70% → nhắc gấp; BTVN 60% → nhắc BTVN. Đóng việc này không có
     // nghĩa là đã làm việc kia.
     const s = student(1, { attendance: 70, homework: 60 });
     expect(openEpisodes([s])).toEqual([
-      { studentId: 1, trigger: 'urgent_call' },
+      { studentId: 1, trigger: 'urgent_remind' },
       { studentId: 1, trigger: 'homework_reminder' },
     ]);
   });
 
   it('HV Xám đi học đều, nộp bài đủ VẪN mở một episode', () => {
-    // Đây chính là ca trước đây rơi qua mọi kẽ hở: không gọi gấp, không nhắc
+    // Đây chính là ca trước đây rơi qua mọi kẽ hở: không nhắc gấp, không nhắc
     // BTVN, ô hành động hiện "--".
     const s = student(1, { label: 'grey', attendance: 95, homework: 95 });
     expect(openEpisodes([s])).toEqual([{ studentId: 1, trigger: 'relearn_advice' }]);
@@ -167,68 +167,80 @@ describe('isContacted', () => {
     // Đây là toàn bộ lý do `checkpoint` nằm trong khoá episode: có bài test
     // mới thì cảnh báo phải nổi lại mà không cần ai đi reset cờ.
     const logs = [log({ checkpoint: 'Test 2' })];
-    expect(isContacted(logs, 1, 'urgent_call', 'Test 3')).toBe(false);
-    expect(isContacted(logs, 1, 'urgent_call', 'Test 2')).toBe(true);
+    expect(isContacted(logs, 1, 'urgent_remind', 'Test 3')).toBe(false);
+    expect(isContacted(logs, 1, 'urgent_remind', 'Test 2')).toBe(true);
   });
 
   it('nhật ký rỗng → chưa liên hệ', () => {
-    expect(isContacted([], 1, 'urgent_call', 'Test 3')).toBe(false);
+    expect(isContacted([], 1, 'urgent_remind', 'Test 3')).toBe(false);
   });
 });
 
 describe('đóng hộ giữa các luồng (một chiều)', () => {
-  it('gọi PH ĐÓNG HỘ việc nhắc BTVN ở cùng mốc', () => {
-    // Kịch bản gọi PH đã nêu "BTVN <90%" — bắt GV nhắn Zalo nhắc nộp bài cho
-    // chính HV vừa gọi là nói cùng một việc hai lần.
-    const logs = [log({ trigger: 'urgent_call' })];
+  it('tin nhóm Đỏ ĐÓNG HỘ việc nhắc BTVN ở cùng mốc', () => {
+    // Tin nhóm Đỏ đã nêu số BTVN — bắt GV gửi thêm một tin nữa để nhắc nộp bài
+    // cho chính HV vừa nhắn là gửi hai tin nói cùng một việc.
+    const logs = [log({ trigger: 'urgent_remind' })];
     expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(true);
   });
 
-  it('nhắn BTVN KHÔNG đóng hộ việc gọi PH — chiều ngược lại phải chặn', () => {
+  it('tin BTVN KHÔNG đóng hộ luồng nhóm Đỏ — chiều ngược lại phải chặn', () => {
     // Nếu để hai chiều, GV làm việc dễ rồi bỏ việc khó vẫn hiện 100% cho Lead.
     const logs = [log({ trigger: 'homework_reminder' })];
-    expect(isContacted(logs, 1, 'urgent_call', 'Test 3')).toBe(false);
+    expect(isContacted(logs, 1, 'urgent_remind', 'Test 3')).toBe(false);
   });
 
-  it('tư vấn học lại KHÔNG đóng hộ việc nhắc BTVN', () => {
-    // Buổi tư vấn bàn về học lại/bảo lưu, không bàn về việc nộp bài — HV nhãn
-    // Xám vẫn phải được nhắc BTVN như mọi HV khác.
+  it('tin nhóm Xám ĐÓNG HỘ việc nhắc BTVN', () => {
+    // Tin nhắn nhóm Xám nêu cả đi học lẫn BTVN kèm số cụ thể (có test ràng
+    // buộc điều đó trong messageScripts.test.ts), nên HV Xám vẫn được nhắc
+    // BTVN — chỉ là nhắc trong cùng một tin, không phải hai tin.
     const logs = [log({ trigger: 'relearn_advice' })];
-    expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(false);
+    expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(true);
+  });
+
+  it('nhắc BTVN KHÔNG đóng hộ luồng nhóm Xám', () => {
+    // Tin BTVN không hề mở lời về lộ trình học — chiều này phải chặn.
+    const logs = [log({ trigger: 'homework_reminder' })];
+    expect(isContacted(logs, 1, 'relearn_advice', 'Test 3')).toBe(false);
+  });
+
+  it('hai luồng ưu tiên cao KHÔNG đóng hộ lẫn nhau', () => {
+    const logs = [log({ trigger: 'urgent_remind' })];
+    expect(isContacted(logs, 1, 'relearn_advice', 'Test 3')).toBe(false);
   });
 
   it('đóng hộ KHÔNG vượt qua ranh giới checkpoint', () => {
-    const logs = [log({ trigger: 'urgent_call', checkpoint: 'Test 2' })];
+    const logs = [log({ trigger: 'urgent_remind', checkpoint: 'Test 2' })];
     expect(isContacted(logs, 1, 'homework_reminder', 'Test 3')).toBe(false);
   });
 
   it('closingContact ưu tiên lượt của CHÍNH luồng đó', () => {
-    // GV vừa gọi PH vừa thật sự nhắn Zalo → giao diện phải hiện "đã nhắn" (có
-    // nút hoàn tác), không phải "đã gọi PH nên khỏi nhắn".
+    // GV đã gửi cả tin nhóm Đỏ lẫn tin BTVN thật → giao diện phải hiện "đã nhắn"
+    // (có nút hoàn tác), không phải huy hiệu xám "đã nằm trong tin kia".
     const logs = [
-      log({ contactId: 'call', trigger: 'urgent_call' }),
-      log({ contactId: 'zalo', trigger: 'homework_reminder' }),
+      log({ contactId: 'urgent', trigger: 'urgent_remind' }),
+      log({ contactId: 'hw', trigger: 'homework_reminder' }),
     ];
-    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.contactId).toBe('zalo');
+    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.contactId).toBe('hw');
   });
 
   it('closingContact trả lượt của luồng bao khi luồng đó chưa có lượt riêng', () => {
-    const logs = [log({ contactId: 'call', trigger: 'urgent_call' })];
-    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.trigger).toBe('urgent_call');
+    const logs = [log({ contactId: 'urgent', trigger: 'urgent_remind' })];
+    expect(closingContact(logs, 1, 'homework_reminder', 'Test 3')?.trigger).toBe('urgent_remind');
   });
 
   it('đóng hộ được tính vào độ phủ của Lead', () => {
-    // HV ĐH 70% + BTVN 60% mở 2 episode; một cuộc gọi đóng cả hai → 100%.
+    // HV ĐH 70% + BTVN 60% mở 2 episode; một tin nhóm Đỏ đóng cả hai → 100%.
     const students = [student(1, { attendance: 70, homework: 60 })];
-    const logs = [log({ trigger: 'urgent_call' })];
+    const logs = [log({ trigger: 'urgent_remind' })];
     expect(contactCoverage(students, logs, 'Test 3')).toEqual({ done: 2, total: 2, pct: 100 });
   });
 
   it('đóng hộ làm giảm số việc còn lại của luồng BTVN', () => {
     const students = [student(1, { attendance: 70, homework: 60 })];
-    const logs = [log({ trigger: 'urgent_call' })];
+    const logs = [log({ trigger: 'urgent_remind' })];
     expect(remainingCount(students, logs, 'homework_reminder', 'Test 3')).toBe(0);
-    expect(remainingCount(students, logs, 'urgent_call', 'Test 3')).toBe(0);
+    expect(remainingCount(students, logs, 'urgent_remind', 'Test 3')).toBe(0);
   });
 });
 
@@ -239,7 +251,7 @@ describe('lastContact', () => {
       log({ contactId: 'b', createdAt: '2026-08-01T00:00:00.000Z' }),
       log({ contactId: 'c', createdAt: '2026-06-01T00:00:00.000Z' }),
     ];
-    expect(lastContact(logs, 1, 'urgent_call')?.contactId).toBe('b');
+    expect(lastContact(logs, 1, 'urgent_remind')?.contactId).toBe('b');
   });
 
   it('trả null khi HV chưa từng được liên hệ vì lý do đó', () => {
@@ -249,10 +261,11 @@ describe('lastContact', () => {
 
 describe('contactCoverage', () => {
   it('đếm theo episode chứ không theo học viên', () => {
-    // HV Xám + BTVN 60% mở 2 episode. Hai luồng này KHÔNG đóng hộ nhau, nên
-    // đóng một cái phải ra 1/2 — không phải 1/1 chỉ vì "đã liên hệ bạn ấy rồi".
-    const students = [student(1, { label: 'grey', homework: 60 })];
-    const logs = [log({ studentId: 1, trigger: 'relearn_advice', checkpoint: 'Test 3' })];
+    // HV Xám + đi học 70% mở 2 episode (nhắc gấp + nhóm Xám). Hai luồng này
+    // KHÔNG đóng hộ nhau — nội dung hai tin khác nhau — nên đóng một cái phải
+    // ra 1/2, không phải 1/1 chỉ vì "đã nhắn bạn ấy rồi".
+    const students = [student(1, { label: 'grey', attendance: 70 })];
+    const logs = [log({ studentId: 1, trigger: 'urgent_remind', checkpoint: 'Test 3' })];
     expect(contactCoverage(students, logs, 'Test 3')).toEqual({ done: 1, total: 2, pct: 50 });
   });
 
@@ -293,17 +306,17 @@ describe('remainingCount', () => {
       student(2, { attendance: 70 }),
       student(3, { label: 'grey' }),
     ];
-    const logs = [log({ studentId: 1, trigger: 'urgent_call', checkpoint: 'Test 3' })];
-    expect(remainingCount(students, logs, 'urgent_call', 'Test 3')).toBe(1);
+    const logs = [log({ studentId: 1, trigger: 'urgent_remind', checkpoint: 'Test 3' })];
+    expect(remainingCount(students, logs, 'urgent_remind', 'Test 3')).toBe(1);
     expect(remainingCount(students, logs, 'relearn_advice', 'Test 3')).toBe(1);
   });
 });
 
 describe('episodeKey', () => {
   it('ba thành phần đều phân biệt được khoá', () => {
-    expect(episodeKey(1, 'urgent_call', 'Test 3')).toBe('1|urgent_call|Test 3');
-    expect(episodeKey(1, 'urgent_call', 'Test 3')).not.toBe(episodeKey(1, 'urgent_call', 'Test 2'));
-    expect(episodeKey(1, 'urgent_call', 'Test 3')).not.toBe(
+    expect(episodeKey(1, 'urgent_remind', 'Test 3')).toBe('1|urgent_remind|Test 3');
+    expect(episodeKey(1, 'urgent_remind', 'Test 3')).not.toBe(episodeKey(1, 'urgent_remind', 'Test 2'));
+    expect(episodeKey(1, 'urgent_remind', 'Test 3')).not.toBe(
       episodeKey(1, 'homework_reminder', 'Test 3'),
     );
   });

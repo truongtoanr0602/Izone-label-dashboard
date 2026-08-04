@@ -13,9 +13,11 @@ import type { ContactChannel, ContactLog, ContactTrigger } from './types';
  * `loadLogs` bằng `GET .../contact-log?classId=`. Giữ nguyên chữ ký hàm.
  *
  * Khoá có version trong tên: đổi hình dạng `ContactLog` mà không đổi khoá sẽ
- * khiến máy của người đã demo hôm trước đọc phải dữ liệu cũ và crash.
+ * khiến máy của người đã demo hôm trước đọc phải dữ liệu cũ và crash. Đã lên v2
+ * khi `urgent_call` đổi tên thành `urgent_remind` — log cũ mang trigger không
+ * còn tồn tại, giữ lại thì mọi episode nhóm Đỏ hiện sai trạng thái.
  */
-const STORAGE_KEY = 'izone.contactLogs.v1';
+const STORAGE_KEY = 'izone.contactLogs.v2';
 
 function persist(logs: ContactLog[]): void {
   try {

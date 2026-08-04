@@ -147,7 +147,7 @@ export const MOCK_CONTACT_LOGS: ContactLog[] = ACTIVE_CLASSES.flatMap((c) => {
         studentId: ep.studentId,
         classId: c.plan.classId,
         teacherId: c.summary.teacher.teacherId,
-        channel: ep.trigger === 'homework_reminder' ? ('zalo' as const) : ('call' as const),
+        channel: 'zalo' as const,
         trigger: ep.trigger,
         checkpoint: atPrevious ? (previous as string) : checkpoint,
         note: '',

@@ -3,7 +3,7 @@ import { round1 } from '../number';
 import {
   isHomeworkReminderStudent,
   isRelearnAdviceStudent,
-  isUrgentCallStudent,
+  isUrgentRemindStudent,
 } from './studentFilters';
 
 /**
@@ -34,10 +34,21 @@ export interface ContactCoverage {
 
 /** Ba luồng cảnh báo hiện có, theo thứ tự ưu tiên hiển thị. */
 const TRIGGERS: { trigger: ContactTrigger; match: (s: StudentDetail) => boolean }[] = [
-  { trigger: 'urgent_call', match: isUrgentCallStudent },
+  { trigger: 'urgent_remind', match: isUrgentRemindStudent },
   { trigger: 'relearn_advice', match: isRelearnAdviceStudent },
   { trigger: 'homework_reminder', match: isHomeworkReminderStudent },
 ];
+
+/**
+ * HV này có đang mở cảnh báo thuộc luồng đó không.
+ *
+ * Cửa duy nhất để giao diện hỏi câu đó — modal, thẻ và bảng đều gọi hàm này
+ * thay vì tự lặp lại predicate, nên không thể lệch nhau như hồi ba nơi cùng
+ * copy-paste định nghĩa "HV nguy cấp".
+ */
+export function matchesTrigger(s: StudentDetail, trigger: ContactTrigger): boolean {
+  return TRIGGERS.find((t) => t.trigger === trigger)?.match(s) ?? false;
+}
 
 export function episodeKey(
   studentId: number,
@@ -73,7 +84,7 @@ export function currentCheckpoint(students: StudentDetail[]): string {
 /**
  * Mọi cảnh báo đang mở của một danh sách học viên.
  *
- * Một HV có thể mở nhiều episode cùng lúc (vừa cần gọi gấp vừa cần nhắc BTVN)
+ * Một HV có thể mở nhiều episode cùng lúc (vừa cần nhắc gấp vừa cần nhắc BTVN)
  * và đó là chủ đích: đóng một việc không có nghĩa là đã làm việc kia.
  */
 export function openEpisodes(students: StudentDetail[]): Episode[] {
@@ -91,34 +102,34 @@ export function openEpisodes(students: StudentDetail[]): Episode[] {
 /**
  * Luồng nào ĐÓNG HỘ được luồng nào — cố ý MỘT CHIỀU.
  *
- * Đo trên dữ liệu: trong 17 HV của danh sách nhắc BTVN có 5 HV đồng thời nằm
- * trong "Gọi gấp", và cả 5 đều đã có `BTVN <90%` nằm sẵn trong lý do của kịch
- * bản gọi phụ huynh. GV gọi PH xong — cuộc gọi đó đã nói về bài tập — rồi hệ
- * thống vẫn bắt nhắn Zalo cho chính HV đó để nhắc nộp bài. Một việc, đếm hai
- * lần, và thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
+ * Đo trên dữ liệu: trong 17 HV của danh sách nhắc BTVN có 6 HV đồng thời thuộc
+ * nhóm Đỏ hoặc Xám. Vì MỌI kịch bản trong `messageScripts.ts` đều nêu cả đi học
+ * lẫn BTVN kèm số cụ thể, GV nhắn xong tin nhóm Đỏ/Xám — tin đó đã nói về bài
+ * tập — rồi hệ thống vẫn bắt nhắn thêm một tin nữa để nhắc nộp bài. Hai tin nói
+ * cùng một việc, đếm hai lần, và thẻ "còn X/Y" hiện ra công việc thực tế đã xong.
  *
- * Chiều ngược lại KHÔNG được phép: một tin nhắn Zalo cho học viên không thay
- * thế được cuộc gọi cho phụ huynh. Đây cũng là lý do bảng này không phải quan
- * hệ đối xứng — nếu để hai chiều thì GV đóng việc dễ rồi bỏ việc khó vẫn hiện
- * 100% trên bảng của Lead.
+ * Chiều ngược lại KHÔNG được phép: tin nhắc bài tập không nói gì về việc đi học
+ * sa sút hay về lộ trình học. Đây là lý do bảng này không đối xứng — nếu để hai
+ * chiều thì GV đóng việc dễ rồi bỏ việc khó vẫn hiện 100% trên bảng của Lead.
  *
- * `relearn_advice` KHÔNG đóng hộ `homework_reminder`: buổi tư vấn phương án học
- * bàn về việc học lại / bảo lưu, không phải về việc nộp bài — HV nhãn Xám vẫn
- * cần được nhắc BTVN như mọi HV khác.
+ * `relearn_advice` cũng đóng hộ `homework_reminder` vì tin nhắn của nhóm Xám
+ * nêu cả đi học lẫn BTVN kèm số cụ thể (xem `messageScripts.ts`, có test ràng
+ * buộc điều đó). Nếu ai sửa kịch bản đó bỏ phần bài tập đi thì luật này thành
+ * ra nói dối — test trong `messageScripts.test.ts` chính là cái chặn.
  */
 const COVERED_BY: Record<ContactTrigger, ContactTrigger[]> = {
-  urgent_call: [],
+  urgent_remind: [],
   relearn_advice: [],
-  homework_reminder: ['urgent_call'],
+  homework_reminder: ['urgent_remind', 'relearn_advice'],
 };
 
 /**
  * Lượt liên hệ đã đóng episode này — có thể là lượt của chính luồng đó, hoặc
  * của một luồng bao nó (xem {@link COVERED_BY}). `null` nếu chưa ai đụng tới.
  *
- * Trả về cả bản ghi chứ không chỉ true/false, vì giao diện cần phân biệt "đã
- * nhắn Zalo" với "đã gọi PH nên khỏi nhắn" — hai chuyện đó GV phải thấy khác
- * nhau, nếu không họ sẽ tưởng mình đã gửi tin nhắn mà thật ra chưa.
+ * Trả về cả bản ghi chứ không chỉ true/false, vì giao diện cần phân biệt "GV đã
+ * gửi tin của luồng này" với "nội dung đã nằm trong tin của luồng khác" — hai
+ * chuyện đó GV phải thấy khác nhau, nếu không họ tưởng mình đã gửi mà thật ra chưa.
  */
 export function closingContact(
   logs: ContactLog[],
@@ -126,9 +137,9 @@ export function closingContact(
   trigger: ContactTrigger,
   checkpoint: string,
 ): ContactLog | null {
-  // Ưu tiên lượt của CHÍNH luồng này trước khi xét luồng bao: nếu GV vừa gọi
-  // PH vừa nhắn Zalo thật, giao diện phải hiện "đã nhắn" (có nút hoàn tác) chứ
-  // không phải "đã gọi PH nên khỏi nhắn".
+  // Ưu tiên lượt của CHÍNH luồng này trước khi xét luồng bao: nếu GV đã gửi cả
+  // tin nhóm Đỏ lẫn tin BTVN thật, giao diện phải hiện "đã nhắn" (có nút hoàn
+  // tác) chứ không phải huy hiệu xám "đã nằm trong tin kia".
   for (const t of [trigger, ...COVERED_BY[trigger]]) {
     const hit = logs.find(
       (l) => l.studentId === studentId && l.checkpoint === checkpoint && l.trigger === t,
