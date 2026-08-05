@@ -1,0 +1,10 @@
+﻿log_id,run_id,timestamp,workflow_name,action,class_id,status,message,records_affected,duration_ms
+a5bdd10d,ae5e34a0,2026-07-27 10:00:00,WF-01 Data Sync Master,scrape_data,1159,success,Lấy dữ liệu IC2174 thành công,21,3200
+18b098cf,ae5e34a0,2026-07-27 10:00:05,WF-01 Data Sync Master,scrape_data,1006,success,Lấy dữ liệu IC2030 thành công,19,2800
+c410d879,ae5e34a0,2026-07-27 10:00:10,WF-01 Data Sync Master,scrape_data,905,success,Lấy dữ liệu IC1924 thành công,19,2900
+97969065,ae5e34a0,2026-07-27 10:00:15,WF-01b Label Engine,update_labels,1159,success,Gán nhãn 18 HV,18,1500
+a39ed168,ae5e34a0,2026-07-27 10:00:16,WF-01b Label Engine,update_labels,1006,success,Gán nhãn 17 HV,17,1400
+eb0807cd,ae5e34a0,2026-07-27 10:00:17,WF-01b Label Engine,update_labels,905,success,Gán nhãn 18 HV,18,1300
+5d61c414,ae5e34a0,2026-07-27 10:00:20,WF-01b Label Engine,detect_changes,1159,success,Phát hiện 2 HV chuyển nhãn,2,800
+962c83ce,ae5e34a0,2026-07-27 10:00:25,WF-01b Label Engine,send_email,1159,success,Gửi email cho phuong.tm@izone.edu.vn — 2 HV chuyển nhãn,1,2000
+99262a6d,ae5e34a0,2026-07-27 10:00:30,WF-02 Deadline Checker,check_deadline,,warning,1 review quá hạn: Đặng Minh Trí (IC1924) — đã escalate cho Lead,1,500

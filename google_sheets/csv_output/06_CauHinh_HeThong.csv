@@ -1,0 +1,25 @@
+﻿config_key,config_value,description,updated_at,updated_by
+nguong_xam_max,45,Điểm tối đa nhóm Xám (< giá trị này),2026-07-27,admin
+nguong_do_min,45,Điểm tối thiểu nhóm Đỏ,2026-07-27,admin
+nguong_do_max,60,Điểm tối đa nhóm Đỏ (< giá trị này),2026-07-27,admin
+nguong_vang_min,60,Điểm tối thiểu nhóm Vàng (>= giá trị này),2026-07-27,admin
+pass_dh_min,90,ĐH tối thiểu cho Pass chuẩn (>= giá trị này %),2026-07-27,admin
+pass_btvn_min,90,BTVN tối thiểu cho Pass chuẩn (>= giá trị này %),2026-07-27,admin
+pass_test_avg_min,60,TB test tối thiểu cho Pass chuẩn (>= giá trị này),2026-07-27,admin
+soft_g1_test_min,50,Nhóm 1 Pass mềm: TB test min,2026-07-27,admin
+soft_g1_test_max,55,Nhóm 1 Pass mềm: TB test max (< giá trị này),2026-07-27,admin
+soft_g1_dh_min,100,Nhóm 1 Pass mềm: ĐH tối thiểu (%),2026-07-27,admin
+soft_g1_btvn_min,100,Nhóm 1 Pass mềm: BTVN tối thiểu (%),2026-07-27,admin
+soft_g2_test_min,55,Nhóm 2 Pass mềm: TB test min,2026-07-27,admin
+soft_g2_test_max,60,Nhóm 2 Pass mềm: TB test max (< giá trị này),2026-07-27,admin
+soft_g2_dh_min,90,Nhóm 2 Pass mềm: ĐH tối thiểu (%),2026-07-27,admin
+soft_g2_btvn_min,90,Nhóm 2 Pass mềm: BTVN tối thiểu (%),2026-07-27,admin
+review_deadline_days,7,Số ngày GV phải confirm Pass mềm,2026-07-27,admin
+moc_bao_dong_pct,40,Ngưỡng % (Xám+Đỏ) để báo động lớp,2026-07-27,admin
+alert_dh_tut_pct,80,Ngưỡng ĐH tuần tụt để cảnh báo (%),2026-07-27,admin
+alert_btvn_tut_pct,80,Ngưỡng BTVN tuần tụt để cảnh báo (%),2026-07-27,admin
+cheating_test_score,0,Điểm test bị cheating tính = bao nhiêu,2026-07-27,admin
+cron_schedule,0 10 * * *,Lịch chạy N8N (hàng ngày 10h sáng),2026-07-27,admin
+course_id_khoi34,2,course_id cho Khối 3-4 trên Portal,2026-07-27,admin
+total_tests_per_course,6,Tổng số test dự kiến trong khóa,2026-07-27,admin
+test_makeup_rule,max,Cách tính điểm thi lại: max / replace / average,2026-07-27,admin

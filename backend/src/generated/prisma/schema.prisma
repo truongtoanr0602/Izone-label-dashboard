@@ -1,0 +1,277 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model class_daily_snapshots {
+  id                   BigInt   @id @default(autoincrement())
+  class_id             Int
+  snapshot_date        DateTime @db.Date
+  completed_sessions   Int      @default(0)
+  progress_pct         Decimal? @default(dbgenerated("\nCASE\n    WHEN (completed_sessions > 0) THEN round((((completed_sessions)::numeric * 100.0) / (NULLIF(28, 0))::numeric), 2)\n    ELSE (0)::numeric\nEND")) @db.Decimal(5, 2)
+  active_students      Int      @default(0)
+  on_hold_students     Int      @default(0)
+  dropped_students     Int      @default(0)
+  transferred_students Int      @default(0)
+  attendance_avg       Decimal? @db.Decimal(5, 2)
+  homework_avg         Decimal? @db.Decimal(5, 2)
+  pass_chuan_rate      Decimal? @default(0) @db.Decimal(5, 2)
+  pass_mem_rate        Decimal? @default(0) @db.Decimal(5, 2)
+  label_yellow         Int      @default(0)
+  label_red            Int      @default(0)
+  label_grey           Int      @default(0)
+  label_no_data        Int      @default(0)
+  risk_pct             Decimal? @default(0) @db.Decimal(5, 2)
+  is_alarm_triggered   Boolean  @default(false)
+  health_status        String?  @default("B?nh th??ng") @db.VarChar(30)
+  scraped_at           DateTime @default(now()) @db.Timestamptz(6)
+  classes              classes  @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([class_id, snapshot_date], map: "uq_class_snapshot")
+  @@index([snapshot_date], map: "idx_class_snap_by_date")
+  @@index([class_id, snapshot_date(sort: Desc)], map: "idx_class_snap_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model classes {
+  class_id              Int                     @id
+  class_name            String                  @unique @db.VarChar(20)
+  course_id             Int                     @default(2)
+  teacher_id            Int
+  lead_email            String?                 @db.VarChar(150)
+  status                String                  @default("on_going") @db.VarChar(20)
+  schedule              String?                 @db.VarChar(50)
+  location              String?                 @default("Online") @db.VarChar(100)
+  opening_date          DateTime                @db.Date
+  ending_date           DateTime?               @db.Date
+  total_sessions        Int                     @default(28)
+  portal_url            String?                 @db.VarChar(300)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  class_daily_snapshots class_daily_snapshots[]
+  teachers              teachers                @relation(fields: [teacher_id], references: [teacher_id], onDelete: NoAction, onUpdate: NoAction)
+  label_change_logs     label_change_logs[]
+  pass_reviews          pass_reviews[]
+  student_daily_records student_daily_records[]
+  students              students[]
+  test_scores           test_scores[]
+
+  @@index([status], map: "idx_classes_status")
+  @@index([teacher_id], map: "idx_classes_teacher")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model label_change_logs {
+  id                 BigInt    @id @default(autoincrement())
+  log_id             String    @unique @default(dbgenerated("(gen_random_uuid())::text")) @db.VarChar(36)
+  student_id         Int
+  class_id           Int
+  teacher_id         Int
+  from_label         String    @db.VarChar(20)
+  to_label           String    @db.VarChar(20)
+  direction          String    @db.VarChar(10)
+  severity           String?   @db.VarChar(20)
+  step_count         Int?      @default(1)
+  reason             String?
+  checkpoint         String?   @db.VarChar(20)
+  test_average_after Decimal?  @db.Decimal(5, 2)
+  attendance_pct     Decimal?  @db.Decimal(5, 2)
+  homework_pct       Decimal?  @db.Decimal(5, 2)
+  email_sent         Boolean?  @default(false)
+  email_sent_at      DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  classes            classes   @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+  students           students  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+  teachers           teachers  @relation(fields: [teacher_id], references: [teacher_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([class_id, created_at(sort: Desc)], map: "idx_label_log_class")
+  @@index([student_id, created_at(sort: Desc)], map: "idx_label_log_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pass_reviews {
+  id                BigInt    @id @default(autoincrement())
+  review_id         String    @unique @default(dbgenerated("(gen_random_uuid())::text")) @db.VarChar(36)
+  student_id        Int
+  class_id          Int
+  teacher_id        Int
+  pass_mem_group    String    @db.VarChar(20)
+  test_average      Decimal   @db.Decimal(5, 2)
+  attendance_pct    Decimal?  @db.Decimal(5, 2)
+  homework_pct      Decimal?  @db.Decimal(5, 2)
+  review_status     String    @default("Ch? GV") @db.VarChar(30)
+  teacher_decision  String?   @db.VarChar(10)
+  teacher_comment   String?
+  confirmed_at      DateTime? @db.Timestamptz(6)
+  deadline          DateTime  @db.Date
+  is_overdue        Boolean   @default(false)
+  escalated_to_lead Boolean   @default(false)
+  lead_email_sent   Boolean   @default(false)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  classes           classes   @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+  students          students  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+  teachers          teachers  @relation(fields: [teacher_id], references: [teacher_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([class_id], map: "idx_review_class")
+  @@index([deadline], map: "idx_review_deadline", where: raw("(NOT is_overdue)"))
+  @@index([review_status], map: "idx_review_status")
+  @@index([student_id], map: "idx_review_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model student_daily_records {
+  id                      BigInt   @id @default(autoincrement())
+  student_id              Int
+  class_id                Int
+  record_date             DateTime @db.Date
+  attendance_pct          Decimal? @db.Decimal(5, 2)
+  attendance_present      Int?     @default(0)
+  attendance_total        Int?     @default(0)
+  homework_pct            Decimal? @db.Decimal(5, 2)
+  homework_done           Int?     @default(0)
+  homework_total          Int?     @default(0)
+  test_1                  Decimal? @db.Decimal(5, 2)
+  test_2                  Decimal? @db.Decimal(5, 2)
+  test_3                  Decimal? @db.Decimal(5, 2)
+  test_4                  Decimal? @db.Decimal(5, 2)
+  test_5                  Decimal? @db.Decimal(5, 2)
+  test_6                  Decimal? @db.Decimal(5, 2)
+  tests_taken             Int?     @default(0)
+  test_average            Decimal? @db.Decimal(5, 2)
+  current_label           String?  @db.VarChar(20)
+  previous_label          String?  @db.VarChar(20)
+  benchmark_label         String?  @db.VarChar(20)
+  has_label_changed       Boolean? @default(false)
+  label_change_direction  String?  @db.VarChar(10)
+  last_checkpoint         String?  @db.VarChar(20)
+  pass_chuan_status       String?  @db.VarChar(50)
+  pass_chuan_reasons      String?
+  pass_mem_status         String?  @db.VarChar(50)
+  pass_mem_group          String?  @db.VarChar(20)
+  pass_mem_label          String?  @db.VarChar(100)
+  flag_attendance_drop    Boolean? @default(false)
+  flag_homework_drop      Boolean? @default(false)
+  flag_cheating           Boolean? @default(false)
+  flag_needs_review       Boolean? @default(false)
+  teacher_feedback_btvn   String?
+  teacher_feedback_orient String?
+  teacher_note            String?
+  teacher_temp_label      String?  @db.VarChar(20)
+  scraped_at              DateTime @default(now()) @db.Timestamptz(6)
+  classes                 classes  @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+  students                students @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([student_id, record_date], map: "uq_student_record")
+  @@index([class_id, record_date], map: "idx_student_rec_class")
+  @@index([student_id, record_date(sort: Desc)], map: "idx_student_rec_date")
+  @@index([current_label, record_date], map: "idx_student_rec_label")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model students {
+  student_id            Int                     @id
+  student_code          String?                 @db.VarChar(20)
+  full_name             String                  @db.VarChar(150)
+  phone                 String?                 @db.VarChar(20)
+  email                 String?                 @db.VarChar(200)
+  class_id              Int
+  registration_status   String                  @default("active") @db.VarChar(20)
+  admitted_at           DateTime?               @db.Date
+  target_output_status  String?                 @default("Ch?a ??t") @db.VarChar(20)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  label_change_logs     label_change_logs[]
+  pass_reviews          pass_reviews[]
+  student_daily_records student_daily_records[]
+  classes               classes                 @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+  test_scores           test_scores[]
+
+  @@index([class_id], map: "idx_students_class")
+  @@index([class_id, registration_status], map: "idx_students_class_status")
+  @@index([registration_status], map: "idx_students_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model system_configs {
+  id           Int      @id @default(autoincrement())
+  config_key   String   @unique @db.VarChar(100)
+  config_value String   @db.VarChar(200)
+  description  String?
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_by   String?  @default("admin") @db.VarChar(100)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model system_logs {
+  id               BigInt   @id @default(autoincrement())
+  log_id           String?  @default(dbgenerated("(gen_random_uuid())::text")) @db.VarChar(36)
+  run_id           String?  @db.VarChar(36)
+  workflow_name    String?  @db.VarChar(100)
+  action           String?  @db.VarChar(50)
+  class_id         Int?
+  status           String   @default("success") @db.VarChar(20)
+  message          String?
+  records_affected Int?     @default(0)
+  duration_ms      Int?     @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at(sort: Desc)], map: "idx_syslog_created")
+  @@index([run_id], map: "idx_syslog_run")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model teachers {
+  teacher_id        Int                 @id
+  teacher_name      String              @db.VarChar(100)
+  teacher_email     String              @unique @db.VarChar(150)
+  teacher_phone     String?             @db.VarChar(20)
+  khoi_id           Int                 @default(34)
+  role              String              @default("teacher") @db.VarChar(20)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  classes           classes[]
+  label_change_logs label_change_logs[]
+  pass_reviews      pass_reviews[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model test_scores {
+  id            BigInt   @id @default(autoincrement())
+  student_id    Int
+  class_id      Int
+  test_order    Int
+  test_name     String   @db.VarChar(30)
+  raw_score     Decimal? @db.Decimal(5, 2)
+  max_score     Decimal? @default(100) @db.Decimal(5, 2)
+  grade_percent Decimal? @db.Decimal(5, 2)
+  is_makeup     Boolean  @default(false)
+  makeup_score  Decimal? @db.Decimal(5, 2)
+  final_score   Decimal? @db.Decimal(5, 2)
+  grade_status  String?  @default("confirmed") @db.VarChar(20)
+  is_cheating   Boolean  @default(false)
+  grade_note    String?
+  label_at_time String?  @db.VarChar(20)
+  scraped_at    DateTime @default(now()) @db.Timestamptz(6)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  classes       classes  @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
+  students      students @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([student_id, class_id, test_order, is_makeup], map: "uq_test_score")
+  @@index([class_id, test_order], map: "idx_test_class")
+  @@index([student_id], map: "idx_test_student")
+}

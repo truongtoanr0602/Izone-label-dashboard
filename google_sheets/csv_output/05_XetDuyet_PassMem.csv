@@ -1,0 +1,5 @@
+﻿review_id,student_id,class_id,teacher_id,pass_mem_group,test_average,attendance_pct,homework_pct,review_status,gv_decision,gv_comment,gv_confirmed_at,deadline,is_overdue,escalated_to_lead,lead_email_sent,created_at
+35d40fac,10162,1159,305,Nhóm 1,51.3,100,100,Chờ GV,,,,2026-08-03,FALSE,FALSE,FALSE,2026-07-27
+3178c2e5,25823,1006,412,Nhóm 2,55.8,100,100,GV Đồng ý,Pass,"HV tiến bộ rõ rệt qua 6 bài test, từ 48→62",2026-07-17 09:30:00,2026-07-22,FALSE,FALSE,FALSE,2026-07-27
+0ff2b9b6,25826,1006,412,Nhóm 2,55.0,92,95,GV Từ chối,Fail,"HV không ổn định, điểm lên xuống thất thường",2026-07-18 14:00:00,2026-07-22,FALSE,FALSE,FALSE,2026-07-27
+b61cb495,25845,905,218,Nhóm 2,57.2,95,92,Quá hạn → Lead,,,,2026-07-17,TRUE,TRUE,TRUE,2026-07-27
