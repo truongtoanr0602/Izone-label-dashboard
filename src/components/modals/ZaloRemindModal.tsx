@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   X, Check, Copy, Send, MessageCircle, MessageSquare, TrendingUp, Compass,
 } from 'lucide-react';
-import type { ContactLog, ContactTrigger, StudentDetail } from '../../data/mockData';
+import type { ContactLog, ContactTrigger, StudentDetail } from '../../data/types';
 import { closingContact, matchesTrigger } from '../../data/selectors';
 import { LABEL_TEXT, TRIGGER_DONE_TEXT } from '../../data/labels';
 import { buildZaloMessage } from '../../data/messageScripts';

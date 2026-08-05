@@ -1,6 +1,6 @@
 import React from 'react';
 import { MessageSquare, Award, Clock, ArrowUpRight, Compass, TrendingUp } from 'lucide-react';
-import type { ClassSummary, ContactTrigger } from '../../data/mockData';
+import type { ClassSummary, ContactTrigger } from '../../data/types';
 import { TRIGGER_SHORT_TITLE } from '../../data/labels';
 
 interface TopRibbonProps {

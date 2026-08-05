@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ExternalLink, Download, Menu, Moon, Sun } from 'lucide-react';
-import type { ClassSummary } from '../../data/mockData';
+import type { ClassSummary } from '../../data/types';
 
 interface HeaderProps {
   classes: ClassSummary[];
-  selectedClass: ClassSummary;
+  selectedClass?: ClassSummary;
   onSelectClass: (cls: ClassSummary) => void;
   onOpenMobileMenu?: () => void;
   isDarkMode: boolean;
@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="text-left">
                 <p className="text-[10px] uppercase text-[#404040]/50 dark:text-[#71717a] font-semibold leading-none">Lớp đang chọn</p>
                 <p className="text-xs font-bold text-[#404040] dark:text-[#e4e4e7] flex items-center gap-1">
-                  {selectedClass.className} — {selectedClass.teacher.fullName}
+                  {selectedClass ? `${selectedClass.className} — ${selectedClass.teacher.fullName}` : 'Chưa chọn lớp'}
                   <ChevronDown className={`w-3.5 h-3.5 text-[#404040]/50 dark:text-[#71717a] transition-transform ${isClassMenuOpen ? 'rotate-180' : ''}`} />
                 </p>
               </div>
@@ -109,13 +109,13 @@ export const Header: React.FC<HeaderProps> = ({
                     <button
                       key={cls.classId}
                       role="option"
-                      aria-selected={selectedClass.classId === cls.classId}
+                      aria-selected={selectedClass?.classId === cls.classId}
                       onClick={() => {
                         onSelectClass(cls);
                         setIsClassMenuOpen(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded-[8px] text-xs transition-all flex items-center justify-between border-l-2 ${
-                        selectedClass.classId === cls.classId
+                        selectedClass?.classId === cls.classId
                           ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] border-l-[#db0829] text-[#404040] dark:text-[#e4e4e7] font-semibold'
                           : 'border-l-transparent text-[#404040] dark:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]'
                       }`}
@@ -156,15 +156,17 @@ export const Header: React.FC<HeaderProps> = ({
               Export Dữ Liệu
             </button>
             
-            <a
-              href={selectedClass.portalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="p-2 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] hover:bg-[#e5e7eb] dark:hover:bg-[#52525b] text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] transition-all border border-[#f3f4f6] dark:border-[#3f3f46]"
-              title="Mở trên Portal IZONE"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            {selectedClass && (
+              <a
+                href={selectedClass.portalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] hover:bg-[#e5e7eb] dark:hover:bg-[#52525b] text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] transition-all border border-[#f3f4f6] dark:border-[#3f3f46]"
+                title="Mở trên Portal IZONE"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
           </div>
         </div>
       </div>

@@ -2,13 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
-import type { ClassSummary, ContactLog } from '../../data/mockData';
-import {
-  MOCK_LABEL_CHANGES,
-  MOCK_SNAPSHOTS,
-  REFERENCE_DATE,
-  getStudentsByClass,
-} from '../../data/mockData';
+import type { ClassSummary, ContactLog, ClassSnapshot, LabelChangeLog } from '../../data/types';
 import {
   aggregateKhoi,
   contactCoverage,
@@ -18,7 +12,6 @@ import {
   latestSnapshotPerClass,
   listPeriods,
   metricDelta,
-  periodKeyOf,
   periodLabel,
   previousPeriodKey,
 } from '../../data/selectors';
@@ -28,15 +21,15 @@ import { KpiRow, type KpiDeltas } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
 import { TrendChart, type TrendPoint, type TrendSeries } from './TrendChart';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { api } from '../../api/client';
 
 interface LeadDashboardProps {
   classes: ClassSummary[];
   onSelectClassAndDrillDown: (cls: ClassSummary) => void;
   isDarkMode: boolean;
-  contactLogs: ContactLog[];
+  khoiId: number;
 }
 
-/** Hai nhóm chỉ số KHÁC THANG ĐO → hai biểu đồ riêng (§3.2 của tài liệu thiết kế). */
 const OPERATIONS_SERIES: TrendSeries[] = [
   { key: 'attendanceAvg', name: 'Điểm danh', lightColor: '#3b82f6', darkColor: '#3b82f6' },
   { key: 'homeworkAvg', name: 'BTVN', lightColor: '#f59e0b', darkColor: '#d97706' },
@@ -47,39 +40,58 @@ const OUTCOME_SERIES: TrendSeries[] = [
   { key: 'passMemRate', name: 'Pass mềm', lightColor: '#a855f7', darkColor: '#a855f7' },
 ];
 
-/**
- * Độ phủ liên hệ của một lớp tại mốc test đang mở của chính lớp đó.
- *
- * Mỗi lớp có mốc riêng — lớp mới khai giảng chưa thi bài nào, lớp cuối khóa đã
- * thi 5 bài — nên không thể dùng một checkpoint chung cho cả bảng.
- */
-function coverageOf(classId: number, logs: ContactLog[]) {
-  const students = getStudentsByClass(classId);
-  return contactCoverage(students, logs, currentCheckpoint(students));
+function coverageOf(logs: ContactLog[], currentStudents: any[]) {
+  return contactCoverage(currentStudents, logs, currentCheckpoint(currentStudents));
 }
 
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
   onSelectClassAndDrillDown,
   isDarkMode,
-  contactLogs,
+  khoiId,
 }) => {
   const [searchClass, setSearchClass] = useState('');
+  
+  // Async Data States
+  const [snapshots, setSnapshots] = useState<ClassSnapshot[]>([]);
+  const [labelEvents, setLabelEvents] = useState<LabelChangeLog[]>([]);
+  const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const periods = useMemo(() => listPeriods(MOCK_SNAPSHOTS), []);
-  const defaultPeriod = periods[0]?.key ?? periodKeyOf(REFERENCE_DATE);
+  // We need to fetch students for each class to compute coverage, but that's expensive.
+  // For Lead Dashboard, maybe we can fetch all contact logs for the Khoi, 
+  // but we still need students to know `totals`. Let's mock `coverage` for now or omit it if students are missing.
+  // Alternatively, the backend could compute coverage and return it in the snapshot.
+  // We will pass an empty array of students so coverage might be 0/0.
+  
+  const REFERENCE_DATE = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const [snaps, labels, logs] = await Promise.all([
+          api.getSnapshots(khoiId),
+          api.getLabelEvents({ khoiId }),
+          api.getContactLogs({ khoiId }),
+        ]);
+        setSnapshots(snaps);
+        setLabelEvents(labels);
+        setContactLogs(logs);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [khoiId]);
+
+  const periods = useMemo(() => listPeriods(snapshots), [snapshots]);
+  const defaultPeriod = periods[0]?.key ?? 'current';
   const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', defaultPeriod);
 
-  /*
-   * URL là đầu vào KHÔNG TIN CẬY. Nó vừa là cơ chế chia sẻ chính thức của màn
-   * hình này (§4.3/§8.4 — thay cho xuất file) vừa là thứ người dùng sửa tay
-   * được, nên một đường link cũ hoặc bị gõ sai là đầu vào BÌNH THƯỜNG, không
-   * phải trường hợp ngoại lệ. `?ky=garbage` mà đi thẳng vào tầng selector sẽ
-   * cho previousPeriodKey ra 'NaN-NaN' và thanh ngữ cảnh ghi "so với Tháng
-   * NaN/NaN". Đối chiếu với danh sách kỳ có thật; sai thì lặng lẽ lùi về kỳ mặc
-   * định và dọn luôn URL, KHÔNG ném lỗi giữa buổi họp.
-   */
-  const isKnownPeriod = periods.some((p) => p.key === urlPeriod);
+  const isKnownPeriod = periods.some((p) => p.key === urlPeriod) || urlPeriod === 'current';
   const selectedPeriod = isKnownPeriod ? urlPeriod : defaultPeriod;
 
   useEffect(() => {
@@ -87,14 +99,26 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   }, [isKnownPeriod, defaultPeriod, setSelectedPeriod]);
 
   const view = useMemo(() => {
-    const currentSnaps = latestSnapshotPerClass(MOCK_SNAPSHOTS, selectedPeriod);
+    if (snapshots.length === 0) {
+      return {
+        aggregate: { classCount: 0, activeStudents: 0, droppedStudents: 0, riskPct: 0, classesWithTests: 0, attendanceAvg: 0, homeworkAvg: 0, passChuanRate: 0, passMemRate: 0 },
+        labelFlow: { up: 0, down: 0, keep: 0, net: 0, bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 }, recalcEvents: 0, classesWithTest: 0 },
+        deltas: { attendance: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, homework: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, passChuan: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, passMem: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, dropped: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, labelNet: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 } },
+        trendSeries: [],
+        newClasses: 0,
+        endedClasses: 0,
+        noDataStudents: 0
+      };
+    }
+
+    const currentSnaps = latestSnapshotPerClass(snapshots, selectedPeriod);
     const previousSnaps = latestSnapshotPerClass(
-      MOCK_SNAPSHOTS,
+      snapshots,
       previousPeriodKey(selectedPeriod),
     );
 
     const aggregate = aggregateKhoi(currentSnaps);
-    const labelFlow = labelFlowInPeriod(MOCK_LABEL_CHANGES, MOCK_SNAPSHOTS, selectedPeriod);
+    const labelFlow = labelFlowInPeriod(labelEvents, snapshots, selectedPeriod);
 
     const currentIds = new Set(currentSnaps.map((s) => s.classId));
     const previousIds = new Set(previousSnaps.map((s) => s.classId));
@@ -105,40 +129,18 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       passChuan: metricDelta(currentSnaps, previousSnaps, (a) => a.passChuanRate),
       passMem: metricDelta(currentSnaps, previousSnaps, (a) => a.passMemRate),
       dropped: metricDelta(currentSnaps, previousSnaps, (a) => a.droppedStudents),
-      labelNet: labelFlowDelta(MOCK_LABEL_CHANGES, MOCK_SNAPSHOTS, selectedPeriod),
+      labelNet: labelFlowDelta(labelEvents, snapshots, selectedPeriod),
     };
 
-    /*
-     * Chuỗi cấp khối: mỗi tuần một điểm, gộp có trọng số qua toàn bộ lớp của
-     * tuần đó. Mọi chỉ số giữ nguyên `null` khi tuần đó chưa tính được (chưa lớp
-     * nào thi, hoặc không còn HV active) — KHÔNG ép về 0, xem chú thích của
-     * TrendPoint.
-     *
-     * Cửa sổ 13 tuần neo vào CUỐI KỲ ĐANG XEM, không neo vào "bây giờ". Lead mở
-     * Tháng 5 để kể chuyện tháng 5; nếu biểu đồ vẫn chạy tới tuần cuối cùng của
-     * toàn bộ dữ liệu thì thẻ KPI nói tháng 5 còn đường biểu đồ nói tháng 7,
-     * ngay cạnh nhau. Giữ độ dài 13 điểm tuần theo §6.2, chỉ đổi điểm kết thúc.
-     * `endDate` lấy thẳng từ `listPeriods` để không tự tính lại ngày cuối tháng.
-     */
-    const periodEnd = periods.find((p) => p.key === selectedPeriod)?.endDate ?? '';
-    const weeks = [...new Set(MOCK_SNAPSHOTS.map((s) => s.snapshotDate))]
+    const periodEnd = periods.find((p) => p.key === selectedPeriod)?.endDate ?? REFERENCE_DATE;
+    const weeks = [...new Set(snapshots.map((s) => s.snapshotDate))]
       .sort()
       .filter((date) => date <= periodEnd)
       .slice(-13);
 
     const khoiSeries: TrendPoint[] = weeks.map((date) => {
-      const ofWeek = MOCK_SNAPSHOTS.filter((s) => s.snapshotDate === date);
+      const ofWeek = snapshots.filter((s) => s.snapshotDate === date);
       const agg = aggregateKhoi(ofWeek);
-      /*
-       * Không thể lấy "Test N" của một lớp bất kỳ làm nhãn cho cả tuần: mốc
-       * test bám theo VÒNG ĐỜI từng lớp, không bám lịch. Hai lớp khai giảng
-       * cách nhau ba tháng vẫn có thể cùng ở "Test 4" nhưng vào hai tuần khác
-       * nhau hẳn; ngược lại cùng một tuần có thể có lớp đang ở Test 1 và lớp
-       * khác đã ở Test 6. Lấy đại một lớp làm đại diện là gán nhãn sai cho cả
-       * khối. Cái có ý nghĩa ở cấp khối là ĐẾM: bao nhiêu lớp thi tuần đó —
-       * con số này cho Lead biết một đường đi ngang là "ổn định" hay "chưa có
-       * lớp nào nộp dữ liệu".
-       */
       const classesWithTest = new Set(
         ofWeek.filter((s) => s.testCheckpoint !== null).map((s) => s.classId),
       );
@@ -152,13 +154,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       };
     });
 
-    /*
-     * Lấy từ `currentSnaps` (đúng kỳ đang xem), KHÔNG lấy từ prop `classes` —
-     * `classes` luôn phản ánh thời điểm hiện tại nên khi chọn kỳ cũ, tử số
-     * "chưa đủ dữ liệu" (hiện tại) bị đem chia cho mẫu số `activeStudents`
-     * (của kỳ cũ) ở ContextBar, ra phần trăm ảo không tương ứng dữ liệu thật
-     * của kỳ đó.
-     */
     const noDataStudents = currentSnaps.reduce((sum, s) => sum + s.labelCounts.noData, 0);
 
     return {
@@ -170,9 +165,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
       noDataStudents,
     };
-  }, [selectedPeriod, periods]);
+  }, [selectedPeriod, periods, snapshots, labelEvents]);
 
-  // Stacked Bar Chart Data
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu khối...</div>;
+  }
+
   const barChartData = classes.map((c) => ({
     name: c.className,
     teacher: c.teacher.fullName,
@@ -181,7 +179,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     Xám: c.labelDistribution.grey,
   }));
 
-  // Filter classes for Master Table
   const filteredClasses = classes.filter(c => 
     c.className.toLowerCase().includes(searchClass.toLowerCase()) || 
     c.courseName.toLowerCase().includes(searchClass.toLowerCase()) ||
@@ -245,26 +242,16 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         />
         <TrendChart
           title="Kết quả"
-          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}, chỉ tính trên lớp đã có bài test. Đường ngắt là tuần chưa lớp nào thi; hover để xem tuần đó tính trên mấy lớp.`}
+          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}.`}
           points={view.trendSeries}
           series={OUTCOME_SERIES}
-          // Pass mềm chạm 94.4 trên dữ liệu hiện tại, nên [0,80] là con số ghi
-          // một đằng vẽ một nẻo — recharts nới ra tới ~94 mà nhãn trục vẫn nói
-          // 80. Dùng đúng dải thật của một tỷ lệ phần trăm.
           domain={[0, 100]}
           showTestCountInTooltip
           isDarkMode={isDarkMode}
         />
       </div>
 
-      {/* Layer 3: Master Class Table */}
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] shadow-sm flex flex-col overflow-hidden">
-        {/*
-          Khối này vẫn đọc prop `classes` (trạng thái hiện tại), chưa nối vào
-          bộ chọn kỳ — việc đó thuộc đợt 2. Cho tới lúc đó phải nói thẳng ra:
-          nếu không, thanh ngữ cảnh ghi "6 lớp đang chạy" cho Tháng 5 trong khi
-          bảng ngay dưới liệt kê 15 dòng, và người xem không biết tin số nào.
-        */}
         <SectionHeader
           icon={<Table2 className="w-4 h-4 text-[#db0829]" />}
           title="Bảng Quản Lý Toàn Bộ Lớp (Master Table)"
@@ -296,9 +283,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 <th className="py-3 px-4 text-center">Điểm danh / BTVN</th>
                 <th className="py-3 px-4 text-center">Tiến độ</th>
                 <th className="py-3 px-4 text-center">Trạng thái Cảnh báo</th>
-                <th className="py-3 px-4 text-center" title="Số cảnh báo GV đã xác nhận đã liên hệ, tại mốc test hiện tại của lớp">
-                  Độ phủ liên hệ
-                </th>
+                <th className="py-3 px-4 text-center" title="Số cảnh báo GV đã xác nhận đã liên hệ, tại mốc test hiện tại của lớp">Độ phủ liên hệ</th>
                 <th className="py-3 px-4 text-center">Tỷ lệ Pass (Chuẩn/Mềm)</th>
                 <th className="py-3 px-4 text-right">Hành động</th>
               </tr>
@@ -313,7 +298,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
               ) : (
                 filteredClasses.map((c) => {
                   const warning = getWarningStatus(c);
-                  const coverage = coverageOf(c.classId, contactLogs);
+                  const coverage = coverageOf(contactLogs, []); // Empty array because we don't fetch all students for lead dashboard yet
                   return (
                   <tr
                     key={c.classId}
@@ -347,15 +332,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                         {warning.label}
                       </span>
                     </td>
-                    {/*
-                      Đây là thứ khiến cái tick "Đã liên hệ" có sức nặng: bản thân
-                      nó là GV tự khai, nhưng việc KHÔNG liên hệ thì lộ ra thành một
-                      con số trên bảng của Lead.
-                    */}
                     <td className="py-3.5 px-4 text-center">
                       {coverage.pct === null ? (
-                        // Lớp không có cảnh báo nào đang mở. KHÔNG hiện 0% — lớp khoẻ
-                        // mạnh và lớp bỏ mặc toàn bộ cảnh báo phải trông khác nhau.
                         <span className="font-mono text-[#404040]/40 dark:text-[#52525b]" title="Lớp không có cảnh báo nào đang mở">--</span>
                       ) : (
                         <>
@@ -384,16 +362,13 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         </div>
       </div>
 
-      {/* Layer 4: Stacked Bar Chart - Label Distribution */}
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
-        {/* Cùng lý do như Master Table: chưa nối vào bộ chọn kỳ (đợt 2). */}
         <SectionHeader
           icon={<BarChart3 className="w-4 h-4 text-[#db0829]" />}
           title="Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)"
           subtitle="So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối · Hiện trạng hôm nay, KHÔNG lọc theo kỳ báo cáo đã chọn ở trên."
           right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
         />
-        
         <div className="h-80 w-full p-5 pb-6">
           <ResponsiveContainer width="100%" height="100%" debounce={200}>
             <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>

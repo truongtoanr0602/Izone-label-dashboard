@@ -3,21 +3,14 @@ import {
   Search, TrendingDown, TrendingUp, AlertTriangle, Compass, CheckCircle2,
   MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
-import { MOCK_LABEL_CHANGES, labelFromAverage } from '../../data/mockData';
-import type { ContactLog, ContactTrigger, LabelCode, StudentDetail } from '../../data/mockData';
+import type { ContactLog, ContactTrigger, LabelCode, StudentDetail, LabelChangeLog } from '../../data/types';
 import { isContacted, matchesTrigger, primaryTrigger } from '../../data/selectors';
 import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
 
-/**
- * Bộ lọc bảng HV. Ba giá trị đầu là ba luồng nhắc (dùng luôn `ContactTrigger`
- * làm khoá) — nhờ vậy tab lọc, thẻ trên dải và nút hành động không thể lệch
- * nhau về định nghĩa nhóm, vì cả ba đọc chung một predicate.
- */
 export type TableFilter = 'all' | ContactTrigger | 'pass' | 'review';
 
-/** Màu của ba tab luồng, khớp màu thẻ tương ứng trên dải. */
 const TRIGGER_TAB_CLASS: Record<ContactTrigger, { on: string; off: string }> = {
   habit_reminder: {
     on: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-800/50',
@@ -33,7 +26,6 @@ const TRIGGER_TAB_CLASS: Record<ContactTrigger, { on: string; off: string }> = {
   },
 };
 
-/** Màu nút hành động trong bảng, khớp màu tab và thẻ của cùng luồng. */
 const TRIGGER_ACTION_CLASS: Record<ContactTrigger, string> = {
   habit_reminder: 'text-amber-600 dark:text-amber-400 border-amber-500 hover:bg-amber-600 hover:text-white',
   red_followup: 'text-red-600 dark:text-red-400 border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white',
@@ -46,24 +38,20 @@ const TRIGGER_TABS: { trigger: ContactTrigger; icon: React.ReactNode }[] = [
   { trigger: 'relearn_advice', icon: <Compass className="w-3.5 h-3.5" /> },
 ];
 
-/**
- * Nhãn TẠI TỪNG MỐC TEST, suy trực tiếp từ ĐIỂM CỦA CHÍNH BÀI ĐÓ qua
- * `labelFromAverage` (ngưỡng ≥60 Vàng / 45–59 Đỏ / &lt;45 Xám — cùng ngưỡng
- * đang tô màu cột "Điểm Test" trong bảng) — không phải điểm TB cộng dồn, và
- * không phải chỉ những lần nhãn ĐỔI BẬC như `MOCK_LABEL_CHANGES`. Một học
- * viên thi 4 lần mà TB cộng dồn không đổi bậc lần nào sẽ có 0 dòng trong
- * `MOCK_LABEL_CHANGES` — dùng riêng log đó làm timeline sẽ vẽ ra một học
- * viên "chưa từng có nhãn" dù đã thi đủ 4 bài, sai lệch với sparkline điểm
- * test ngay bên cạnh.
- */
-function labelTimeline(s: StudentDetail) {
+export function labelFromAverage(avg: number): LabelCode {
+  if (avg >= 60) return 'yellow';
+  if (avg >= 45) return 'red';
+  return 'grey';
+}
+
+function labelTimeline(s: StudentDetail, labelEvents: LabelChangeLog[]) {
   const scores = [...s.testPerformance.scores]
     .filter((t) => t.finalScore !== null)
     .sort((a, b) => a.testOrder - b.testOrder);
 
   return scores.map((t) => {
     const label = labelFromAverage(round1(t.finalScore as number));
-    const changeLog = MOCK_LABEL_CHANGES.find(
+    const changeLog = labelEvents.find(
       (log) => log.studentId === s.studentId && log.checkpoint === t.testName,
     );
     return { key: `t${t.testOrder}`, checkpoint: t.testName, label, reason: changeLog?.reason };
@@ -77,6 +65,7 @@ interface StudentTableProps {
   onChangeFilter: (filter: TableFilter) => void;
   contactLogs: ContactLog[];
   checkpoint: string;
+  labelEvents: LabelChangeLog[];
 }
 
 export const StudentTable: React.FC<StudentTableProps> = ({
@@ -85,15 +74,14 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   activeFilter,
   onChangeFilter,
   contactLogs,
-  checkpoint
+  checkpoint,
+  labelEvents,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isGridView, setIsGridView] = useState(false); // false = Collapsed Sparkline view, true = 6 columns grid view
+  const [isGridView, setIsGridView] = useState(false);
   const [expandedStudentId, setExpandedStudentId] = useState<number | null>(null);
 
-  // Filter students based on active tab and search term
   const filteredStudents = students.filter((s) => {
-    // Search match
     const matchesSearch =
       s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.studentCode.includes(searchTerm) ||
@@ -101,7 +89,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
     if (!matchesSearch) return false;
 
-    // Tab match
     if (activeFilter === 'habit_reminder' || activeFilter === 'red_followup' || activeFilter === 'relearn_advice') {
       return matchesTrigger(s, activeFilter);
     }
@@ -111,10 +98,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     if (activeFilter === 'review') {
       return s.evaluation.isEligibleForReview;
     }
-    return true; // 'all'
+    return true;
   });
 
-  // Sort by risk score descending (highest risk first)
   const sortedStudents = [...filteredStudents].sort((a, b) => b.evaluation.riskScore - a.evaluation.riskScore);
 
   const counts = {
@@ -125,9 +111,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   return (
     <div className="bg-white dark:bg-[#27272a] rounded-[16px] shadow-sm overflow-hidden">
-      {/* Table Toolbar & Workflow Tabs */}
       <div className="p-5 border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6] dark:bg-[#18181b] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Workflow Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 bg-white dark:bg-[#27272a] p-1.5 rounded-[12px]">
           <button
             onClick={() => onChangeFilter('all')}
@@ -178,9 +162,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           </button>
         </div>
 
-        {/* Right: Search & View Mode Toggle */}
         <div className="flex items-center gap-3">
-          {/* Search Input */}
           <div className="relative">
             <Search className="w-4 h-4 text-[#404040]/40 dark:text-[#71717a] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -191,8 +173,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               className="pl-9 pr-4 py-1.5 rounded-[8px] bg-white dark:bg-[#18181b] border border-[#e5e7eb] dark:border-[#3f3f46] text-xs text-[#404040] dark:text-[#e4e4e7] placeholder:text-[#404040]/40 dark:placeholder:text-[#71717a] focus:outline-none focus:border-[#DB0829] w-56 transition-all"
             />
           </div>
-
-          {/* Collapsed vs Grid Toggle */}
           <button
             onClick={() => setIsGridView(!isGridView)}
             className={`px-3 py-1.5 rounded-[8px] border text-xs font-semibold transition-all flex items-center gap-1.5 ${
@@ -200,7 +180,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                 ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] border-[#DB0829]/50 text-[#404040] dark:text-[#e4e4e7]'
                 : 'bg-white dark:bg-[#27272a] border-[#f3f4f6] dark:border-[#3f3f46] text-[#404040]/60 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7]'
             }`}
-            title="Chuyển đổi chế độ xem 6 cột Test / Sparkline thu gọn"
           >
             {isGridView ? (
               <>
@@ -215,7 +194,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         </div>
       </div>
 
-      {/* Table Data */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46]">
@@ -224,7 +202,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               <th className="py-3 px-4 text-center">Chuyên cần</th>
               <th className="py-3 px-4 text-center">BTVN</th>
               
-              {/* Dynamic Columns based on Grid View */}
               {isGridView ? (
                 <>
                   <th className="py-3 px-2 text-center" colSpan={6}>T1 - T6</th>
@@ -250,7 +227,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               </tr>
             ) : (
               sortedStudents.map((s, idx) => {
-                // Sparkline data format
                 const sparkData = s.testPerformance.scores
                   .filter((t) => t.finalScore !== null)
                   .map((t) => ({ name: t.testName, score: t.finalScore }));
@@ -265,21 +241,15 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       className={`transition-colors hover:bg-[#f3f4f6]/50 dark:hover:bg-[#3f3f46]/30 ${
                         s.labeling.currentLabel === 'red' || s.evaluation.suggestedAction === 'call_parent'
                           ? 'bg-red-50 dark:bg-red-950/15'
-                          // Nhãn Xám là mức rủi ro cao nhất theo TB test nhưng trước đây
-                          // hiện y hệt một dòng bình thường. Tô nhẹ bằng slate — đủ để
-                          // mắt bắt được khi lướt bảng, không phá tông phẳng của giao diện.
                           : s.labeling.currentLabel === 'grey'
                           ? 'bg-slate-100/70 dark:bg-slate-800/20'
                           : expandedStudentId === s.studentId ? 'bg-[#f3f4f6] dark:bg-[#18181b]' : ''
                       }`}
                     >
-                      {/* Index */}
                       <td className="py-3.5 px-4 text-center font-mono text-[#404040]/50 dark:text-[#71717a]">{idx + 1}</td>
 
-                    {/* Student Name & Phone / Mobile Summary */}
                     <td className="py-3.5 px-4">
                       <div className="flex flex-col gap-2">
-                        {/* Top: Avatar, Name & Badge */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <div className={`w-8 h-8 rounded-[8px] flex items-center justify-center font-bold text-xs font-mono shrink-0 ${
@@ -302,7 +272,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                             </div>
                           </div>
                           
-                          {/* Mobile Only Badge */}
                            <div className="md:hidden ml-2 shrink-0">
                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${LABEL_BADGE_CLASS[s.labeling.currentLabel]}`}>
                               {LABEL_TEXT[s.labeling.currentLabel]}
@@ -310,7 +279,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           </div>
                         </div>
 
-                        {/* Mobile Only Metrics (Heartbeat) */}
                         <div className="md:hidden flex items-center gap-3 text-[11px] font-mono border-t border-[#f3f4f6] dark:border-[#3f3f46] pt-2 mt-1">
                           <span>CC: <span className={s.attendance.percentage < 90 ? 'text-red-500 font-bold' : 'text-[#404040] dark:text-[#e4e4e7]'}>{s.attendance.percentage}%</span></span>
                           <span className="text-[#404040]/30 dark:text-[#52525b]">|</span>
@@ -319,7 +287,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       </div>
                     </td>
 
-                    {/* Attendance */}
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
@@ -345,7 +312,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       </div>
                     </td>
 
-                    {/* Homework */}
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
@@ -371,7 +337,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       </div>
                     </td>
 
-                    {/* Test Columns / Sparkline View */}
                     {isGridView ? (
                       <>
                         {s.testPerformance.scores.map((t) => (
@@ -405,7 +370,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     ) : (
                       <>
                         <td className="py-3.5 px-4 text-center">
-                          {/* Big Avg Number */}
                           {s.testPerformance.averageScore !== null ? (
                             <span className={`text-sm font-extrabold font-mono ${
                               s.testPerformance.averageScore < 45 ? 'text-[#404040]/70 dark:text-[#a1a1aa]' :
@@ -420,19 +384,15 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       </>
                     )}
 
-                    {/* Current Label Badge */}
                     <td className="py-3.5 px-4 text-center">
                       <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 border ${LABEL_BADGE_CLASS[s.labeling.currentLabel]}`}>
                         {s.labeling.currentLabel === 'red' && <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />}
                         {s.labeling.currentLabel === 'yellow' && <Award className="w-3.5 h-3.5" />}
-                        {/* Xám cũng có icon: badge trần màu slate đọc như "bình thường",
-                            trong khi đây mới là nhóm TB test thấp nhất. */}
                         {s.labeling.currentLabel === 'grey' && <Compass className="w-3.5 h-3.5" />}
                         {LABEL_TEXT[s.labeling.currentLabel]}
                       </span>
                     </td>
 
-                    {/* Pass Evaluation */}
                     <td className="py-3.5 px-4">
                       {s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passChuanStatus === 'Đạt tiêu chuẩn' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-[8px] border border-emerald-500/20">
@@ -453,15 +413,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       )}
                     </td>
 
-                    {/*
-                      Ô Hành động. Chỉ MỘT nút, nhãn lấy từ `primaryTrigger` —
-                      cùng một selector mà thẻ trên dải và tab lọc dùng, nên ba
-                      chỗ không thể gọi cùng một nhóm bằng ba tên khác nhau.
-
-                      Ưu tiên NGƯỢC với thứ tự thẻ: thẻ đọc từ nhẹ tới nặng vì
-                      đó là thứ tự khối lượng việc, còn ô này phải chỉ ra việc
-                      quan trọng nhất với chính học viên đó.
-                    */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         {contacted && (
@@ -493,7 +444,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         )}
                       </div>
                     </td>
-                    {/* History Toggle */}
                     <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => setExpandedStudentId(expandedStudentId === s.studentId ? null : s.studentId)}
@@ -509,23 +459,18 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                       </td>
                     </tr>
 
-                    {/* Expanded History Accordion */}
                     {expandedStudentId === s.studentId && (
                       <tr>
                         <td colSpan={20} className="p-0 border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6]/50 dark:bg-[#18181b]/50">
                           <div className="p-6 animate-in slide-in-from-top-2 duration-300">
                             <div className="flex flex-col lg:flex-row gap-6">
-                              {/* Left: Timeline Nhãn */}
                               <div className="flex-1 space-y-4">
                                 <h4 className="text-xs font-bold text-[#404040]/70 dark:text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2">
                                   <History className="w-4 h-4 text-blue-500" />
                                   Lộ trình chuyển nhãn
                                 </h4>
                                 {(() => {
-                                  const timeline = labelTimeline(s);
-                                  // "Hiện tại" phải cùng công thức (điểm bài gần nhất) với các mốc Test
-                                  // phía trước — không lấy `currentLabel` (TB cộng dồn), nếu không ô cuối
-                                  // có thể khác màu với ô Test ngay trước nó dù cùng một bài test.
+                                  const timeline = labelTimeline(s, labelEvents);
                                   const currentLabel = timeline.length > 0
                                     ? timeline[timeline.length - 1].label
                                     : s.labeling.currentLabel;
@@ -564,7 +509,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                                 </p>
                               </div>
 
-                              {/* Right: Sparklines */}
                               <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                   <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">Điểm Test</h4>
@@ -619,7 +563,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         </table>
       </div>
 
-      {/* Table Footer */}
       <div className="p-4 bg-[#f3f4f6] dark:bg-[#18181b] border-t border-[#f3f4f6] dark:border-[#3f3f46] flex flex-wrap items-center justify-between gap-4 text-xs text-[#404040]/60 dark:text-[#a1a1aa]">
         <div>
           Hiển thị <b className="text-[#404040] dark:text-[#e4e4e7]">{sortedStudents.length}</b> / <span className="text-[#404040] dark:text-[#e4e4e7]">{students.length}</span> học viên
