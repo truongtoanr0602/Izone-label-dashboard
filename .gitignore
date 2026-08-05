@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local-only docs (not pushed to remote)
+ARCHITECTURE.md
+CLAUDE.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
