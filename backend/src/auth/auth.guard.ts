@@ -9,13 +9,11 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
     
-    // For local dev convenience, default to teacher-1002 if no token provided.
-    // In production, this would strictly throw UnauthorizedException.
-    let token = 'teacher-1002'; 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Không tìm thấy Access Token');
     }
 
+    const token = authHeader.split(' ')[1];
     request.user = await this.authService.validateToken(token);
     return true;
   }

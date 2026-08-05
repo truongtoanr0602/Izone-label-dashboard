@@ -4,11 +4,12 @@ import { TopRibbon } from './components/dashboard/TopRibbon';
 import { StudentTable } from './components/dashboard/StudentTable';
 import { LeadDashboard } from './components/dashboard/LeadDashboard';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
+import { Login } from './components/auth/Login';
 import type { TableFilter } from './components/dashboard/StudentTable';
 import type { ClassSummary, ContactLog, ContactTrigger, StudentDetail, LabelChangeLog } from './data/types';
 import { currentCheckpoint, matchesTrigger, remainingCount } from './data/selectors';
 import { TRIGGER_SHORT_TITLE } from './data/labels';
-import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare, LogOut } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
 import { api, setAuthHeader } from './api/client';
 
@@ -21,6 +22,7 @@ const QUICK_BUTTONS: { trigger: ContactTrigger; className: string }[] = [
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassSummary | null>(null);
@@ -43,6 +45,7 @@ export default function App() {
       setAuthHeader(token);
       const user = await api.getMe();
       setCurrentUser(user);
+      localStorage.setItem('auth_token', token);
 
       // Force view mode based on role
       setActiveTab(user.role === 'lead' ? 'lead' : 'teacher');
@@ -56,15 +59,35 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to init app', e);
-      alert('Không thể kết nối đến Backend Server ở port 3000. Hãy chắc chắn Backend đang chạy.');
+      if (e?.response?.status === 401) {
+        alert('Tài khoản không hợp lệ hoặc phiên đăng nhập đã hết hạn.');
+        handleLogout();
+      } else {
+        alert('Không thể kết nối đến Backend Server ở port 3000. Hãy chắc chắn Backend đang chạy.');
+      }
     } finally {
       setIsLoading(false);
+      setIsInitializing(false);
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    setCurrentUser(null);
+    setSelectedClass(null);
+    setClasses([]);
+    setStudents([]);
+    setContactLogs([]);
+  };
+
   useEffect(() => {
-    // Default load as teacher
-    initApp('teacher-1002');
+    const savedToken = localStorage.getItem('auth_token');
+    if (savedToken) {
+      initApp(savedToken);
+    } else {
+      setIsInitializing(false);
+      setIsLoading(false);
+    }
   }, []);
 
   // When selected class changes, fetch its students, label events, and contact logs
@@ -139,8 +162,12 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen bg-gray-50 text-gray-500">Đang kết nối API...</div>;
+  if (isInitializing) {
+    return <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-[#18181b] text-gray-500">Đang khởi tạo ứng dụng...</div>;
+  }
+
+  if (!currentUser) {
+    return <Login onLogin={initApp} isLoading={isLoading} />;
   }
 
   return (
@@ -169,13 +196,19 @@ export default function App() {
           </button>
         </div>
 
-        {/* User Switcher (Mock Auth) */}
-        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
-          <p className="font-bold mb-2">DEV MODE (Mock Auth):</p>
-          <div className="flex gap-2">
-            <button onClick={() => initApp('teacher-1002')} className="px-2 py-1 bg-white dark:bg-gray-700 rounded shadow-sm hover:bg-gray-50 border border-gray-200 dark:border-gray-600">👤 Teacher</button>
-            <button onClick={() => initApp('lead-token')} className="px-2 py-1 bg-white dark:bg-gray-700 rounded shadow-sm hover:bg-gray-50 border border-gray-200 dark:border-gray-600">👑 Lead</button>
+        {/* User Info & Logout */}
+        <div className="p-3 bg-[#f3f4f6] dark:bg-[#3f3f46]/50 rounded-xl flex items-center justify-between border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-sm font-bold truncate">{currentUser?.displayName}</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{currentUser?.role === 'lead' ? 'Trưởng Khối' : 'Giáo viên'}</span>
           </div>
+          <button 
+            onClick={handleLogout}
+            title="Đăng xuất"
+            className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Navigation Links */}

@@ -11,7 +11,7 @@ export class StudentsService {
       SELECT * FROM izone.v_student_latest 
       WHERE class_id = ${classId} 
         AND registration_status = 'active' 
-      ORDER BY first_name ASC;
+      ORDER BY full_name ASC;
     `;
     return this.serializeBigInt(students);
   }

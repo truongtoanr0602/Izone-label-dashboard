@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 export interface AuthUser {
   userId: string;
@@ -13,25 +14,43 @@ export interface AuthUser {
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService
+  ) {}
 
-  async validateToken(token: string): Promise<AuthUser> {
-    // Mock token verification for local dev
-    if (token === 'lead-token') {
-      return {
-        userId: 'lead_1',
-        email: 'lead@izone.edu.vn',
-        displayName: 'Trưởng Khối 34',
-        role: 'lead',
-        khoiId: 34,
-        classIds: [], // Lead uses khoiId
-      };
+  async login(email: string, phone: string) {
+    const teacher = await this.prisma.teachers.findUnique({
+      where: { teacher_email: email }
+    });
+
+    if (!teacher || teacher.teacher_phone !== phone) {
+      throw new UnauthorizedException('Email hoặc Số điện thoại không chính xác');
     }
 
-    if (token.startsWith('teacher-')) {
-      const teacherId = parseInt(token.replace('teacher-', ''), 10);
-      if (isNaN(teacherId)) throw new UnauthorizedException('Invalid teacher token');
+    const payload = { 
+      sub: teacher.teacher_id, 
+      email: teacher.teacher_email,
+      role: teacher.role,
+      name: teacher.teacher_name
+    };
+
+    return {
+      access_token: await this.jwtService.signAsync(payload)
+    };
+  }
+
+  async validateToken(token: string): Promise<AuthUser> {
+    try {
+      const payload = await this.jwtService.verifyAsync(token);
+      const teacherId = payload.sub;
       
+      const teacher = await this.prisma.teachers.findUnique({
+        where: { teacher_id: teacherId }
+      });
+      
+      if (!teacher) throw new UnauthorizedException('Không tìm thấy người dùng');
+
       // Fetch teacher's classes from DB
       const classes = await this.prisma.classes.findMany({
         where: { teacher_id: teacherId, status: 'on_going' },
@@ -39,15 +58,16 @@ export class AuthService {
       });
 
       return {
-        userId: `teacher_${teacherId}`,
-        email: `teacher${teacherId}@izone.edu.vn`,
-        displayName: `Giáo viên ${teacherId}`,
-        role: 'teacher',
-        teacherId: teacherId,
+        userId: teacher.role === 'lead' ? 'lead_1' : `teacher_${teacherId}`,
+        email: teacher.teacher_email,
+        displayName: teacher.teacher_name,
+        role: teacher.role as any,
+        teacherId: teacher.teacher_id,
+        khoiId: teacher.khoi_id,
         classIds: classes.map(c => c.class_id)
       };
+    } catch (e) {
+      throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
     }
-
-    throw new UnauthorizedException('Invalid or expired token');
   }
 }

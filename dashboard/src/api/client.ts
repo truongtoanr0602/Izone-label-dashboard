@@ -36,6 +36,15 @@ export const api = {
     return response.data.map(mapClassSummary);
   },
 
+  // Auth endpoints
+  login: async (credentials: { email: string; phone: string }) => {
+    const res = await apiClient.post('/auth/login', {
+      email: credentials.email,
+      password: credentials.phone
+    });
+    return res.data;
+  },
+
   getClassTrend: async (classId: number) => {
     const response = await apiClient.get(`/classes/${classId}/trend`);
     return response.data;
@@ -195,6 +204,10 @@ function mapStudentDetail(data: any): StudentDetail {
 }
 
 function mapSnapshot(data: any): ClassSnapshot {
+  const completedSessions = data.completed_sessions || 0;
+  const testSessions = [4, 8, 12, 16, 20, 24];
+  const testsCompleted = testSessions.filter(s => s <= completedSessions).length;
+
   return {
     snapshotId: String(data.snapshot_id || Math.random()),
     classId: data.class_id,
@@ -202,9 +215,9 @@ function mapSnapshot(data: any): ClassSnapshot {
     snapshotDate: data.snapshot_date.split('T')[0], // yyyy-mm-dd
     weekIndex: 0,
     progressPct: 0,
-    completedSessions: data.completed_sessions || 0,
+    completedSessions,
     totalSessions: 0,
-    testsCompleted: 0,
+    testsCompleted,
     activeStudents: data.active_students || 0,
     droppedStudents: data.dropped_students || 0,
     attendanceAvg: data.attendance_avg ? Number(data.attendance_avg) : 0,
@@ -218,7 +231,7 @@ function mapSnapshot(data: any): ClassSnapshot {
       grey: data.label_grey || 0,
       noData: data.label_no_data || 0,
     },
-    testCheckpoint: null, // Computed on frontend if needed or we could pass from backend
+    testCheckpoint: testsCompleted > 0 ? `Test ${testsCompleted}` : null,
   };
 }
 

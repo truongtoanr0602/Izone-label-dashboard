@@ -89,14 +89,14 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
   const periods = useMemo(() => listPeriods(snapshots), [snapshots]);
   const defaultPeriod = periods[0]?.key ?? 'current';
-  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', defaultPeriod);
+  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
 
-  const isKnownPeriod = periods.some((p) => p.key === urlPeriod) || urlPeriod === 'current';
-  const selectedPeriod = isKnownPeriod ? urlPeriod : defaultPeriod;
+  const isKnownPeriod = periods.some((p) => p.key === urlPeriod);
+  const selectedPeriod = (isKnownPeriod && urlPeriod !== 'current') ? urlPeriod : defaultPeriod;
 
   useEffect(() => {
-    if (!isKnownPeriod) setSelectedPeriod(defaultPeriod);
-  }, [isKnownPeriod, defaultPeriod, setSelectedPeriod]);
+    if (!isKnownPeriod && urlPeriod !== 'current') setSelectedPeriod('current');
+  }, [isKnownPeriod, urlPeriod, setSelectedPeriod]);
 
   const view = useMemo(() => {
     if (snapshots.length === 0) {
