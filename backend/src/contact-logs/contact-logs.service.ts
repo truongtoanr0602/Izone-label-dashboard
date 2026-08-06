@@ -30,7 +30,7 @@ export class ContactLogsService {
     return [];
   }
 
-  async createContactLog(user: AuthUser, data: { studentId: number, classId: number, trigger: string, checkpoint: string }) {
+  async createContactLog(user: AuthUser, data: { studentId: number, classId: number, triggerType: string, checkpoint: string }) {
     if (user.role === 'teacher' && !user.classIds.includes(data.classId)) {
       throw new ConflictException('You do not have permission for this class');
     }
@@ -42,7 +42,7 @@ export class ContactLogsService {
           class_id: data.classId,
           teacher_id: user.teacherId || 1,
           channel: 'zalo',
-          trigger: data.trigger,
+          trigger_type: data.triggerType,
           checkpoint: data.checkpoint,
         }
       });
@@ -56,11 +56,11 @@ export class ContactLogsService {
     }
   }
 
-  async undoContactLog(user: AuthUser, data: { studentId: number, trigger: string, checkpoint: string }) {
+  async undoContactLog(user: AuthUser, data: { studentId: number, triggerType: string, checkpoint: string }) {
     const log = await this.prisma.contact_logs.findFirst({
       where: {
         student_id: data.studentId,
-        trigger: data.trigger,
+        trigger_type: data.triggerType,
         checkpoint: data.checkpoint,
       }
     });

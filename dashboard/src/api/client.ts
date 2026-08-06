@@ -71,12 +71,15 @@ export const api = {
   },
 
   createContactLog: async (payload: { studentId: number; classId: number; trigger: string; checkpoint: string }) => {
-    const response = await apiClient.post('/contact-logs', payload);
+    // Map frontend 'trigger' to backend 'triggerType' (DB column is 'trigger_type')
+    const backendPayload = { ...payload, triggerType: payload.trigger, trigger: undefined };
+    const response = await apiClient.post('/contact-logs', backendPayload);
     return mapContactLog(response.data);
   },
 
   undoContactLog: async (payload: { studentId: number; trigger: string; checkpoint: string }) => {
-    const response = await apiClient.post('/contact-logs/undo', payload);
+    const backendPayload = { ...payload, triggerType: payload.trigger, trigger: undefined };
+    const response = await apiClient.post('/contact-logs/undo', backendPayload);
     return response.data;
   }
 };
@@ -186,7 +189,7 @@ function mapStudentDetail(data: any): StudentDetail {
     evaluation: {
       riskScore: 0,
       suggestedAction: 'none',
-      passChuanStatus: data.pass_chuan_status || 'Chưa đạt điều kiện pass',
+      passChuanStatus: mapPassChuanStatus(data.pass_chuan_status),
       passChuanReasons: [],
       passMemStatus: '',
       passMemGroup: '',
@@ -266,9 +269,20 @@ function mapContactLog(data: any): ContactLog {
     classId: data.class_id,
     teacherId: data.teacher_id,
     channel: data.channel as any,
-    trigger: data.trigger as any,
+    trigger: (data.trigger_type || data.trigger) as any,
     checkpoint: data.checkpoint,
     note: data.note || '',
     createdAt: data.created_at,
   };
+}
+
+// Map DB enum codes to frontend Vietnamese display labels
+function mapPassChuanStatus(dbValue: string | null): string {
+  const map: Record<string, string> = {
+    'no_data': 'Chưa đủ DL',
+    'passed': 'Đạt tiêu chuẩn',
+    'likely_pass': 'Có khả năng pass',
+    'not_met': 'Chưa đạt điều kiện pass',
+  };
+  return map[dbValue || ''] || dbValue || 'Chưa đạt điều kiện pass';
 }
