@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: izone_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Izone@2026!}
+      POSTGRES_DB: ${DB_NAME:-izone_dashboard}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - izone_prod_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: izone_backend_prod
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-Izone@2026!}@postgres:5432/${DB_NAME:-izone_dashboard}?schema=izone"
+      JWT_SECRET: ${JWT_SECRET:-izone_secret_key_2026}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - izone_prod_net
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: izone_dashboard_prod
+    restart: always
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
+    networks:
+      - izone_prod_net
+
+volumes:
+  postgres_prod_data:
+
+networks:
+  izone_prod_net:
+    driver: bridge
