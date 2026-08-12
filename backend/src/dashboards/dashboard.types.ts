@@ -1,4 +1,5 @@
 export interface LeadDashboardQuery {
+  period?: string;
   courseId?: string;
   khoiId?: string;
   from?: string;
@@ -17,4 +18,7 @@ export interface DashboardMetric {
   direction: MetricDirection;
   sampleSize?: number;
   classesWithTests?: number;
+  classesReported?: number;
+  comparableClasses?: number;
+  totalClasses?: number;
 }
