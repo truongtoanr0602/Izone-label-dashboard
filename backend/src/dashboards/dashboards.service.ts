@@ -1071,53 +1071,6 @@ export class DashboardsService {
     };
   }
 
-  private mapLeadClass(row: any) {
-    const activeStudents = Number(row.active_students ?? 0);
-    const yellow = Number(row.label_yellow ?? 0);
-    const red = Number(row.label_red ?? 0);
-    const grey = Number(row.label_grey ?? 0);
-    const noData = Number(row.label_no_data ?? 0);
-    return {
-      classId: Number(row.class_id),
-      className: row.class_name,
-      teacher: {
-        teacherId: Number(row.teacher_id),
-        fullName: row.teacher_name,
-      },
-      activeStudents,
-      droppedStudents: Number(row.dropped_students ?? 0),
-      attendanceAvg: this.nullableNumber(row.attendance_avg),
-      homeworkAvg: this.nullableNumber(row.homework_avg),
-      passStandardRate: this.nullableNumber(row.pass_chuan_rate),
-      softPassRate: this.nullableNumber(row.pass_mem_rate),
-      riskRate:
-        this.nullableNumber(row.risk_pct) ?? this.riskRateFromCounts(row),
-      progressPct: this.nullableNumber(row.progress_pct),
-      healthStatus: row.health_status,
-      isAlarmTriggered: Boolean(row.is_alarm_triggered),
-      labelDistribution: {
-        green: Math.max(0, activeStudents - yellow - red - grey - noData),
-        yellow,
-        red,
-        grey,
-        noData,
-      },
-      lastSnapshotDate: this.isoDate(row.snapshot_date),
-    };
-  }
-
-  private riskRateFromCounts(row: any) {
-    const active = Number(row.active_students ?? 0);
-    if (active === 0) return null;
-    return (
-      Math.round(
-        ((Number(row.label_red ?? 0) + Number(row.label_grey ?? 0)) / active) *
-          100 *
-          10,
-      ) / 10
-    );
-  }
-
   private configNumber(config: Map<any, any>, key: string, fallback: number) {
     const value = Number(config.get(key));
     return Number.isFinite(value) ? value : fallback;
