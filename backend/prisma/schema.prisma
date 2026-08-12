@@ -148,8 +148,8 @@ model student_daily_records {
   test_4                  Decimal? @db.Decimal(5, 2)
   test_5                  Decimal? @db.Decimal(5, 2)
   test_6                  Decimal? @db.Decimal(5, 2)
-  test_7                  Decimal? @db.Decimal(5, 2)
-  test_8                  Decimal? @db.Decimal(5, 2)
+  test_7                  Decimal? @db.Decimal
+  test_8                  Decimal? @db.Decimal
   snapshot_stage          Int?
   tests_taken             Int?     @default(0)
   test_average            Decimal? @db.Decimal(5, 2)
@@ -178,6 +178,7 @@ model student_daily_records {
 
   @@unique([student_id, class_id, snapshot_stage], map: "uq_student_stage")
   @@index([class_id, record_date], map: "idx_student_rec_class")
+  @@index([student_id, class_id, snapshot_stage], map: "idx_student_daily_stage")
   @@index([student_id, record_date(sort: Desc)], map: "idx_student_rec_date")
   @@index([current_label, record_date], map: "idx_student_rec_label")
 }
@@ -284,6 +285,7 @@ model test_scores {
   @@unique([student_id, class_id, test_order, is_makeup], map: "uq_test_score")
   @@index([class_id, test_order], map: "idx_test_class")
   @@index([student_id], map: "idx_test_student")
+  @@index([student_id, class_id, test_at, test_order], map: "idx_test_scores_student_test_at")
 }
 
 model contact_logs {
