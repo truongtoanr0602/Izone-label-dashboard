@@ -123,6 +123,12 @@ describe('DashboardsService', () => {
       ])
       .mockResolvedValueOnce([
         {
+          record_date: '2026-07-15',
+          student_id: 200,
+          class_id: 2,
+          label_change_direction: 'up',
+        },
+        {
           record_date: '2026-08-01',
           student_id: 100,
           class_id: 1,
@@ -141,6 +147,9 @@ describe('DashboardsService', () => {
     expect(result.kpis.attendanceAvg.delta).toBe(10);
     expect(result.kpis.attendanceAvg.comparableClasses).toBe(2);
     expect(result.kpis.netMomentum.value).toBe(1);
+    expect(result.kpis.netMomentum.delta).toBeNull();
+    expect(result.kpis.netMomentum.comparableClasses).toBe(0);
+    expect(result.kpis.netMomentum.totalClasses).toBe(2);
     expect(result.trend).toHaveLength(14);
     expect(result.classes).toHaveLength(2);
     expect(result.classes[0].progress.completedSessions).toBe(10);

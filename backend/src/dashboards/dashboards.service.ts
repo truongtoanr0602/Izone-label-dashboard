@@ -208,10 +208,29 @@ export class DashboardsService {
     );
     const momentum = calculateNetMomentum(selectedTransitions);
     const previousMomentum = calculateNetMomentum(previousTransitions);
+    const previousMomentumClassIds = new Set(
+      previousTransitions.map((row) => row.classId),
+    );
+    const comparableMomentumClassIds = new Set(
+      selectedTransitions
+        .map((row) => row.classId)
+        .filter((classId) => previousMomentumClassIds.has(classId)),
+    );
+    const currentComparableMomentum = calculateNetMomentum(
+      selectedTransitions.filter((row) =>
+        comparableMomentumClassIds.has(row.classId),
+      ),
+    );
+    const previousComparableMomentum = calculateNetMomentum(
+      previousTransitions.filter((row) =>
+        comparableMomentumClassIds.has(row.classId),
+      ),
+    );
     const momentumDelta =
-      momentum.value === null || previousMomentum.value === null
+      currentComparableMomentum.value === null ||
+      previousComparableMomentum.value === null
         ? null
-        : momentum.value - previousMomentum.value;
+        : currentComparableMomentum.value - previousComparableMomentum.value;
     const weeklyTrend = buildWeeklyTrend(evidence, calendar).map((point) => {
       const weeklyMomentum = calculateNetMomentum(
         transitions.filter(
@@ -282,8 +301,10 @@ export class DashboardsService {
         },
         netMomentum: {
           ...momentum,
-          baselineValue: previousMomentum.value,
+          baselineValue: previousComparableMomentum.value,
           delta: momentumDelta,
+          comparableClasses: comparableMomentumClassIds.size,
+          totalClasses: reportRows.length,
           direction: this.direction(momentumDelta, false),
         },
       },
@@ -865,7 +886,6 @@ export class DashboardsService {
       softPassRate: observation.softPass.value,
       riskRate,
       progress: observation.progress,
-      progressPct: observation.progress.percentage,
       healthStatus,
       isAlarmTriggered: riskRate !== null && riskRate >= 40,
       labelDistribution: {
