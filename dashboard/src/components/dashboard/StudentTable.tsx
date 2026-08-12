@@ -84,7 +84,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   const filteredStudents = students.filter((s) => {
     const matchesSearch =
       s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.studentCode.includes(searchTerm) ||
+      String(s.studentId).includes(searchTerm) ||
       s.phone.includes(searchTerm);
 
     if (!matchesSearch) return false;
@@ -227,6 +227,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               </tr>
             ) : (
               sortedStudents.map((s, idx) => {
+                const attendancePct = s.attendance.percentage;
+                const homeworkPct = s.homework.percentage;
                 const sparkData = s.testPerformance.scores
                   .filter((t) => t.finalScore !== null)
                   .map((t) => ({ name: t.testName, score: t.finalScore }));
@@ -280,9 +282,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         </div>
 
                         <div className="md:hidden flex items-center gap-3 text-[11px] font-mono border-t border-[#f3f4f6] dark:border-[#3f3f46] pt-2 mt-1">
-                          <span>CC: <span className={s.attendance.percentage < 90 ? 'text-red-500 font-bold' : 'text-[#404040] dark:text-[#e4e4e7]'}>{s.attendance.percentage}%</span></span>
+                          <span>CC: <span className={attendancePct !== null && attendancePct < 90 ? 'text-red-500 font-bold' : 'text-[#404040] dark:text-[#e4e4e7]'}>{attendancePct === null ? '—' : `${attendancePct}%`}</span></span>
                           <span className="text-[#404040]/30 dark:text-[#52525b]">|</span>
-                          <span>BTVN: <span className={s.homework.percentage < 90 ? 'text-red-500 font-bold' : 'text-[#404040] dark:text-[#e4e4e7]'}>{s.homework.percentage}%</span></span>
+                          <span>BTVN: <span className={homeworkPct !== null && homeworkPct < 90 ? 'text-red-500 font-bold' : 'text-[#404040] dark:text-[#e4e4e7]'}>{homeworkPct === null ? '—' : `${homeworkPct}%`}</span></span>
                         </div>
                       </div>
                     </td>
@@ -290,18 +292,20 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
-                          s.attendance.percentage < 80 ? 'text-red-500' :
-                          s.attendance.percentage < 90 ? 'text-amber-500' : 'text-emerald-500'
+                          attendancePct === null ? 'text-[#404040]/40 dark:text-[#71717a]' :
+                          attendancePct < 80 ? 'text-red-500' :
+                          attendancePct < 90 ? 'text-amber-500' : 'text-emerald-500'
                         }`}>
-                          {s.attendance.percentage}%
+                          {attendancePct === null ? '—' : `${attendancePct}%`}
                         </span>
                         <div className="w-14 h-1.5 rounded-full bg-[#f3f4f6] dark:bg-[#3f3f46] overflow-hidden mt-1">
                           <div
                             className={`h-full rounded-full ${
-                              s.attendance.percentage < 80 ? 'bg-red-500' :
-                              s.attendance.percentage < 90 ? 'bg-amber-500' : 'bg-emerald-500'
+                              attendancePct === null ? 'bg-transparent' :
+                              attendancePct < 80 ? 'bg-red-500' :
+                              attendancePct < 90 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`}
-                            style={{ width: `${s.attendance.percentage}%` }}
+                            style={{ width: attendancePct === null ? '0%' : `${attendancePct}%` }}
                           />
                         </div>
                         {s.attendance.isDroppingRecently && (
@@ -315,18 +319,20 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
-                          s.homework.percentage < 80 ? 'text-red-500' :
-                          s.homework.percentage < 90 ? 'text-amber-500' : 'text-emerald-500'
+                          homeworkPct === null ? 'text-[#404040]/40 dark:text-[#71717a]' :
+                          homeworkPct < 80 ? 'text-red-500' :
+                          homeworkPct < 90 ? 'text-amber-500' : 'text-emerald-500'
                         }`}>
-                          {s.homework.percentage}%
+                          {homeworkPct === null ? '—' : `${homeworkPct}%`}
                         </span>
                         <div className="w-14 h-1.5 rounded-full bg-[#f3f4f6] dark:bg-[#3f3f46] overflow-hidden mt-1">
                           <div
                             className={`h-full rounded-full ${
-                              s.homework.percentage < 80 ? 'bg-red-500' :
-                              s.homework.percentage < 90 ? 'bg-amber-500' : 'bg-emerald-500'
+                              homeworkPct === null ? 'bg-transparent' :
+                              homeworkPct < 80 ? 'bg-red-500' :
+                              homeworkPct < 90 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`}
-                            style={{ width: `${s.homework.percentage}%` }}
+                            style={{ width: homeworkPct === null ? '0%' : `${homeworkPct}%` }}
                           />
                         </div>
                         {s.homework.isDroppingRecently && (
@@ -527,7 +533,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                                   <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">Chuyên cần</h4>
                                   <div className="h-20 w-full bg-white dark:bg-[#27272a] rounded-[12px] p-1 px-4 overflow-hidden border border-[#f3f4f6] dark:border-[#3f3f46]">
                                     <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                                      <LineChart data={[{v: 100}, {v: s.attendance.percentage > 85 ? 95 : 85}, {v: s.attendance.percentage}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
+                                      <LineChart data={attendancePct === null ? [] : [{v: 100}, {v: attendancePct > 85 ? 95 : 85}, {v: attendancePct}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
                                         <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6', fontSize: '10px' }} itemStyle={{ color: '#10b981' }} />
                                         <Line type="monotone" dataKey="v" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#ffffff' }}>
                                           <LabelList dataKey="v" position="top" offset={8} fontSize={9} className="fill-[#404040]/60 dark:fill-[#a1a1aa]" />
@@ -540,7 +546,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                                   <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">Bài tập VN</h4>
                                   <div className="h-20 w-full bg-white dark:bg-[#27272a] rounded-[12px] p-1 px-4 overflow-hidden border border-[#f3f4f6] dark:border-[#3f3f46]">
                                     <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                                      <LineChart data={[{v: 90}, {v: s.homework.percentage > 70 ? 80 : 60}, {v: s.homework.percentage}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
+                                      <LineChart data={homeworkPct === null ? [] : [{v: 90}, {v: homeworkPct > 70 ? 80 : 60}, {v: homeworkPct}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
                                         <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6', fontSize: '10px' }} itemStyle={{ color: '#f59e0b' }} />
                                         <Line type="monotone" dataKey="v" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b', strokeWidth: 2, stroke: '#ffffff' }}>
                                           <LabelList dataKey="v" position="top" offset={8} fontSize={9} className="fill-[#404040]/60 dark:fill-[#a1a1aa]" />

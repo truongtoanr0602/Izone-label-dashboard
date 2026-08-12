@@ -2,26 +2,25 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
-import type { ClassSummary, ContactLog, ClassSnapshot, LabelChangeLog } from '../../data/types';
+import type { ClassSummary, ContactLog } from '../../data/types';
 import {
-  aggregateKhoi,
   contactCoverage,
   currentCheckpoint,
-  labelFlowDelta,
-  labelFlowInPeriod,
-  latestSnapshotPerClass,
-  listPeriods,
-  metricDelta,
   periodLabel,
-  previousPeriodKey,
+  type Period,
 } from '../../data/selectors';
 import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
 import { KpiRow, type KpiDeltas } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
-import { TrendChart, type TrendPoint, type TrendSeries } from './TrendChart';
+import { TrendChart, type TrendSeries } from './TrendChart';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { api } from '../../api/client';
+import { dashboardService } from '../../api/dashboardService';
+import {
+  toLeadTrendPoint,
+  type DashboardMetric,
+  type LeadDashboardResponse,
+} from '../../api/dashboardContracts';
 
 interface LeadDashboardProps {
   classes: ClassSummary[];
@@ -52,32 +51,31 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 }) => {
   const [searchClass, setSearchClass] = useState('');
   
-  // Async Data States
-  const [snapshots, setSnapshots] = useState<ClassSnapshot[]>([]);
-  const [labelEvents, setLabelEvents] = useState<LabelChangeLog[]>([]);
-  const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
+  const [dashboard, setDashboard] = useState<LeadDashboardResponse | null>(null);
+  const [contactLogs] = useState<ContactLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // We need to fetch students for each class to compute coverage, but that's expensive.
-  // For Lead Dashboard, maybe we can fetch all contact logs for the Khoi, 
-  // but we still need students to know `totals`. Let's mock `coverage` for now or omit it if students are missing.
-  // Alternatively, the backend could compute coverage and return it in the snapshot.
-  // We will pass an empty array of students so coverage might be 0/0.
-  
-  const REFERENCE_DATE = new Date().toISOString().split('T')[0];
+  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const selectedPeriod = /^\d{4}-\d{2}$/.test(urlPeriod) ? urlPeriod : currentMonthKey;
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const [snaps, labels, logs] = await Promise.all([
-          api.getSnapshots(khoiId),
-          api.getLabelEvents({ khoiId }),
-          api.getContactLogs({ khoiId }),
-        ]);
-        setSnapshots(snaps);
-        setLabelEvents(labels);
-        setContactLogs(logs);
+        const today = new Date();
+        const [year, month] = selectedPeriod.split('-').map(Number);
+        const requestedEnd = selectedPeriod === currentMonthKey
+          ? today
+          : new Date(Date.UTC(year, month, 0));
+        const requestedStart = new Date(requestedEnd);
+        requestedStart.setUTCDate(requestedStart.getUTCDate() - 89);
+        const response = await dashboardService.getLeadDashboard({
+          khoiId,
+          from: requestedStart.toISOString().slice(0, 10),
+          to: requestedEnd.toISOString().slice(0, 10),
+          classStatus: 'on_going',
+        });
+        setDashboard(response);
       } catch (e) {
         console.error(e);
       } finally {
@@ -85,25 +83,24 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       }
     }
     fetchData();
-  }, [khoiId]);
+  }, [currentMonthKey, khoiId, selectedPeriod]);
 
-  const periods = useMemo(() => listPeriods(snapshots), [snapshots]);
-  const defaultPeriod = periods[0]?.key ?? 'current';
-  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
-
-  const isKnownPeriod = periods.some((p) => p.key === urlPeriod);
-  const selectedPeriod = (isKnownPeriod && urlPeriod !== 'current') ? urlPeriod : defaultPeriod;
-
-  useEffect(() => {
-    if (!isKnownPeriod && urlPeriod !== 'current') setSelectedPeriod('current');
-  }, [isKnownPeriod, urlPeriod, setSelectedPeriod]);
+  const periods = useMemo<Period[]>(() => {
+    const keys = new Set((dashboard?.trend ?? []).map((point) => point.date.slice(0, 7)));
+    keys.add(currentMonthKey);
+    return [...keys].sort().reverse().map((key) => {
+      const [year, month] = key.split('-').map(Number);
+      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return { key, label: periodLabel(key), startDate: `${key}-01`, endDate: `${key}-${String(lastDay).padStart(2, '0')}` };
+    });
+  }, [currentMonthKey, dashboard]);
 
   const view = useMemo(() => {
-    if (snapshots.length === 0) {
+    if (!dashboard) {
       return {
-        aggregate: { classCount: 0, activeStudents: 0, droppedStudents: 0, riskPct: 0, classesWithTests: 0, attendanceAvg: 0, homeworkAvg: 0, passChuanRate: 0, passMemRate: 0 },
-        labelFlow: { up: 0, down: 0, keep: 0, net: 0, bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 }, recalcEvents: 0, classesWithTest: 0 },
-        deltas: { attendance: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, homework: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, passChuan: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, passMem: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, dropped: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 }, labelNet: { value: 0, delta: 0, status: 'stable', comparableClasses: 0, totalClasses: 0 } },
+        aggregate: { classCount: 0, activeStudents: 0, droppedStudents: 0, riskPct: null, classesWithTests: 0, attendanceAvg: null, homeworkAvg: null, passChuanRate: null, passMemRate: null },
+        labelFlow: { up: 0, down: 0, net: null, bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 }, recalcEvents: 0, classesWithTest: 0 },
+        deltas: { attendance: { value: null, comparableClasses: 0, totalClasses: 0 }, homework: { value: null, comparableClasses: 0, totalClasses: 0 }, passChuan: { value: null, comparableClasses: 0, totalClasses: 0 }, passMem: { value: null, comparableClasses: 0, totalClasses: 0 }, dropped: { value: null, comparableClasses: 0, totalClasses: 0 }, labelNet: { value: null, comparableClasses: 0, totalClasses: 0 } },
         trendSeries: [],
         newClasses: 0,
         endedClasses: 0,
@@ -111,67 +108,77 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       };
     }
 
-    const currentSnaps = latestSnapshotPerClass(snapshots, selectedPeriod);
-    const previousSnaps = latestSnapshotPerClass(
-      snapshots,
-      previousPeriodKey(selectedPeriod),
-    );
-
-    const aggregate = aggregateKhoi(currentSnaps);
-    const labelFlow = labelFlowInPeriod(labelEvents, snapshots, selectedPeriod);
-
-    const currentIds = new Set(currentSnaps.map((s) => s.classId));
-    const previousIds = new Set(previousSnaps.map((s) => s.classId));
-
+    const comparable = dashboard.classes.length;
+    const deltaOf = (metric: DashboardMetric) => ({ value: metric.delta, comparableClasses: comparable, totalClasses: comparable });
     const deltas: KpiDeltas = {
-      attendance: metricDelta(currentSnaps, previousSnaps, (a) => a.attendanceAvg),
-      homework: metricDelta(currentSnaps, previousSnaps, (a) => a.homeworkAvg),
-      passChuan: metricDelta(currentSnaps, previousSnaps, (a) => a.passChuanRate),
-      passMem: metricDelta(currentSnaps, previousSnaps, (a) => a.passMemRate),
-      dropped: metricDelta(currentSnaps, previousSnaps, (a) => a.droppedStudents),
-      labelNet: labelFlowDelta(labelEvents, snapshots, selectedPeriod),
+      attendance: deltaOf(dashboard.kpis.attendanceAvg),
+      homework: deltaOf(dashboard.kpis.homeworkAvg),
+      passChuan: deltaOf(dashboard.kpis.passStandardRate),
+      passMem: deltaOf(dashboard.kpis.softPassRate),
+      dropped: deltaOf(dashboard.kpis.periodAttritionRate),
+      labelNet: { value: dashboard.kpis.netMomentum.value, comparableClasses: dashboard.kpis.netMomentum.classesWithTests, totalClasses: comparable },
     };
-
-    const periodEnd = periods.find((p) => p.key === selectedPeriod)?.endDate ?? REFERENCE_DATE;
-    const weeks = [...new Set(snapshots.map((s) => s.snapshotDate))]
-      .sort()
-      .filter((date) => date <= periodEnd)
-      .slice(-13);
-
-    const khoiSeries: TrendPoint[] = weeks.map((date) => {
-      const ofWeek = snapshots.filter((s) => s.snapshotDate === date);
-      const agg = aggregateKhoi(ofWeek);
-      const classesWithTest = new Set(
-        ofWeek.filter((s) => s.testCheckpoint !== null).map((s) => s.classId),
-      );
-      return {
-        date,
-        testCheckpoint: classesWithTest.size > 0 ? `${classesWithTest.size} lớp thi` : null,
-        attendanceAvg: agg.attendanceAvg,
-        homeworkAvg: agg.homeworkAvg,
-        passChuanRate: agg.passChuanRate,
-        passMemRate: agg.passMemRate,
-      };
-    });
-
-    const noDataStudents = currentSnaps.reduce((sum, s) => sum + s.labelCounts.noData, 0);
 
     return {
-      aggregate,
-      labelFlow,
+      aggregate: {
+        classCount: dashboard.classes.length,
+        activeStudents: dashboard.kpis.activeStudents.value ?? 0,
+        droppedStudents: dashboard.kpis.periodAttritionRate.newDroppedStudents,
+        attendanceAvg: dashboard.kpis.attendanceAvg.value,
+        homeworkAvg: dashboard.kpis.homeworkAvg.value,
+        passChuanRate: dashboard.kpis.passStandardRate.value,
+        passMemRate: dashboard.kpis.softPassRate.value,
+        riskPct: dashboard.kpis.riskRate.value,
+        classesWithTests: dashboard.kpis.passStandardRate.classesWithTests ?? 0,
+      },
+      labelFlow: {
+        up: dashboard.kpis.netMomentum.upTransitions,
+        down: dashboard.kpis.netMomentum.downTransitions,
+        net: dashboard.kpis.netMomentum.value,
+        bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 },
+        recalcEvents: dashboard.kpis.netMomentum.recalculationEvents,
+        classesWithTest: dashboard.kpis.netMomentum.classesWithTests,
+      },
       deltas,
-      trendSeries: khoiSeries,
-      newClasses: [...currentIds].filter((id) => !previousIds.has(id)).length,
-      endedClasses: [...previousIds].filter((id) => !currentIds.has(id)).length,
-      noDataStudents,
+      trendSeries: dashboard.trend.map(toLeadTrendPoint),
+      newClasses: 0,
+      endedClasses: 0,
+      noDataStudents: dashboard.labelDistribution.noData,
     };
-  }, [selectedPeriod, periods, snapshots, labelEvents]);
+  }, [dashboard]);
 
   if (isLoading) {
     return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu khối...</div>;
   }
 
-  const barChartData = classes.map((c) => ({
+  const contractClassIds = new Set(dashboard?.classes.map((item) => item.classId) ?? []);
+  const contractClassById = new Map(dashboard?.classes.map((item) => [item.classId, item]) ?? []);
+  const displayClasses = classes.filter((item) => contractClassIds.has(item.classId)).map((item) => {
+    const contract = contractClassById.get(item.classId);
+    if (!contract) return item;
+    return {
+      ...item,
+      studentCounts: { ...item.studentCounts, active: contract.activeStudents, dropped: contract.droppedStudents },
+      progress: { ...item.progress, percentage: contract.progressPct ?? item.progress.percentage },
+      healthMetrics: {
+        ...item.healthMetrics,
+        isAlarmTriggered: contract.isAlarmTriggered,
+        attendanceAverage: contract.attendanceAvg,
+        homeworkAverage: contract.homeworkAvg,
+        passChuanRate: contract.passStandardRate,
+        passMemRate: contract.softPassRate,
+      },
+      labelDistribution: {
+        ...item.labelDistribution,
+        yellow: contract.labelDistribution.yellow,
+        red: contract.labelDistribution.red,
+        grey: contract.labelDistribution.grey,
+        noData: contract.labelDistribution.noData,
+      },
+      lastSyncedAt: contract.lastSnapshotDate,
+    };
+  });
+  const barChartData = displayClasses.map((c) => ({
     name: c.className,
     teacher: c.teacher.fullName,
     Vàng: c.labelDistribution.yellow,
@@ -179,13 +186,16 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     Xám: c.labelDistribution.grey,
   }));
 
-  const filteredClasses = classes.filter(c => 
+  const filteredClasses = displayClasses.filter(c =>
     c.className.toLowerCase().includes(searchClass.toLowerCase()) || 
     c.courseName.toLowerCase().includes(searchClass.toLowerCase()) ||
     c.teacher.fullName.toLowerCase().includes(searchClass.toLowerCase())
   );
 
   const getWarningStatus = (cls: ClassSummary) => {
+    if (cls.healthMetrics.attendanceAverage === null || cls.healthMetrics.homeworkAverage === null) {
+      return { label: 'Chưa có dữ liệu', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
+    }
     const avg = (cls.healthMetrics.attendanceAverage + cls.healthMetrics.homeworkAverage) / 2;
     if (avg > 80 && cls.healthMetrics.attendanceAverage >= 70 && cls.healthMetrics.homeworkAverage >= 70) 
       return { label: 'Bình thường', color: 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' };
@@ -194,7 +204,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     return { label: 'Cần can thiệp', color: 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20' };
   };
 
-  const getMetricColor = (value: number) => {
+  const getMetricColor = (value: number | null) => {
+    if (value === null) return 'text-[#404040]/40 dark:text-[#71717a]';
     if (value > 80) return 'text-emerald-600 dark:text-emerald-400';
     if (value >= 70) return 'text-amber-600 dark:text-amber-400';
     return 'text-red-600 dark:text-red-400';
@@ -222,7 +233,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         newClasses={view.newClasses}
         endedClasses={view.endedClasses}
         noDataStudents={view.noDataStudents}
-        lastSyncedAt={REFERENCE_DATE}
+        lastSyncedAt={dashboard?.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard?.meta.to ?? ''}
       />
 
       <KpiRow

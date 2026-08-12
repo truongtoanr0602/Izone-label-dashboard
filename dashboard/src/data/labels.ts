@@ -26,6 +26,7 @@ export const TRIGGER_DONE_TEXT: Record<ContactTrigger, string> = {
  * biểu diễn nổi bốn giá trị của `LabelCode`; một bảng tra thì có.
  */
 export const LABEL_TEXT: Record<LabelCode, string> = {
+  green: 'XANH',
   red: 'ĐỎ',
   yellow: 'VÀNG',
   grey: 'XÁM',
@@ -33,6 +34,7 @@ export const LABEL_TEXT: Record<LabelCode, string> = {
 };
 
 export const LABEL_BADGE_CLASS: Record<LabelCode, string> = {
+  green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
   red: 'bg-red-500/10 text-red-500 border-red-500/20',
   yellow: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
   grey: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/25',

@@ -6,7 +6,8 @@
  * đường dẫn import.
  */
 
-export type LabelCode = 'yellow' | 'red' | 'grey' | 'no_data';
+export type LabelCode = 'green' | 'yellow' | 'red' | 'grey' | 'no_data';
+export type InterventionLevel = 'level_1' | 'level_2' | 'level_3' | 'none';
 
 /* ------------------------------------------------------------------ *
  * Học viên
@@ -23,25 +24,24 @@ export interface TestScore {
 
 export interface StudentDetail {
   studentId: number;
-  studentCode: string;
   fullName: string;
   phone: string;
   email: string;
   classId: number;
   className: string;
-  registrationStatus: 'active' | 'transferred' | 'on_hold' | 'dropped';
+  registrationStatus: 'on_going' | 'transferred' | 'pending' | 'on_hold' | 'cancelled' | 'completed' | 'dropped' | 'not_completed' | 'queuing';
   admittedAt: string;
   targetOutputStatus: 'Chưa đạt' | 'Đạt';
   attendance: {
-    percentage: number;
-    presentSessions: number;
-    totalSessions: number;
+    percentage: number | null;
+    presentSessions: number | null;
+    totalSessions: number | null;
     isDroppingRecently: boolean;
   };
   homework: {
-    percentage: number;
-    completedCount: number;
-    totalCount: number;
+    percentage: number | null;
+    completedCount: number | null;
+    totalCount: number | null;
     isDroppingRecently: boolean;
   };
   testPerformance: {
@@ -61,6 +61,13 @@ export interface StudentDetail {
     lastCheckpoint: string;
     teacherTemporaryLabel?: string | null;
   };
+  interventionLevel?: InterventionLevel;
+  issues?: Array<{
+    code: string;
+    metric: string;
+    actual: number | null;
+    threshold: number | null;
+  }>;
   evaluation: {
     riskScore: number; // 0 to 100
     suggestedAction: 'call_parent' | 'assign_hw' | 'review_pass' | 'none';
@@ -114,12 +121,12 @@ export interface ClassSummary {
   };
   healthMetrics: {
     classRiskLevel: 'high' | 'medium' | 'low';
-    healthScore: number;
+    healthScore: number | null;
     isAlarmTriggered: boolean;
-    attendanceAverage: number;
-    homeworkAverage: number;
-    passChuanRate: number;
-    passMemRate: number;
+    attendanceAverage: number | null;
+    homeworkAverage: number | null;
+    passChuanRate: number | null;
+    passMemRate: number | null;
   };
   labelDistribution: {
     grey: number;
@@ -145,7 +152,6 @@ export interface PendingReviewEnriched {
   reviewId: string;
   student: {
     studentId: number;
-    studentCode: string;
     fullName: string;
     phone: string;
     email: string;

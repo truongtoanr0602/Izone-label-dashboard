@@ -7,17 +7,35 @@ import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import { Login } from './components/auth/Login';
 import type { TableFilter } from './components/dashboard/StudentTable';
 import type { ClassSummary, ContactLog, ContactTrigger, StudentDetail, LabelChangeLog } from './data/types';
-import { currentCheckpoint, matchesTrigger, remainingCount } from './data/selectors';
+import { currentCheckpoint, remainingCount } from './data/selectors';
 import { TRIGGER_SHORT_TITLE } from './data/labels';
 import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare, LogOut } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
 import { api, setAuthHeader } from './api/client';
+import { dashboardService } from './api/dashboardService';
+import { adaptTeacherStudent } from './api/dashboardContracts';
 
 const QUICK_BUTTONS: { trigger: ContactTrigger; className: string }[] = [
   { trigger: 'habit_reminder', className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40' },
   { trigger: 'red_followup', className: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40' },
   { trigger: 'relearn_advice', className: 'bg-slate-100 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800/70' },
 ];
+
+function metricTone(value: number | null) {
+  if (value === null) return 'text-[#404040]/40 dark:text-[#71717a]';
+  if (value >= 80) return 'text-emerald-500';
+  if (value >= 70) return 'text-amber-500';
+  return 'text-red-500';
+}
+
+function metricBar(value: number | null) {
+  if (value === null) return 'bg-transparent';
+  if (value >= 80) return 'bg-emerald-500';
+  if (value >= 70) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+const metricText = (value: number | null) => value === null ? '—' : `${value}%`;
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -29,6 +47,11 @@ export default function App() {
   const [students, setStudents] = useState<StudentDetail[]>([]);
   const [labelEvents, setLabelEvents] = useState<LabelChangeLog[]>([]);
   const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
+  const [actionTotals, setActionTotals] = useState<Record<ContactTrigger, number>>({
+    habit_reminder: 0,
+    red_followup: 0,
+    relearn_advice: 0,
+  });
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -57,7 +80,7 @@ export default function App() {
       } else {
         setSelectedClass(null);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to init app', e);
       if (e?.response?.status === 401) {
         alert('Tài khoản không hợp lệ hoặc phiên đăng nhập đã hết hạn.');
@@ -92,11 +115,67 @@ export default function App() {
 
   // When selected class changes, fetch its students, label events, and contact logs
   useEffect(() => {
-    if (!selectedClass) return;
-    api.getStudentsByClass(selectedClass.classId).then(setStudents);
-    api.getLabelEvents({ classId: selectedClass.classId }).then(setLabelEvents);
-    api.getContactLogs({ classId: selectedClass.classId }).then(setContactLogs);
-  }, [selectedClass]);
+    const classId = selectedClass?.classId;
+    if (!classId) return;
+    const requestedClassId = classId;
+
+    async function fetchTeacherDashboard() {
+      try {
+        const [screen, labels, logs] = await Promise.all([
+          dashboardService.getTeacherDashboard(requestedClassId),
+          api.getLabelEvents({ classId: requestedClassId }),
+          api.getContactLogs({ classId: requestedClassId }),
+        ]);
+        setStudents(screen.students.map((student) =>
+          adaptTeacherStudent(student, requestedClassId, screen.classHeader.className),
+        ));
+        setLabelEvents(labels);
+        setContactLogs(logs);
+        setActionTotals({
+          habit_reminder: screen.actionSummary.level1.count,
+          red_followup: screen.actionSummary.level2.count,
+          relearn_advice: screen.actionSummary.level3.count,
+        });
+        setSelectedClass((current) => current && current.classId === requestedClassId ? {
+          ...current,
+          className: screen.classHeader.className,
+          courseId: screen.classHeader.courseId,
+          courseName: screen.classHeader.courseName,
+          schedule: screen.classHeader.schedule ?? '',
+          portalUrl: screen.classHeader.portalUrl ?? '',
+          teacher: {
+            ...current.teacher,
+            teacherId: screen.classHeader.teacher.teacherId,
+            fullName: screen.classHeader.teacher.fullName,
+            email: screen.classHeader.teacher.email,
+          },
+          progress: {
+            completedSessions: screen.classHeader.progress.completedSessions,
+            totalSessions: screen.classHeader.progress.totalSessions,
+            percentage: screen.classHeader.progress.percentage ?? 0,
+          },
+          studentCounts: {
+            active: screen.classHeader.studentCounts.active,
+            onHold: screen.classHeader.studentCounts.onHold,
+            dropped: screen.classHeader.studentCounts.dropped,
+            transferred: screen.classHeader.studentCounts.transferred,
+            totalEnrolled: screen.classHeader.studentCounts.total,
+          },
+          actionItems: {
+            ...current.actionItems,
+            urgentCallsNeeded: screen.actionSummary.level2.count,
+            homeworkRemindersNeeded: screen.actionSummary.level1.count,
+            pendingPassReviews: screen.actionSummary.softPassReview.pending,
+          },
+          lastSyncedAt: screen.meta.generatedAt,
+        } : current);
+      } catch (error) {
+        console.error('Failed to fetch Teacher Dashboard', error);
+      }
+    }
+
+    fetchTeacherDashboard();
+  }, [selectedClass?.classId]);
 
   const checkpoint = currentCheckpoint(students);
 
@@ -136,11 +215,7 @@ export default function App() {
     }
   };
 
-  const totals: Record<ContactTrigger, number> = {
-    habit_reminder: students.filter((s) => matchesTrigger(s, 'habit_reminder')).length,
-    red_followup: students.filter((s) => matchesTrigger(s, 'red_followup')).length,
-    relearn_advice: students.filter((s) => matchesTrigger(s, 'relearn_advice')).length,
-  };
+  const totals = actionTotals;
 
   const remaining: Record<ContactTrigger, number> = {
     habit_reminder: remainingCount(students, contactLogs, 'habit_reminder', checkpoint),
@@ -262,30 +337,30 @@ export default function App() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5 text-sm text-[#404040]/70 dark:text-[#a1a1aa]"><CheckCircle className="w-4 h-4" /><span>Điểm danh</span></div>
-                  <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'text-amber-500' : 'text-red-500'}`}>{selectedClass.healthMetrics.attendanceAverage}%</span>
+                  <span className={`font-semibold font-mono text-sm ${metricTone(selectedClass.healthMetrics.attendanceAverage)}`}>{metricText(selectedClass.healthMetrics.attendanceAverage)}</span>
                 </div>
                 <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                  <div className={`h-full ${selectedClass.healthMetrics.attendanceAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.attendanceAverage >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.attendanceAverage}%` }} />
+                  <div className={`h-full ${metricBar(selectedClass.healthMetrics.attendanceAverage)}`} style={{ width: selectedClass.healthMetrics.attendanceAverage === null ? '0%' : `${selectedClass.healthMetrics.attendanceAverage}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5 text-sm text-[#404040]/70 dark:text-[#a1a1aa]"><BookOpen className="w-4 h-4" /><span>BTVN</span></div>
-                  <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'text-amber-500' : 'text-red-500'}`}>{selectedClass.healthMetrics.homeworkAverage}%</span>
+                  <span className={`font-semibold font-mono text-sm ${metricTone(selectedClass.healthMetrics.homeworkAverage)}`}>{metricText(selectedClass.healthMetrics.homeworkAverage)}</span>
                 </div>
                 <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                  <div className={`h-full ${selectedClass.healthMetrics.homeworkAverage >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.homeworkAverage >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.homeworkAverage}%` }} />
+                  <div className={`h-full ${metricBar(selectedClass.healthMetrics.homeworkAverage)}`} style={{ width: selectedClass.healthMetrics.homeworkAverage === null ? '0%' : `${selectedClass.healthMetrics.homeworkAverage}%` }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1.5 text-sm text-[#404040]/70 dark:text-[#a1a1aa]"><Award className="w-4 h-4" /><span>Tỷ lệ Pass</span></div>
-                  <span className={`font-semibold font-mono text-sm ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'text-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'text-amber-500' : 'text-red-500'}`}>{selectedClass.healthMetrics.passChuanRate}%</span>
+                  <span className={`font-semibold font-mono text-sm ${metricTone(selectedClass.healthMetrics.passChuanRate)}`}>{metricText(selectedClass.healthMetrics.passChuanRate)}</span>
                 </div>
                 <div className="w-full h-1 bg-[#f3f4f6] dark:bg-[#3f3f46] rounded-full overflow-hidden">
-                  <div className={`h-full ${selectedClass.healthMetrics.passChuanRate >= 80 ? 'bg-emerald-500' : selectedClass.healthMetrics.passChuanRate >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${selectedClass.healthMetrics.passChuanRate}%` }} />
+                  <div className={`h-full ${metricBar(selectedClass.healthMetrics.passChuanRate)}`} style={{ width: selectedClass.healthMetrics.passChuanRate === null ? '0%' : `${selectedClass.healthMetrics.passChuanRate}%` }} />
                 </div>
               </div>
             </div>
@@ -298,7 +373,7 @@ export default function App() {
         <Header
           classes={classes}
           selectedClass={selectedClass || undefined}
-          onSelectClass={(cls) => setSelectedClass(cls)}
+          onSelectClass={handleDrillDownToClass}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}

@@ -44,10 +44,11 @@ const PASS_THRESHOLD_PCT = 90;
  * hai danh sách chỉ khiến GV mở hai chỗ để gửi cùng một thứ.
  */
 export function isHabitReminderStudent(s: StudentDetail): boolean {
+  if (s.interventionLevel !== undefined) return s.interventionLevel === 'level_1';
   return (
-    s.registrationStatus === 'active' &&
-    (s.attendance.percentage < PASS_THRESHOLD_PCT ||
-      s.homework.percentage < PASS_THRESHOLD_PCT ||
+    s.registrationStatus === 'on_going' &&
+    ((s.attendance.percentage !== null && s.attendance.percentage < PASS_THRESHOLD_PCT) ||
+      (s.homework.percentage !== null && s.homework.percentage < PASS_THRESHOLD_PCT) ||
       s.homework.isDroppingRecently)
   );
 }
@@ -60,7 +61,8 @@ export function isHabitReminderStudent(s: StudentDetail): boolean {
  * Vì vậy tin nhắn cho nhóm này là ĐỘNG VIÊN kèm số cụ thể, không phải cảnh báo.
  */
 export function isRedFollowUpStudent(s: StudentDetail): boolean {
-  return s.labeling.currentLabel === 'red' && s.registrationStatus === 'active';
+  if (s.interventionLevel !== undefined) return s.interventionLevel === 'level_2';
+  return s.labeling.currentLabel === 'red' && s.registrationStatus === 'on_going';
 }
 
 /**
@@ -75,5 +77,6 @@ export function isRedFollowUpStudent(s: StudentDetail): boolean {
  * nộp bài đủ hiện ô hành động là "--".
  */
 export function isRelearnAdviceStudent(s: StudentDetail): boolean {
-  return s.labeling.currentLabel === 'grey' && s.registrationStatus === 'active';
+  if (s.interventionLevel !== undefined) return s.interventionLevel === 'level_3';
+  return s.labeling.currentLabel === 'grey' && s.registrationStatus === 'on_going';
 }

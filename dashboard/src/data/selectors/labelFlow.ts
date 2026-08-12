@@ -6,7 +6,7 @@ export interface LabelFlowSummary {
   up: number;
   down: number;
   /** up − down. Đây là chỉ số DẪN duy nhất trên dashboard. */
-  net: number;
+  net: number | null;
   bySeverity: Record<LabelChangeLog['severity'], number>;
   /** Số lượt tính lại nhãn trong kỳ (mỗi lớp × mỗi bài test = 1 lượt). */
   recalcEvents: number;

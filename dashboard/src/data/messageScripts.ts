@@ -47,8 +47,10 @@ function statsBlock(s: StudentDetail): string {
  * biết phải làm gì. Nêu đúng một việc cụ thể thì khác.
  */
 function focusLine(s: StudentDetail): string {
-  const lowAttendance = s.attendance.percentage < PASS_THRESHOLD_PCT;
-  const lowHomework = s.homework.percentage < PASS_THRESHOLD_PCT;
+  const lowAttendance =
+    s.attendance.percentage !== null && s.attendance.percentage < PASS_THRESHOLD_PCT;
+  const lowHomework =
+    s.homework.percentage !== null && s.homework.percentage < PASS_THRESHOLD_PCT;
 
   if (lowAttendance && lowHomework) {
     return 'Trước mắt em cố gắng đi học đều hơn và làm cho đủ bài tập nhé — hai cái này kéo lên là mọi thứ khác đỡ hẳn.';

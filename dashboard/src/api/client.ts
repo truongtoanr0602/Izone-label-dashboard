@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { ClassSummary, StudentDetail, ClassSnapshot, LabelChangeLog, ContactLog } from '../data/types';
 
 // Constants for backend URL
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = '/api';
 
 // Create axios instance
 export const apiClient = axios.create({
@@ -119,12 +119,12 @@ function mapClassSummary(data: any): ClassSummary {
     },
     healthMetrics: {
       classRiskLevel: 'low',
-      healthScore: 100,
+      healthScore: data.health_score == null ? null : Number(data.health_score),
       isAlarmTriggered: false,
-      attendanceAverage: data.attendance_avg ? Number(data.attendance_avg) : 100,
-      homeworkAverage: data.homework_avg ? Number(data.homework_avg) : 100,
-      passChuanRate: data.pass_chuan_rate ? Number(data.pass_chuan_rate) : 100,
-      passMemRate: data.pass_mem_rate ? Number(data.pass_mem_rate) : 100,
+      attendanceAverage: data.attendance_avg == null ? null : Number(data.attendance_avg),
+      homeworkAverage: data.homework_avg == null ? null : Number(data.homework_avg),
+      passChuanRate: data.pass_chuan_rate == null ? null : Number(data.pass_chuan_rate),
+      passMemRate: data.pass_mem_rate == null ? null : Number(data.pass_mem_rate),
     },
     labelDistribution: {
       yellow: data.label_yellow || 0,
@@ -142,7 +142,6 @@ function mapClassSummary(data: any): ClassSummary {
 function mapStudentDetail(data: any): StudentDetail {
   return {
     studentId: data.student_id,
-    studentCode: data.student_code,
     fullName: data.full_name,
     phone: data.phone || 'N/A',
     email: '',
@@ -153,18 +152,18 @@ function mapStudentDetail(data: any): StudentDetail {
     targetOutputStatus: 'Chưa đạt',
     attendance: {
       percentage: data.attendance_pct ? Number(data.attendance_pct) : 0,
-      presentSessions: 0,
-      totalSessions: 0,
+      presentSessions: data.attendance_present ? Number(data.attendance_present) : 0,
+      totalSessions: data.attendance_total ? Number(data.attendance_total) : 0,
       isDroppingRecently: false,
     },
     homework: {
       percentage: data.homework_pct ? Number(data.homework_pct) : 0,
-      completedCount: 0,
-      totalCount: 0,
+      completedCount: data.homework_done ? Number(data.homework_done) : 0,
+      totalCount: data.homework_total ? Number(data.homework_total) : 0,
       isDroppingRecently: false,
     },
     testPerformance: {
-      testsTakenCount: 0,
+      testsTakenCount: data.tests_taken ? Number(data.tests_taken) : 0,
       averageScore: data.test_average ? Number(data.test_average) : null,
       lastScore: null,
       trendDirection: 'stable',
@@ -191,7 +190,7 @@ function mapStudentDetail(data: any): StudentDetail {
       suggestedAction: 'none',
       passChuanStatus: mapPassChuanStatus(data.pass_chuan_status),
       passChuanReasons: [],
-      passMemStatus: '',
+      passMemStatus: data.pass_mem_status || '',
       passMemGroup: '',
       passMemLabel: '',
       isEligibleForReview: false,
@@ -206,16 +205,29 @@ function mapStudentDetail(data: any): StudentDetail {
   };
 }
 
+function normalizeDateStr(dateStr: string): string {
+  if (!dateStr) return '';
+  const clean = String(dateStr).split('T')[0].trim();
+  if (clean.includes('/') || (clean.includes('-') && clean.split('-')[0].length === 2)) {
+    const parts = clean.split(/[/|-]/);
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+  return clean;
+}
+
 function mapSnapshot(data: any): ClassSnapshot {
   const completedSessions = data.completed_sessions || 0;
   const testSessions = [4, 8, 12, 16, 20, 24];
   const testsCompleted = testSessions.filter(s => s <= completedSessions).length;
 
   return {
-    snapshotId: String(data.snapshot_id || Math.random()),
+    snapshotId: String(data.snapshot_id ?? data.id ?? `${data.class_id}:${normalizeDateStr(data.snapshot_date)}`),
     classId: data.class_id,
     className: data.class_name,
-    snapshotDate: data.snapshot_date.split('T')[0], // yyyy-mm-dd
+    snapshotDate: normalizeDateStr(data.snapshot_date), // yyyy-mm-dd
     weekIndex: 0,
     progressPct: 0,
     completedSessions,
@@ -264,7 +276,9 @@ function mapLabelChangeLog(data: any): LabelChangeLog {
 
 function mapContactLog(data: any): ContactLog {
   return {
-    contactId: data.contact_id ? String(data.contact_id) : Math.random().toString(),
+    contactId: data.contact_id
+      ? String(data.contact_id)
+      : `${data.student_id}:${data.trigger_type || data.trigger}:${data.checkpoint}:${data.created_at}`,
     studentId: data.student_id,
     classId: data.class_id,
     teacherId: data.teacher_id,
@@ -277,12 +291,12 @@ function mapContactLog(data: any): ContactLog {
 }
 
 // Map DB enum codes to frontend Vietnamese display labels
-function mapPassChuanStatus(dbValue: string | null): string {
-  const map: Record<string, string> = {
+function mapPassChuanStatus(dbValue: string | null): 'Có khả năng pass' | 'Chưa đạt điều kiện pass' | 'Chưa đủ DL' | 'Đạt tiêu chuẩn' {
+  const map: Record<string, 'Có khả năng pass' | 'Chưa đạt điều kiện pass' | 'Chưa đủ DL' | 'Đạt tiêu chuẩn'> = {
     'no_data': 'Chưa đủ DL',
     'passed': 'Đạt tiêu chuẩn',
     'likely_pass': 'Có khả năng pass',
     'not_met': 'Chưa đạt điều kiện pass',
   };
-  return map[dbValue || ''] || dbValue || 'Chưa đạt điều kiện pass';
+  return map[dbValue || ''] || 'Chưa đạt điều kiện pass';
 }
