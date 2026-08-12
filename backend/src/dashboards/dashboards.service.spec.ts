@@ -11,6 +11,54 @@ const leadUser = {
   classIds: [],
 };
 
+function snapshotRow(
+  classId: number,
+  date: string,
+  activeStudents: number,
+  completedSessions: number,
+) {
+  return {
+    class_id: classId,
+    snapshot_date: date,
+    active_students: activeStudents,
+    on_hold_students: 0,
+    dropped_students: 0,
+    transferred_students: 0,
+    completed_sessions: completedSessions,
+    total_sessions: 28,
+    scraped_at: `${date}T03:00:00Z`,
+  };
+}
+
+function metricRow(
+  classId: number,
+  date: string,
+  students: number,
+  attendance: number,
+  homework: number,
+  passStandard: number,
+  softPass: number,
+) {
+  return {
+    class_id: classId,
+    record_date: date,
+    record_count: students,
+    attendance_sample_size: students,
+    attendance_avg: attendance,
+    homework_sample_size: students,
+    homework_avg: homework,
+    tested_students: students,
+    pass_standard_students: passStandard,
+    soft_pass_students: softPass,
+    label_green: 0,
+    label_yellow: students - 2,
+    label_red: 1,
+    label_grey: 1,
+    label_no_data: 0,
+    scraped_at: `${date}T03:00:00Z`,
+  };
+}
+
 describe('DashboardsService', () => {
   it('rejects a Lead trend window longer than 90 inclusive days', async () => {
     const service = new DashboardsService({ $queryRaw: jest.fn() } as never);
@@ -41,53 +89,37 @@ describe('DashboardsService', () => {
         {
           class_id: 1,
           class_name: '34A',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
           teacher_id: 10,
           teacher_name: 'GV A',
-          snapshot_date: '2026-08-01',
-          active_students: 10,
-          on_hold_students: 0,
-          dropped_students: 1,
-          attendance_avg: 80,
-          homework_avg: 80,
-          pass_chuan_rate: 40,
-          pass_mem_rate: 50,
-          label_yellow: 3,
-          label_red: 1,
-          label_grey: 1,
-          label_no_data: 0,
-          completed_sessions: 10,
-          total_sessions: 28,
-          progress_pct: 35.71,
-          health_status: 'watch',
-          is_alarm_triggered: false,
-          tests_completed: 2,
-          scraped_at: '2026-08-01T03:00:00Z',
+          teacher_email: 'a@izone.edu.vn',
         },
         {
           class_id: 2,
           class_name: '34B',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
           teacher_id: 11,
           teacher_name: 'GV B',
-          snapshot_date: '2026-08-01',
-          active_students: 30,
-          on_hold_students: 0,
-          dropped_students: 0,
-          attendance_avg: 100,
-          homework_avg: 90,
-          pass_chuan_rate: 60,
-          pass_mem_rate: 70,
-          label_yellow: 10,
-          label_red: 3,
-          label_grey: 2,
-          label_no_data: 0,
-          completed_sessions: 12,
-          total_sessions: 28,
-          progress_pct: 42.86,
-          health_status: 'normal',
-          is_alarm_triggered: false,
-          tests_completed: 3,
-          scraped_at: '2026-08-01T03:00:00Z',
+          teacher_email: 'b@izone.edu.vn',
         },
+      ])
+      .mockResolvedValueOnce([
+        snapshotRow(1, '2026-07-31', 10, 9),
+        snapshotRow(1, '2026-08-10', 10, 10),
+        snapshotRow(1, '2026-08-12', 10, 0),
+        snapshotRow(2, '2026-07-31', 30, 11),
+        snapshotRow(2, '2026-08-10', 30, 12),
+        snapshotRow(2, '2026-08-12', 30, 0),
+      ])
+      .mockResolvedValueOnce([
+        metricRow(1, '2026-07-31', 10, 70, 70, 4, 5),
+        metricRow(1, '2026-08-10', 10, 80, 80, 4, 5),
+        metricRow(2, '2026-07-31', 30, 90, 80, 18, 21),
+        metricRow(2, '2026-08-10', 30, 100, 90, 18, 21),
       ])
       .mockResolvedValueOnce([
         {
@@ -100,14 +132,20 @@ describe('DashboardsService', () => {
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(
-      { courseId: '2', khoiId: '34', from: '2026-08-01', to: '2026-08-01' },
+      { courseId: '2', khoiId: '34', period: '2026-08' },
       leadUser,
     );
 
+    expect(result.meta.previousAsOf).toBe('2026-07-31');
     expect(result.kpis.attendanceAvg.value).toBe(95);
+    expect(result.kpis.attendanceAvg.delta).toBe(10);
+    expect(result.kpis.attendanceAvg.comparableClasses).toBe(2);
     expect(result.kpis.netMomentum.value).toBe(1);
-    expect(result.trend).toHaveLength(1);
+    expect(result.trend).toHaveLength(14);
     expect(result.classes).toHaveLength(2);
+    expect(result.classes[0].progress.completedSessions).toBe(10);
+    expect(result.classes[0].attendanceAvg).toBe(80);
+    expect(result.classes[0].dataQuality.status).toBe('fallback');
   });
 
   it('returns every student and derives exclusive Teacher action counts', async () => {

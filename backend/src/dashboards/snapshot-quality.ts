@@ -107,8 +107,11 @@ function resolveCoveredMetric(
     kind === 'attendance' ? 'attendanceSampleSize' : 'homeworkSampleSize';
   const valueKey = kind === 'attendance' ? 'attendanceAvg' : 'homeworkAvg';
   const row = rows.find((candidate) => {
-    if (candidate.recordCount <= 0 || candidate[valueKey] === null) return false;
-    return (candidate[sampleKey] / candidate.recordCount) * 100 >= minimumCoveragePct;
+    if (candidate.recordCount <= 0 || candidate[valueKey] === null)
+      return false;
+    return (
+      (candidate[sampleKey] / candidate.recordCount) * 100 >= minimumCoveragePct
+    );
   });
   if (!row) return emptyMetric();
   const coveragePct = round1((row[sampleKey] / row.recordCount) * 100);
@@ -156,7 +159,9 @@ export function resolveClassObservation(
   const futureRowsExist =
     input.snapshots.some((row) => row.date > asOf) ||
     input.studentMetrics.some((row) => row.date > asOf);
-  const snapshots = latestFirst(input.snapshots.filter((row) => row.date <= asOf));
+  const snapshots = latestFirst(
+    input.snapshots.filter((row) => row.date <= asOf),
+  );
   const studentMetrics = latestFirst(
     input.studentMetrics.filter((row) => row.date <= asOf),
   );
@@ -271,7 +276,11 @@ export function resolveClassObservation(
     passStandard,
     softPass,
     dataQuality: {
-      status: insufficient ? 'insufficient' : fallback ? 'fallback' : 'complete',
+      status: insufficient
+        ? 'insufficient'
+        : fallback
+          ? 'fallback'
+          : 'complete',
       warnings: [...warnings],
       rosterAsOf: rosterDate,
       progressAsOf: progressRow?.date ?? null,

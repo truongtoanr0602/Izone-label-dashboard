@@ -97,8 +97,10 @@ export function parseReportPeriod(
   if (month < 1 || month > 12) throw new Error('period is not valid');
   const normalized = `${year}-${String(month).padStart(2, '0')}`;
   const currentPeriod = todayIso.slice(0, 7);
-  if (normalized > currentPeriod) throw new Error('period cannot be in the future');
-  const reportAsOf = normalized === currentPeriod ? todayIso : monthEnd(normalized);
+  if (normalized > currentPeriod)
+    throw new Error('period cannot be in the future');
+  const reportAsOf =
+    normalized === currentPeriod ? todayIso : monthEnd(normalized);
   const trendStart = new Date(`${reportAsOf}T00:00:00Z`);
   trendStart.setUTCDate(trendStart.getUTCDate() - 89);
   return {
@@ -153,10 +155,16 @@ function compareMetric(
   const previousByClass = new Map(previous.map((row) => [row.classId, row]));
   const comparableCurrent = current.filter((row) => {
     const before = previousByClass.get(row.classId);
-    return row[key].value !== null && before !== undefined && before[key].value !== null;
+    return (
+      row[key].value !== null &&
+      before !== undefined &&
+      before[key].value !== null
+    );
   });
   const comparableIds = new Set(comparableCurrent.map((row) => row.classId));
-  const comparablePrevious = previous.filter((row) => comparableIds.has(row.classId));
+  const comparablePrevious = previous.filter((row) =>
+    comparableIds.has(row.classId),
+  );
   const allCurrent = weightedResolved(current, key);
   const currentComparable = weightedResolved(comparableCurrent, key).value;
   const previousComparable = weightedResolved(comparablePrevious, key).value;
@@ -231,7 +239,11 @@ export function buildWeeklyTrend(
   firstWeek.setUTCDate(firstWeek.getUTCDate() - dayFromMonday);
   const result: LeadWeeklyTrendPoint[] = [];
 
-  for (const cursor = firstWeek; cursor <= reportEnd; cursor.setUTCDate(cursor.getUTCDate() + 7)) {
+  for (
+    const cursor = firstWeek;
+    cursor <= reportEnd;
+    cursor.setUTCDate(cursor.getUTCDate() + 7)
+  ) {
     const weekStart = iso(cursor);
     const sunday = new Date(cursor);
     sunday.setUTCDate(sunday.getUTCDate() + 6);

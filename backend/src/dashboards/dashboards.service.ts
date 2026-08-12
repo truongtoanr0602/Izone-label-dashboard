@@ -14,13 +14,19 @@ import {
   type InterventionLevel,
 } from './labeling-engine';
 import {
-  aggregateSnapshots,
-  buildTrend,
-  calculateAttrition,
+  buildWeeklyTrend,
   calculateNetMomentum,
+  compareMonthlyMetrics,
+  parseReportPeriod,
   type LabelTransitionRow,
   type LeadSnapshotRow,
 } from './lead-aggregation';
+import {
+  resolveClassObservation,
+  type ClassObservationEvidence,
+  type ResolvedClassObservation,
+  type StudentMetricEvidence,
+} from './snapshot-quality';
 import type {
   DashboardMetric,
   LeadDashboardQuery,
@@ -41,7 +47,12 @@ export class DashboardsService {
       );
     }
 
-    const range = this.parseLeadRange(query.from, query.to);
+    if (query.period && (query.from || query.to)) {
+      throw new BadRequestException('Không được dùng period cùng với from/to');
+    }
+    if (!query.period && (query.from || query.to)) {
+      this.parseLeadRange(query.from, query.to);
+    }
     const requestedCourseId = this.parseOptionalInteger(
       query.courseId,
       KH0I_34_COURSE_ID,
@@ -63,50 +74,80 @@ export class DashboardsService {
     const classStatus = query.classStatus ?? 'on_going';
     const teacherId = this.parseNullableInteger(query.teacherId, 'teacherId');
     const classId = this.parseNullableInteger(query.classId, 'classId');
+    let calendar: ReturnType<typeof parseReportPeriod>;
+    try {
+      calendar = parseReportPeriod(
+        query.period ?? query.to?.slice(0, 7),
+        this.todayInHoChiMinh(),
+      );
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Kỳ báo cáo không hợp lệ',
+      );
+    }
+    const previousCalendar = parseReportPeriod(
+      calendar.previousAsOf.slice(0, 7),
+      calendar.currentAsOf,
+    );
+
+    const classRows = await this.prisma.$queryRaw<any[]>`
+      SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
+             c.location, c.portal_url, c.total_sessions,
+             c.teacher_id, t.teacher_name, t.teacher_email
+      FROM izone.classes c
+      JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+        AND t.khoi_id = ${khoiId}
+        AND c.status = ${classStatus}
+        AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
+        AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+      ORDER BY c.class_name ASC
+    `;
 
     const snapshotRows = await this.prisma.$queryRaw<any[]>`
-      SELECT
-        s.class_id,
-        c.class_name,
-        c.status AS class_status,
-        c.teacher_id,
-        t.teacher_name,
-        TO_CHAR(s.snapshot_date, 'YYYY-MM-DD') AS snapshot_date,
-        s.active_students,
-        s.on_hold_students,
-        s.dropped_students,
-        s.transferred_students,
-        s.attendance_avg,
-        s.homework_avg,
-        s.pass_chuan_rate,
-        s.pass_mem_rate,
-        s.label_yellow,
-        s.label_red,
-        s.label_grey,
-        s.label_no_data,
-        s.completed_sessions,
-        s.total_sessions,
-        s.progress_pct,
-        s.health_status,
-        s.is_alarm_triggered,
-        s.scraped_at,
-        EXISTS (
-          SELECT 1
-          FROM izone.student_daily_records sr
-          WHERE sr.class_id = s.class_id
-            AND sr.record_date <= s.snapshot_date
-            AND COALESCE(sr.tests_taken, 0) > 0
-        ) AS has_test_sample
+      SELECT s.class_id, TO_CHAR(s.snapshot_date, 'YYYY-MM-DD') AS snapshot_date,
+             s.active_students, s.on_hold_students, s.dropped_students,
+             s.transferred_students, s.completed_sessions, s.total_sessions,
+             s.scraped_at
       FROM izone.class_daily_snapshots s
       JOIN izone.classes c ON c.class_id = s.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
-        AND s.snapshot_date BETWEEN ${range.fromDate} AND ${range.toDate}
+        AND s.snapshot_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
-      ORDER BY s.snapshot_date ASC, s.class_id ASC
+      ORDER BY s.class_id, s.snapshot_date ASC
+    `;
+
+    const studentMetricRows = await this.prisma.$queryRaw<any[]>`
+      SELECT r.class_id, TO_CHAR(r.record_date, 'YYYY-MM-DD') AS record_date,
+             COUNT(*)::integer AS record_count,
+             COUNT(r.attendance_pct)::integer AS attendance_sample_size,
+             ROUND(AVG(r.attendance_pct) FILTER (WHERE r.attendance_pct IS NOT NULL), 2) AS attendance_avg,
+             COUNT(r.homework_pct)::integer AS homework_sample_size,
+             ROUND(AVG(r.homework_pct) FILTER (WHERE r.homework_pct IS NOT NULL), 2) AS homework_avg,
+             COUNT(*) FILTER (WHERE COALESCE(r.tests_taken, 0) > 0)::integer AS tested_students,
+             COUNT(*) FILTER (WHERE r.pass_chuan_status IN ('Có khả năng pass', 'Đạt tiêu chuẩn', 'passed', 'likely_pass'))::integer AS pass_standard_students,
+             COUNT(*) FILTER (WHERE r.pass_mem_status IN ('Đạt pass mềm', 'passed', 'approved'))::integer AS soft_pass_students,
+             COUNT(*) FILTER (WHERE r.current_label = 'green')::integer AS label_green,
+             COUNT(*) FILTER (WHERE r.current_label = 'yellow')::integer AS label_yellow,
+             COUNT(*) FILTER (WHERE r.current_label = 'red')::integer AS label_red,
+             COUNT(*) FILTER (WHERE r.current_label = 'grey')::integer AS label_grey,
+             COUNT(*) FILTER (WHERE r.current_label = 'no_data' OR r.current_label IS NULL)::integer AS label_no_data,
+             MAX(r.scraped_at) AS scraped_at
+      FROM izone.student_daily_records r
+      JOIN izone.classes c ON c.class_id = r.class_id
+      JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+        AND t.khoi_id = ${khoiId}
+        AND c.status = ${classStatus}
+        AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
+        AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
+        AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+      GROUP BY r.class_id, r.record_date
+      ORDER BY r.class_id, r.record_date ASC
     `;
 
     const transitionRows = await this.prisma.$queryRaw<any[]>`
@@ -121,7 +162,8 @@ export class DashboardsService {
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
-        AND r.record_date BETWEEN ${range.fromDate} AND ${range.toDate}
+        AND r.record_date BETWEEN ${new Date(`${previousCalendar.previousAsOf.slice(0, 7)}-01T00:00:00Z`)}
+                              AND ${new Date(`${calendar.reportAsOf}T00:00:00Z`)}
         AND r.has_label_changed = TRUE
         AND r.label_change_direction IN ('up', 'down')
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
@@ -129,89 +171,125 @@ export class DashboardsService {
       ORDER BY r.record_date ASC
     `;
 
-    const normalizedSnapshots = snapshotRows.map((row) =>
-      this.normalizeLeadSnapshot(row),
-    );
     const transitions: LabelTransitionRow[] = transitionRows.map((row) => ({
       date: this.isoDate(row.record_date),
       studentId: Number(row.student_id),
       classId: Number(row.class_id),
       direction: row.label_change_direction,
     }));
-    const startRows = this.boundaryRows(normalizedSnapshots, 'start');
-    const endRows = this.boundaryRows(normalizedSnapshots, 'end');
-    const baseline = aggregateSnapshots(startRows);
-    const current = aggregateSnapshots(endRows);
-    const attrition = calculateAttrition(startRows, endRows);
-    const momentum = calculateNetMomentum(transitions);
-    const latestRawByClass = this.latestRawRows(snapshotRows);
+    const evidence = this.buildClassEvidence(
+      classRows,
+      snapshotRows,
+      studentMetricRows,
+    );
+    const reportRows = evidence.map((item) =>
+      resolveClassObservation(item, calendar.reportAsOf),
+    );
+    const previousRows = evidence.map((item) =>
+      resolveClassObservation(item, calendar.previousAsOf),
+    );
+    const previousPreviousRows = evidence.map((item) =>
+      resolveClassObservation(item, previousCalendar.previousAsOf),
+    );
+    const currentRows = evidence.map((item) =>
+      resolveClassObservation(item, calendar.currentAsOf),
+    );
+    const monthly = compareMonthlyMetrics(reportRows, previousRows);
+    const attrition = this.resolvedAttrition(previousRows, reportRows);
+    const previousAttrition = this.resolvedAttrition(
+      previousPreviousRows,
+      previousRows,
+    );
+    const selectedTransitions = transitions.filter((row) =>
+      row.date.startsWith(calendar.period),
+    );
+    const previousTransitions = transitions.filter((row) =>
+      row.date.startsWith(calendar.previousAsOf.slice(0, 7)),
+    );
+    const momentum = calculateNetMomentum(selectedTransitions);
+    const previousMomentum = calculateNetMomentum(previousTransitions);
+    const momentumDelta =
+      momentum.value === null || previousMomentum.value === null
+        ? null
+        : momentum.value - previousMomentum.value;
+    const weeklyTrend = buildWeeklyTrend(evidence, calendar).map((point) => {
+      const weeklyMomentum = calculateNetMomentum(
+        transitions.filter(
+          (row) => row.date >= point.weekStart && row.date <= point.weekEnd,
+        ),
+      );
+      return {
+        ...point,
+        upTransitions: weeklyMomentum.upTransitions,
+        downTransitions: weeklyMomentum.downTransitions,
+        netMomentum: weeklyMomentum.value,
+      };
+    });
+    const currentClassRows = currentRows.map((observation) => {
+      const meta = classRows.find(
+        (row) => Number(row.class_id) === observation.classId,
+      );
+      const metrics = this.latestStudentMetric(
+        studentMetricRows,
+        observation.classId,
+        calendar.currentAsOf,
+      );
+      return this.mapResolvedLeadClass(meta, observation, metrics);
+    });
     const dataFreshnessAt =
-      latestRawByClass
+      [...snapshotRows, ...studentMetricRows]
         .map((row) => this.isoTimestamp(row.scraped_at))
         .filter(Boolean)
         .sort()
         .at(-1) ?? null;
+    const activeStudents = this.activeStudentsMetric(reportRows, previousRows);
+    const attritionDelta =
+      attrition.newDroppedStudents - previousAttrition.newDroppedStudents;
 
     return this.serializeBigInt({
       meta: {
         apiVersion: 'v1',
         courseId: KH0I_34_COURSE_ID,
         khoiId,
-        from: range.from,
-        to: range.to,
+        period: calendar.period,
+        reportAsOf: calendar.reportAsOf,
+        previousAsOf: calendar.previousAsOf,
+        trendFrom: calendar.trendFrom,
+        currentAsOf: calendar.currentAsOf,
+        from: calendar.trendFrom,
+        to: calendar.reportAsOf,
         timezone: 'Asia/Ho_Chi_Minh',
         generatedAt: new Date().toISOString(),
         dataFreshnessAt,
       },
       kpis: {
-        activeStudents: this.metric(
-          current.activeStudents,
-          baseline.activeStudents,
-        ),
-        attendanceAvg: this.metric(
-          current.attendanceAvg,
-          baseline.attendanceAvg,
-          false,
-          current.activeStudents,
-        ),
-        homeworkAvg: this.metric(
-          current.homeworkAvg,
-          baseline.homeworkAvg,
-          false,
-          current.activeStudents,
-        ),
-        passStandardRate: this.metric(
-          current.passStandardRate,
-          baseline.passStandardRate,
-          false,
-          current.testedActiveStudents,
-          current.classesWithTests,
-        ),
-        softPassRate: this.metric(
-          current.softPassRate,
-          baseline.softPassRate,
-          false,
-          current.testedActiveStudents,
-          current.classesWithTests,
-        ),
-        riskRate: this.metric(
-          current.riskRate,
-          baseline.riskRate,
-          true,
-          current.activeStudents,
-        ),
+        activeStudents,
+        attendanceAvg: monthly.attendanceAvg,
+        homeworkAvg: monthly.homeworkAvg,
+        passStandardRate: monthly.passStandardRate,
+        softPassRate: monthly.softPassRate,
+        riskRate: this.riskMetric(reportRows, previousRows, studentMetricRows),
         periodAttritionRate: {
-          ...this.metric(attrition.periodAttritionRate, 0, true),
+          value: attrition.newDroppedStudents,
+          baselineValue: previousAttrition.newDroppedStudents,
+          delta: attritionDelta,
+          direction: this.direction(attritionDelta, true),
           newDroppedStudents: attrition.newDroppedStudents,
+          previousNewDroppedStudents: previousAttrition.newDroppedStudents,
+          attritionRate: attrition.periodAttritionRate,
+          comparableClasses: attrition.comparableClasses,
+          totalClasses: reportRows.length,
         },
         netMomentum: {
           ...momentum,
-          direction: this.direction(momentum.value, false),
+          baselineValue: previousMomentum.value,
+          delta: momentumDelta,
+          direction: this.direction(momentumDelta, false),
         },
       },
-      trend: buildTrend(normalizedSnapshots, transitions, range.from, range.to),
-      labelDistribution: this.labelDistribution(latestRawByClass),
-      classes: latestRawByClass.map((row) => this.mapLeadClass(row)),
+      trend: weeklyTrend,
+      labelDistribution: this.resolvedLabelDistribution(currentClassRows),
+      classes: currentClassRows,
     });
   }
 
@@ -529,6 +607,292 @@ export class DashboardsService {
         AND c.course_id = ${KH0I_34_COURSE_ID}
         AND (${khoiId ?? null}::integer IS NULL OR t.khoi_id = ${khoiId ?? null})
     `;
+  }
+
+  private todayInHoChiMinh() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const value = Object.fromEntries(
+      parts.map((part) => [part.type, part.value]),
+    );
+    return `${value.year}-${value.month}-${value.day}`;
+  }
+
+  private buildClassEvidence(
+    classRows: any[],
+    snapshotRows: any[],
+    studentMetricRows: any[],
+  ): ClassObservationEvidence[] {
+    return classRows.map((row) => {
+      const classId = Number(row.class_id);
+      return {
+        classId,
+        className: String(row.class_name),
+        classTotalSessions: Number(row.total_sessions ?? 0),
+        snapshots: snapshotRows
+          .filter((snapshot) => Number(snapshot.class_id) === classId)
+          .map((snapshot) => ({
+            date: this.isoDate(snapshot.snapshot_date),
+            activeStudents: Number(snapshot.active_students ?? 0),
+            onHoldStudents: Number(snapshot.on_hold_students ?? 0),
+            droppedStudents: Number(snapshot.dropped_students ?? 0),
+            transferredStudents: Number(snapshot.transferred_students ?? 0),
+            completedSessions: Number(snapshot.completed_sessions ?? 0),
+            totalSessions: Number(
+              snapshot.total_sessions ?? row.total_sessions ?? 0,
+            ),
+          })),
+        studentMetrics: studentMetricRows
+          .filter((metric) => Number(metric.class_id) === classId)
+          .map((metric): StudentMetricEvidence => ({
+            date: this.isoDate(metric.record_date),
+            recordCount: Number(metric.record_count ?? 0),
+            attendanceSampleSize: Number(metric.attendance_sample_size ?? 0),
+            attendanceAvg: this.nullableNumber(metric.attendance_avg),
+            homeworkSampleSize: Number(metric.homework_sample_size ?? 0),
+            homeworkAvg: this.nullableNumber(metric.homework_avg),
+            testedStudents: Number(metric.tested_students ?? 0),
+            passStandardStudents: Number(metric.pass_standard_students ?? 0),
+            softPassStudents: Number(metric.soft_pass_students ?? 0),
+          })),
+      };
+    });
+  }
+
+  private resolvedAttrition(
+    startRows: ResolvedClassObservation[],
+    endRows: ResolvedClassObservation[],
+  ) {
+    const startByClass = new Map(startRows.map((row) => [row.classId, row]));
+    let newDroppedStudents = 0;
+    let startingActiveStudents = 0;
+    let comparableClasses = 0;
+    for (const end of endRows) {
+      const start = startByClass.get(end.classId);
+      if (!start?.roster.dataAsOf || !end.roster.dataAsOf) continue;
+      comparableClasses += 1;
+      startingActiveStudents += start.roster.activeStudents;
+      newDroppedStudents += Math.max(
+        0,
+        end.roster.droppedStudents - start.roster.droppedStudents,
+      );
+    }
+    return {
+      newDroppedStudents,
+      comparableClasses,
+      periodAttritionRate:
+        startingActiveStudents === 0
+          ? null
+          : Math.round((newDroppedStudents / startingActiveStudents) * 1000) /
+            10,
+    };
+  }
+
+  private latestStudentMetric(rows: any[], classId: number, asOf: string) {
+    return rows
+      .filter(
+        (row) =>
+          Number(row.class_id) === classId &&
+          this.isoDate(row.record_date) <= asOf &&
+          Number(row.record_count ?? 0) > 0,
+      )
+      .sort((a, b) =>
+        this.isoDate(b.record_date).localeCompare(this.isoDate(a.record_date)),
+      )[0];
+  }
+
+  private activeStudentsMetric(
+    current: ResolvedClassObservation[],
+    previous: ResolvedClassObservation[],
+  ): DashboardMetric {
+    const validCurrent = current.filter((row) => row.roster.dataAsOf !== null);
+    const validPrevious = previous.filter(
+      (row) => row.roster.dataAsOf !== null,
+    );
+    const previousIds = new Set(validPrevious.map((row) => row.classId));
+    const comparable = validCurrent.filter((row) =>
+      previousIds.has(row.classId),
+    );
+    const value = validCurrent.reduce(
+      (sum, row) => sum + row.roster.activeStudents,
+      0,
+    );
+    const baselineValue = validPrevious
+      .filter((row) => comparable.some((item) => item.classId === row.classId))
+      .reduce((sum, row) => sum + row.roster.activeStudents, 0);
+    const currentComparable = comparable.reduce(
+      (sum, row) => sum + row.roster.activeStudents,
+      0,
+    );
+    const delta =
+      comparable.length === 0 ? null : currentComparable - baselineValue;
+    return {
+      value,
+      baselineValue: comparable.length === 0 ? null : baselineValue,
+      delta,
+      direction: this.direction(delta, false),
+      sampleSize: value,
+      classesReported: validCurrent.length,
+      comparableClasses: comparable.length,
+      totalClasses: current.length,
+    };
+  }
+
+  private riskMetric(
+    current: ResolvedClassObservation[],
+    previous: ResolvedClassObservation[],
+    metricRows: any[],
+  ): DashboardMetric {
+    const valueOf = (observation: ResolvedClassObservation | undefined) => {
+      if (!observation) return null;
+      const metric = this.latestStudentMetric(
+        metricRows,
+        observation.classId,
+        observation.asOf,
+      );
+      const count = Number(metric?.record_count ?? 0);
+      if (count === 0) return null;
+      return (
+        Math.round(
+          ((Number(metric.label_red ?? 0) + Number(metric.label_grey ?? 0)) /
+            count) *
+            1000,
+        ) / 10
+      );
+    };
+    const weighted = (rows: ResolvedClassObservation[]) => {
+      const valid = rows
+        .map((row) => ({ row, value: valueOf(row) }))
+        .filter(
+          (item): item is { row: ResolvedClassObservation; value: number } =>
+            item.value !== null && item.row.roster.activeStudents > 0,
+        );
+      const denominator = valid.reduce(
+        (sum, item) => sum + item.row.roster.activeStudents,
+        0,
+      );
+      return denominator === 0
+        ? null
+        : Math.round(
+            (valid.reduce(
+              (sum, item) => sum + item.value * item.row.roster.activeStudents,
+              0,
+            ) /
+              denominator) *
+              10,
+          ) / 10;
+    };
+    const previousById = new Map(previous.map((row) => [row.classId, row]));
+    const comparableCurrent = current.filter(
+      (row) =>
+        valueOf(row) !== null &&
+        valueOf(previousById.get(row.classId)) !== null,
+    );
+    const comparableIds = new Set(comparableCurrent.map((row) => row.classId));
+    const comparablePrevious = previous.filter((row) =>
+      comparableIds.has(row.classId),
+    );
+    const currentComparable = weighted(comparableCurrent);
+    const baselineValue = weighted(comparablePrevious);
+    const delta =
+      currentComparable === null || baselineValue === null
+        ? null
+        : Math.round((currentComparable - baselineValue) * 10) / 10;
+    return {
+      value: weighted(current),
+      baselineValue,
+      delta,
+      direction: this.direction(delta, true),
+      sampleSize: current.reduce(
+        (sum, row) => sum + row.roster.activeStudents,
+        0,
+      ),
+      classesReported: current.filter((row) => valueOf(row) !== null).length,
+      comparableClasses: comparableCurrent.length,
+      totalClasses: current.length,
+    };
+  }
+
+  private mapResolvedLeadClass(
+    row: any,
+    observation: ResolvedClassObservation,
+    metrics: any,
+  ) {
+    const activeStudents = observation.roster.activeStudents;
+    const yellow = Number(metrics?.label_yellow ?? 0);
+    const red = Number(metrics?.label_red ?? 0);
+    const grey = Number(metrics?.label_grey ?? 0);
+    const noData = Number(metrics?.label_no_data ?? 0);
+    const explicitGreen = Number(metrics?.label_green ?? 0);
+    const riskRate =
+      Number(metrics?.record_count ?? 0) === 0
+        ? null
+        : Math.round(((red + grey) / Number(metrics.record_count)) * 1000) / 10;
+    const attendance = observation.attendance.value;
+    const homework = observation.homework.value;
+    const healthStatus =
+      attendance === null || homework === null
+        ? 'no_data'
+        : attendance < 70 || homework < 70
+          ? 'critical'
+          : attendance <= 80 || homework <= 80
+            ? 'watch'
+            : 'normal';
+    return {
+      classId: observation.classId,
+      className: observation.className,
+      courseId: Number(row?.course_id ?? KH0I_34_COURSE_ID),
+      status: row?.status,
+      schedule: row?.schedule,
+      location: row?.location,
+      portalUrl: row?.portal_url,
+      teacher: {
+        teacherId: Number(row?.teacher_id ?? 0),
+        fullName: row?.teacher_name ?? '',
+        email: row?.teacher_email ?? '',
+      },
+      activeStudents,
+      onHoldStudents: observation.roster.onHoldStudents,
+      droppedStudents: observation.roster.droppedStudents,
+      transferredStudents: observation.roster.transferredStudents,
+      attendanceAvg: attendance,
+      homeworkAvg: homework,
+      passStandardRate: observation.passStandard.value,
+      softPassRate: observation.softPass.value,
+      riskRate,
+      progress: observation.progress,
+      progressPct: observation.progress.percentage,
+      healthStatus,
+      isAlarmTriggered: riskRate !== null && riskRate >= 40,
+      labelDistribution: {
+        green:
+          explicitGreen ||
+          Math.max(0, activeStudents - yellow - red - grey - noData),
+        yellow,
+        red,
+        grey,
+        noData,
+      },
+      lastSnapshotDate: observation.roster.dataAsOf,
+      dataQuality: observation.dataQuality,
+    };
+  }
+
+  private resolvedLabelDistribution(rows: any[]) {
+    return rows.reduce(
+      (totals, row) => ({
+        green: totals.green + Number(row.labelDistribution.green ?? 0),
+        yellow: totals.yellow + Number(row.labelDistribution.yellow ?? 0),
+        red: totals.red + Number(row.labelDistribution.red ?? 0),
+        grey: totals.grey + Number(row.labelDistribution.grey ?? 0),
+        noData: totals.noData + Number(row.labelDistribution.noData ?? 0),
+      }),
+      { green: 0, yellow: 0, red: 0, grey: 0, noData: 0 },
+    );
   }
 
   private parseLeadRange(fromInput?: string, toInput?: string) {
