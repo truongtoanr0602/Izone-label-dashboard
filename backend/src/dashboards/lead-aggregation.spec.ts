@@ -221,6 +221,129 @@ describe('lead aggregation', () => {
     expect(result[2]).toMatchObject({ date: '2026-08-03', netMomentum: 1 });
   });
 
+  describe('activeStudentSample và activeStudentRoster cùng một tập lớp', () => {
+    it('không để lớp chỉ báo BTVN kéo sĩ số vào mẫu số điểm danh', () => {
+      // Lớp 1: điểm danh mới (18/20 HV có số) — thuộc tập "đã báo điểm danh".
+      // Lớp 2: KHÔNG có điểm danh tuần này, chỉ có BTVN mới — không thuộc tập
+      // đó, dù vẫn được tính vào classesReported/activeStudents (which track
+      // "báo cáo bất kỳ chỉ số nào", một khái niệm rộng hơn).
+      //
+      // Nếu activeStudentRoster cộng sĩ số của CẢ HAI lớp (bug cũ) trong khi
+      // activeStudentSample chỉ cộng sampleSize của lớp 1, cặp số sẽ là
+      // "18/35" (51%) — trông như báo động độ phủ dù lớp duy nhất có điểm
+      // danh đạt 90%. Cặp đúng phải là "18/20" (90%), cùng một tập lớp.
+      const result = buildWeeklyTrend(
+        [
+          {
+            classId: 1,
+            className: 'C1',
+            classTotalSessions: 27,
+            snapshots: [
+              {
+                date: '2026-05-15',
+                activeStudents: 20,
+                onHoldStudents: 0,
+                droppedStudents: 0,
+                transferredStudents: 0,
+                completedSessions: 5,
+                totalSessions: 27,
+              },
+            ],
+            studentMetrics: [
+              {
+                date: '2026-05-15',
+                recordCount: 20,
+                attendanceSampleSize: 18,
+                attendanceAvg: 90,
+                homeworkSampleSize: 0,
+                homeworkAvg: null,
+                testedStudents: 0,
+                passStandardStudents: 0,
+                softPassStudents: 0,
+              },
+            ],
+          },
+          {
+            classId: 2,
+            className: 'C2',
+            classTotalSessions: 27,
+            snapshots: [
+              {
+                date: '2026-05-15',
+                activeStudents: 15,
+                onHoldStudents: 0,
+                droppedStudents: 0,
+                transferredStudents: 0,
+                completedSessions: 5,
+                totalSessions: 27,
+              },
+            ],
+            studentMetrics: [
+              {
+                date: '2026-05-15',
+                recordCount: 15,
+                attendanceSampleSize: 0,
+                attendanceAvg: null,
+                homeworkSampleSize: 12,
+                homeworkAvg: 75,
+                testedStudents: 0,
+                passStandardStudents: 0,
+                softPassStudents: 0,
+              },
+            ],
+          },
+        ],
+        { trendFrom: '2026-05-15', reportAsOf: '2026-05-15' },
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        classesReported: 2, // lớp 2 vẫn "báo cáo" nhờ BTVN
+        activeStudentSample: 18, // chỉ lớp 1 (đã báo điểm danh)
+        activeStudentRoster: 20, // sĩ số của đúng lớp 1, không cộng thêm lớp 2
+      });
+    });
+
+    it('không để tỷ lệ vượt quá 100% khi lớp có điểm danh nhưng thiếu snapshot sĩ số', () => {
+      // Lớp không có snapshot sĩ số nào (roster.activeStudents mặc định về 0
+      // trong resolveClassObservation) nhưng vẫn có 5 HV báo điểm danh. Nếu
+      // activeStudentRoster cộng thẳng roster.activeStudents (= 0), cặp số sẽ
+      // là "5/0" — vô nghĩa và hiện tỷ lệ >100%. Sĩ số hiệu dụng của lớp này
+      // phải được sàn ở đúng sampleSize: đã có 5 người báo cáo thì sĩ số biết
+      // được tối thiểu phải là 5.
+      const result = buildWeeklyTrend(
+        [
+          {
+            classId: 3,
+            className: 'C3',
+            classTotalSessions: 27,
+            snapshots: [],
+            studentMetrics: [
+              {
+                date: '2026-05-15',
+                recordCount: 5,
+                attendanceSampleSize: 5,
+                attendanceAvg: 70,
+                homeworkSampleSize: 0,
+                homeworkAvg: null,
+                testedStudents: 0,
+                passStandardStudents: 0,
+                softPassStudents: 0,
+              },
+            ],
+          },
+        ],
+        { trendFrom: '2026-05-15', reportAsOf: '2026-05-15' },
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        activeStudentSample: 5,
+        activeStudentRoster: 5,
+      });
+    });
+  });
+
   describe('trung bình toàn khối cân theo số HV có dữ liệu', () => {
     it('không để lớp thiếu dữ liệu kéo lệch trung bình', () => {
       // Lớp A: 20 HV, cả 20 có số, trung bình 90.

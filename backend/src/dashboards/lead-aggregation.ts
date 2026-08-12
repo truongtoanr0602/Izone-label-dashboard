@@ -57,10 +57,18 @@ export interface LeadWeeklyTrendPoint {
   classesReported: number;
   activeStudentSample: number;
   /**
-   * Tổng sĩ số của các lớp có báo cáo trong tuần — mẫu số để đọc
-   * `activeStudentSample`. Hai số này lệch nhau là chuyện bình thường và phải
-   * hiện ra cho người dùng thấy: ngày 12/08 có 264 HV active nhưng chỉ 228 HV
-   * có bản ghi. Giấu đi thì độ phủ trông như 100%.
+   * Mẫu số để đọc `activeStudentSample` — PHẢI cộng trên đúng tập lớp mà
+   * `activeStudentSample` cộng trên (các lớp có điểm danh mới trong tuần),
+   * không phải tập rộng hơn của `classesReported`/`activeStudents` (điểm danh
+   * HOẶC BTVN). Một lớp chỉ báo BTVN mà không báo điểm danh vẫn được tính vào
+   * `classesReported`, nhưng KHÔNG được cộng sĩ số vào đây — nếu không, "228
+   * HV có bản ghi trên 264 HV active" sẽ trộn sĩ số của lớp không hề góp mặt
+   * vào con số 228, khiến độ phủ trông tệ hơn thực tế một cách vô căn cứ.
+   *
+   * Với lớp có điểm danh mới nhưng thiếu snapshot sĩ số (roster.activeStudents
+   * mặc định về 0), sĩ số hiệu dụng được sàn ở đúng sampleSize của lớp đó —
+   * đã có sampleSize người báo cáo thì sĩ số biết được tối thiểu phải bằng
+   * sampleSize — để tỷ lệ không bao giờ vượt quá 100%.
    */
   activeStudentRoster: number | null;
   classesWithTests: number;
@@ -275,6 +283,12 @@ export function buildWeeklyTrend(
     const reportRows = rows.filter(
       (row) => fresh(row.attendance, weekEnd) || fresh(row.homework, weekEnd),
     );
+    // Tập lớp dùng chung cho activeStudentSample và activeStudentRoster: chỉ
+    // các lớp có điểm danh mới, KHÔNG phải reportRows (điểm danh HOẶC BTVN) —
+    // nếu không, mẫu số sẽ cộng cả sĩ số của lớp không góp mặt vào tử số.
+    const attendanceReportedRows = rows.filter((row) =>
+      fresh(row.attendance, weekEnd),
+    );
     const sourceDates = rows.flatMap((row) =>
       [row.attendance, row.homework, row.passStandard, row.softPass]
         .filter((metric) => fresh(metric, weekEnd))
@@ -295,13 +309,18 @@ export function buildWeeklyTrend(
           ? null
           : reportRows.reduce((sum, row) => sum + row.roster.activeStudents, 0),
       classesReported: reportRows.length,
-      activeStudentSample: rows
-        .filter((row) => fresh(row.attendance, weekEnd))
-        .reduce((sum, row) => sum + row.attendance.sampleSize, 0),
+      activeStudentSample: attendanceReportedRows.reduce(
+        (sum, row) => sum + row.attendance.sampleSize,
+        0,
+      ),
       activeStudentRoster:
-        reportRows.length === 0
+        attendanceReportedRows.length === 0
           ? null
-          : reportRows.reduce((sum, row) => sum + row.roster.activeStudents, 0),
+          : attendanceReportedRows.reduce(
+              (sum, row) =>
+                sum + Math.max(row.roster.activeStudents, row.attendance.sampleSize),
+              0,
+            ),
       classesWithTests: passStandard.classes,
       latestDataAsOf: sourceDates.sort().at(-1) ?? null,
       upTransitions: 0,
