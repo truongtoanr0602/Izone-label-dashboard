@@ -12,10 +12,14 @@ export interface DashboardMetric {
   direction: MetricDirection;
   sampleSize?: number;
   classesWithTests?: number;
+  classesReported?: number;
+  comparableClasses?: number;
+  totalClasses?: number;
 }
 
 export interface LeadTrendContractPoint {
-  date: string;
+  weekStart: string;
+  weekEnd: string;
   attendanceAvg: number | null;
   homeworkAvg: number | null;
   passStandardRate: number | null;
@@ -23,7 +27,9 @@ export interface LeadTrendContractPoint {
   riskRate: number | null;
   activeStudents: number | null;
   classesReported: number;
+  activeStudentSample: number;
   classesWithTests: number;
+  latestDataAsOf: string | null;
   upTransitions: number;
   downTransitions: number;
   netMomentum: number | null;
@@ -32,19 +38,40 @@ export interface LeadTrendContractPoint {
 export interface LeadDashboardClass {
   classId: number;
   className: string;
-  teacher: { teacherId: number; fullName: string };
+  courseId: number;
+  status: string;
+  schedule: string | null;
+  location: string | null;
+  portalUrl: string | null;
+  teacher: { teacherId: number; fullName: string; email: string };
   activeStudents: number;
+  onHoldStudents: number;
   droppedStudents: number;
+  transferredStudents: number;
   attendanceAvg: number | null;
   homeworkAvg: number | null;
   passStandardRate: number | null;
   softPassRate: number | null;
   riskRate: number | null;
-  progressPct: number | null;
+  progress: {
+    completedSessions: number;
+    totalSessions: number;
+    percentage: number | null;
+    dataAsOf: string | null;
+  };
   healthStatus: string;
   isAlarmTriggered: boolean;
   labelDistribution: { green: number; yellow: number; red: number; grey: number; noData: number };
-  lastSnapshotDate: string;
+  lastSnapshotDate: string | null;
+  dataQuality: {
+    status: 'complete' | 'fallback' | 'insufficient';
+    warnings: string[];
+    rosterAsOf: string | null;
+    progressAsOf: string | null;
+    attendanceAsOf: string | null;
+    homeworkAsOf: string | null;
+    passAsOf: string | null;
+  };
 }
 
 export interface LeadDashboardResponse {
@@ -52,6 +79,11 @@ export interface LeadDashboardResponse {
     apiVersion: 'v1';
     courseId: 2;
     khoiId: number;
+    period: string;
+    reportAsOf: string;
+    previousAsOf: string;
+    trendFrom: string;
+    currentAsOf: string;
     from: string;
     to: string;
     timezone: string;
@@ -65,9 +97,15 @@ export interface LeadDashboardResponse {
     passStandardRate: DashboardMetric;
     softPassRate: DashboardMetric;
     riskRate: DashboardMetric;
-    periodAttritionRate: DashboardMetric & { newDroppedStudents: number };
+    periodAttritionRate: DashboardMetric & {
+      newDroppedStudents: number;
+      previousNewDroppedStudents: number;
+      attritionRate: number | null;
+    };
     netMomentum: {
       value: number | null;
+      baselineValue: number | null;
+      delta: number | null;
       upTransitions: number;
       downTransitions: number;
       studentsChanged: number;
@@ -157,21 +195,38 @@ export interface TeacherDashboardResponse {
 export interface LeadDashboardFilters {
   courseId?: 2;
   khoiId: number;
-  from?: string;
-  to?: string;
+  period: string;
   classStatus?: string;
   teacherId?: number;
   classId?: number;
 }
 
-export function toLeadTrendPoint(point: LeadTrendContractPoint): TrendPoint {
+export function toLeadWeeklyTrendPoint(point: LeadTrendContractPoint) {
   return {
-    date: point.date,
+    weekStart: point.weekStart,
+    weekEnd: point.weekEnd,
     testCheckpoint: point.classesWithTests > 0 ? `${point.classesWithTests} lớp thi` : null,
     attendanceAvg: point.attendanceAvg,
     homeworkAvg: point.homeworkAvg,
     passChuanRate: point.passStandardRate,
     passMemRate: point.softPassRate,
+    classesReported: point.classesReported,
+    activeStudentSample: point.activeStudentSample,
+    classesWithTests: point.classesWithTests,
+    latestDataAsOf: point.latestDataAsOf,
+  };
+}
+
+/** Compatibility adapter for the old daily chart while the component migrates. */
+export function toLeadTrendPoint(point: LeadTrendContractPoint): TrendPoint {
+  const weekly = toLeadWeeklyTrendPoint(point);
+  return {
+    date: weekly.weekEnd,
+    testCheckpoint: weekly.testCheckpoint,
+    attendanceAvg: weekly.attendanceAvg,
+    homeworkAvg: weekly.homeworkAvg,
+    passChuanRate: weekly.passChuanRate,
+    passMemRate: weekly.passMemRate,
   };
 }
 

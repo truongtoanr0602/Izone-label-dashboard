@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   adaptTeacherStudent,
-  toLeadTrendPoint,
+  toLeadWeeklyTrendPoint,
+  type LeadDashboardClass,
   type TeacherDashboardStudent,
 } from './dashboardContracts';
 
 describe('dashboard screen-contract adapters', () => {
   it('keeps missing Lead measurements null for Recharts gaps', () => {
     expect(
-      toLeadTrendPoint({
-        date: '2026-08-02',
+      toLeadWeeklyTrendPoint({
+        weekStart: '2026-07-27',
+        weekEnd: '2026-08-02',
         attendanceAvg: null,
         homeworkAvg: null,
         passStandardRate: null,
@@ -17,17 +19,59 @@ describe('dashboard screen-contract adapters', () => {
         riskRate: null,
         activeStudents: null,
         classesReported: 0,
+        activeStudentSample: 0,
         classesWithTests: 0,
+        latestDataAsOf: null,
         upTransitions: 0,
         downTransitions: 0,
         netMomentum: null,
       }),
     ).toMatchObject({
-      date: '2026-08-02',
+      weekStart: '2026-07-27',
+      weekEnd: '2026-08-02',
       attendanceAvg: null,
       passChuanRate: null,
       passMemRate: null,
     });
+  });
+
+  it('keeps server progress and fallback freshness on current class rows', () => {
+    const row: LeadDashboardClass = {
+      classId: 1127,
+      className: 'IC2142',
+      courseId: 2,
+      status: 'on_going',
+      schedule: '[5,1]',
+      location: null,
+      portalUrl: null,
+      teacher: { teacherId: 1, fullName: 'GV A', email: 'a@izone.edu.vn' },
+      activeStudents: 7,
+      onHoldStudents: 0,
+      droppedStudents: 1,
+      transferredStudents: 1,
+      attendanceAvg: 84.4,
+      homeworkAvg: 79.3,
+      passStandardRate: 55.6,
+      softPassRate: 100,
+      riskRate: 22.2,
+      progress: { completedSessions: 22, totalSessions: 27, percentage: 81.5, dataAsOf: '2026-08-10' },
+      healthStatus: 'watch',
+      isAlarmTriggered: false,
+      labelDistribution: { green: 0, yellow: 7, red: 1, grey: 1, noData: 0 },
+      lastSnapshotDate: '2026-08-12',
+      dataQuality: {
+        status: 'fallback',
+        warnings: ['PARTIAL_SNAPSHOT'],
+        rosterAsOf: '2026-08-12',
+        progressAsOf: '2026-08-10',
+        attendanceAsOf: '2026-08-10',
+        homeworkAsOf: '2026-08-10',
+        passAsOf: '2026-08-10',
+      },
+    };
+
+    expect(row.progress.percentage).toBe(81.5);
+    expect(row.dataQuality.status).toBe('fallback');
   });
 
   it('adapts an exclusive level 3 student without recalculating its label', () => {
