@@ -138,14 +138,30 @@ export class DashboardsService {
              COUNT(*) FILTER (WHERE r.current_label = 'no_data' OR r.current_label IS NULL)::integer AS label_no_data,
              MAX(r.scraped_at) AS scraped_at
       FROM izone.student_daily_records r
+      JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
+        AND r.snapshot_stage IS NULL
+        AND s.registration_status = 'on_going'
         AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+      /*
+       * HAI BỘ LỌC DƯỚI ĐÂY LÀ BẮT BUỘC — gỡ ra là mọi con số của Lead sai.
+       *
+       * snapshot_stage IS NULL: migration 007 biến bảng này thành hai loại dữ
+       * liệu trộn chung. Dòng stage 1..8 là ảnh chụp theo MỐC TEST (record_date
+       * của chúng chỉ là ngày chạy backfill, vô nghĩa) và luôn NULL điểm danh /
+       * BTVN / pass. Đếm lẫn chúng thì ngày 12/08 ra 770 dòng thay vì 228.
+       *
+       * registration_status = 'on_going': HV queuing chỉ có 39% dòng mang điểm
+       * danh, HV cancelled 15%. Business rule "queuing trong lớp on_going coi
+       * như dropped" đã có ở effectiveRegistrationStatus() nhưng chỉ áp cho
+       * Teacher dashboard — đây là chỗ áp cho Lead.
+       */
       GROUP BY r.class_id, r.record_date
       ORDER BY r.class_id, r.record_date ASC
     `;
@@ -157,11 +173,14 @@ export class DashboardsService {
         r.class_id,
         r.label_change_direction
       FROM izone.student_daily_records r
+      JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
+        AND r.snapshot_stage IS NULL
+        AND s.registration_status = 'on_going'
         AND r.record_date BETWEEN ${new Date(`${previousCalendar.previousAsOf.slice(0, 7)}-01T00:00:00Z`)}
                               AND ${new Date(`${calendar.reportAsOf}T00:00:00Z`)}
         AND r.has_label_changed = TRUE
