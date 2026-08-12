@@ -148,6 +148,9 @@ model student_daily_records {
   test_4                  Decimal? @db.Decimal(5, 2)
   test_5                  Decimal? @db.Decimal(5, 2)
   test_6                  Decimal? @db.Decimal(5, 2)
+  test_7                  Decimal? @db.Decimal(5, 2)
+  test_8                  Decimal? @db.Decimal(5, 2)
+  snapshot_stage          Int?
   tests_taken             Int?     @default(0)
   test_average            Decimal? @db.Decimal(5, 2)
   current_label           String?  @db.VarChar(20)
@@ -173,7 +176,7 @@ model student_daily_records {
   classes                 classes  @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
   students                students @relation(fields: [student_id], references: [student_id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([student_id, record_date], map: "uq_student_record")
+  @@unique([student_id, class_id, snapshot_stage], map: "uq_student_stage")
   @@index([class_id, record_date], map: "idx_student_rec_class")
   @@index([student_id, record_date(sort: Desc)], map: "idx_student_rec_date")
   @@index([current_label, record_date], map: "idx_student_rec_label")
@@ -272,6 +275,7 @@ model test_scores {
   is_cheating   Boolean  @default(false)
   grade_note    String?
   label_at_time String?  @db.VarChar(20)
+  test_at       DateTime @db.Timestamptz(6)
   scraped_at    DateTime @default(now()) @db.Timestamptz(6)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   classes       classes  @relation(fields: [class_id], references: [class_id], onDelete: NoAction, onUpdate: NoAction)
