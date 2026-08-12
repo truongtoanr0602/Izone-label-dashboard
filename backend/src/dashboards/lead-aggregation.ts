@@ -56,6 +56,13 @@ export interface LeadWeeklyTrendPoint {
   activeStudents: number | null;
   classesReported: number;
   activeStudentSample: number;
+  /**
+   * Tổng sĩ số của các lớp có báo cáo trong tuần — mẫu số để đọc
+   * `activeStudentSample`. Hai số này lệch nhau là chuyện bình thường và phải
+   * hiện ra cho người dùng thấy: ngày 12/08 có 264 HV active nhưng chỉ 228 HV
+   * có bản ghi. Giấu đi thì độ phủ trông như 100%.
+   */
+  activeStudentRoster: number | null;
   classesWithTests: number;
   latestDataAsOf: string | null;
   upTransitions: number;
@@ -114,29 +121,41 @@ export function parseReportPeriod(
 
 type MetricKey = 'attendance' | 'homework' | 'passStandard' | 'softPass';
 
+/**
+ * Trung bình toàn khối, cân theo SỐ HỌC VIÊN THỰC SỰ CÓ DỮ LIỆU.
+ *
+ * Tương đương về mặt toán học với việc cộng chỉ số của từng học viên rồi chia
+ * cho tổng số học viên có chỉ số:
+ *   Σ(avg_lớp × n_lớp) / Σ(n_lớp) = Σ(điểm từng HV) / Σ(số HV)
+ *
+ * Cách cũ cân theo `roster.activeStudents`, tức sĩ số lớp. Một lớp 14 HV mà
+ * chỉ 5 HV có số vẫn được nhân trọng số 14 — trung bình của 5 người bị nhân
+ * lên như thể đại diện cho 14 người. Đó cũng chính là lý do tồn tại của ngưỡng
+ * độ phủ 80% đã bị xoá ở snapshot-quality.ts: nó chặn bớt các lớp mà trọng số
+ * sai gây hại nhất, thay vì sửa trọng số.
+ *
+ * Với pass chuẩn / pass mềm, `sampleSize` là số HV đã thi, nên trọng số cũng
+ * tự động đúng: lớp có 2 người thi không nặng bằng lớp có 20 người thi.
+ */
 function weightedResolved(
   rows: ResolvedClassObservation[],
   key: MetricKey,
 ): { value: number | null; sampleSize: number; classes: number } {
   const valid = rows.filter(
-    (row) => row.roster.activeStudents > 0 && row[key].value !== null,
+    (row) => row[key].sampleSize > 0 && row[key].value !== null,
   );
-  const denominator = valid.reduce(
-    (sum, row) => sum + row.roster.activeStudents,
-    0,
-  );
+  const denominator = valid.reduce((sum, row) => sum + row[key].sampleSize, 0);
   return {
     value:
       denominator === 0
         ? null
         : round1(
             valid.reduce(
-              (sum, row) =>
-                sum + Number(row[key].value) * row.roster.activeStudents,
+              (sum, row) => sum + Number(row[key].value) * row[key].sampleSize,
               0,
             ) / denominator,
           ),
-    sampleSize: valid.reduce((sum, row) => sum + row[key].sampleSize, 0),
+    sampleSize: denominator,
     classes: valid.length,
   };
 }
@@ -278,7 +297,11 @@ export function buildWeeklyTrend(
       classesReported: reportRows.length,
       activeStudentSample: rows
         .filter((row) => fresh(row.attendance, weekEnd))
-        .reduce((sum, row) => sum + row.roster.activeStudents, 0),
+        .reduce((sum, row) => sum + row.attendance.sampleSize, 0),
+      activeStudentRoster:
+        reportRows.length === 0
+          ? null
+          : reportRows.reduce((sum, row) => sum + row.roster.activeStudents, 0),
       classesWithTests: passStandard.classes,
       latestDataAsOf: sourceDates.sort().at(-1) ?? null,
       upTransitions: 0,

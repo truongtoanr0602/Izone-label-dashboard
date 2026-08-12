@@ -220,12 +220,30 @@ describe('lead aggregation', () => {
     });
     expect(result[2]).toMatchObject({ date: '2026-08-03', netMomentum: 1 });
   });
+
+  describe('trung bình toàn khối cân theo số HV có dữ liệu', () => {
+    it('không để lớp thiếu dữ liệu kéo lệch trung bình', () => {
+      // Lớp A: 20 HV, cả 20 có số, trung bình 90.
+      // Lớp B: 20 HV nhưng chỉ 2 HV có số, trung bình 50.
+      // Tầng học viên: (90*20 + 50*2) / 22 = 86.4
+      // Cân theo sĩ số (cách cũ): (90*20 + 50*20) / 40 = 70 — sai.
+      const current = [resolved(1, 20, 90), resolved(2, 20, 50, 2)];
+
+      const result = compareMonthlyMetrics(current, []);
+
+      expect(result.attendanceAvg.value).toBe(86.4);
+      expect(result.attendanceAvg.sampleSize).toBe(22);
+    });
+  });
 });
 
 function resolved(
   classId: number,
   activeStudents: number,
   attendance: number,
+  // Số HV thực sự có dữ liệu điểm danh. Mặc định bằng sĩ số lớp (độ phủ
+  // 100%) để không đổi hành vi của các test đã gọi resolved() với 3 tham số.
+  attendanceSampleSize: number = activeStudents,
 ): ResolvedClassObservation {
   const metric = {
     value: attendance,
@@ -252,7 +270,12 @@ function resolved(
       percentage: 3.7,
       dataAsOf: '2026-08-01',
     },
-    attendance: metric,
+    attendance: {
+      ...metric,
+      sampleSize: attendanceSampleSize,
+      recordCount: attendanceSampleSize,
+      coveragePct: (attendanceSampleSize / activeStudents) * 100,
+    },
     homework: { ...metric, value: 80 },
     passStandard: { ...metric, value: 50, testedStudents: activeStudents },
     softPass: { ...metric, value: 60, testedStudents: activeStudents },
