@@ -1,72 +1,77 @@
 import React from 'react';
 import { Award, BookOpen, CheckCircle2, TrendingDown, UserCheck, UserMinus } from 'lucide-react';
-import type { KhoiAggregate, LabelFlowSummary, MetricDelta } from '../../data/selectors';
+import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboardContracts';
+import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
 import { InfoTooltip } from '../common/InfoTooltip';
-
-export interface KpiDeltas {
-  attendance: MetricDelta;
-  homework: MetricDelta;
-  passChuan: MetricDelta;
-  passMem: MetricDelta;
-  dropped: MetricDelta;
-  labelNet: MetricDelta;
-}
+import { formatAttritionNote } from './kpiFormat';
 
 interface KpiRowProps {
-  aggregate: KhoiAggregate;
-  deltas: KpiDeltas;
-  labelFlow: LabelFlowSummary;
+  kpis: LeadDashboardResponse['kpis'];
 }
 
-export const KpiRow: React.FC<KpiRowProps> = ({
-  aggregate,
-  deltas,
-  labelFlow,
-}) => {
-  const passNote =
-    aggregate.classesWithTests === 0
-      ? 'chưa lớp nào có bài test'
-      : `trên ${aggregate.classesWithTests}/${aggregate.classCount} lớp đã có test`;
+function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses' | 'totalClasses'>): MetricDelta {
+  return {
+    value: metric.delta,
+    comparableClasses: metric.comparableClasses ?? 0,
+    totalClasses: metric.totalClasses ?? 0,
+  };
+}
 
-  const flowNote =
-    labelFlow.recalcEvents === 0
-      ? 'chưa có lượt tính lại nhãn nào trong kỳ'
-      : `${labelFlow.classesWithTest} lớp có test · ${labelFlow.recalcEvents} lượt tính lại`;
+function reportingNote(metric: DashboardMetric): string {
+  const reported = metric.classesReported ?? 0;
+  const total = metric.totalClasses ?? 0;
+  const sample = metric.sampleSize ?? 0;
+  return `${reported}/${total} lớp báo cáo · ${sample} HV`;
+}
 
-  /*
-   * Con số Bỏ học là LUỸ KẾ từ đầu khoá của các lớp trong kỳ, còn delta bên cạnh
-   * là chênh lệch giữa hai tháng. Hai cơ sở tính khác nhau nằm sát nhau mà không
-   * chú thích thì người đọc mặc định cả hai cùng là "trong tháng".
-   */
-  const droppedNote = `luỹ kế từ đầu khoá, trên ${aggregate.classCount} lớp của kỳ`;
+function testNote(metric: DashboardMetric): string {
+  const tested = metric.classesWithTests ?? metric.classesReported ?? 0;
+  const total = metric.totalClasses ?? 0;
+  const sample = metric.sampleSize ?? 0;
+  return tested === 0
+    ? `chưa lớp nào có bài test · ${sample} HV có test`
+    : `${tested}/${total} lớp có test · ${sample} HV có test`;
+}
+
+export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
+  const netDelta: MetricDelta = {
+    value: kpis.netMomentum.delta,
+    comparableClasses: kpis.netMomentum.comparableClasses,
+    totalClasses: kpis.netMomentum.totalClasses,
+  };
+  const flowNote = kpis.netMomentum.recalculationEvents === 0
+    ? 'chưa có lượt tính lại nhãn nào trong tháng'
+    : `${kpis.netMomentum.classesWithTests} lớp có chuyển dịch · ${kpis.netMomentum.recalculationEvents} lượt tính lại`;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       <KpiCard
         icon={<UserCheck className="w-4 h-4" />}
         label="Điểm danh (TB)"
-        value={aggregate.attendanceAvg}
+        value={kpis.attendanceAvg.value}
         unit="percent"
-        delta={deltas.attendance}
+        delta={metricDelta(kpis.attendanceAvg)}
         higherIsBetter
+        note={reportingNote(kpis.attendanceAvg)}
       />
       <KpiCard
         icon={<BookOpen className="w-4 h-4" />}
         label="Làm BTVN (TB)"
-        value={aggregate.homeworkAvg}
+        value={kpis.homeworkAvg.value}
         unit="percent"
-        delta={deltas.homework}
+        delta={metricDelta(kpis.homeworkAvg)}
         higherIsBetter
+        note={reportingNote(kpis.homeworkAvg)}
       />
       <KpiCard
         icon={<CheckCircle2 className="w-4 h-4" />}
         label="Pass chuẩn"
-        value={aggregate.passChuanRate}
+        value={kpis.passStandardRate.value}
         unit="percent"
-        delta={deltas.passChuan}
+        delta={metricDelta(kpis.passStandardRate)}
         higherIsBetter
-        note={passNote}
+        note={testNote(kpis.passStandardRate)}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass chuẩn">
             Điểm danh ≥90% <b>VÀ</b> BTVN ≥90% <b>VÀ</b> TB test ≥60 — cả 3 điều kiện.
@@ -76,11 +81,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       <KpiCard
         icon={<Award className="w-4 h-4" />}
         label="Pass mềm"
-        value={aggregate.passMemRate}
+        value={kpis.softPassRate.value}
         unit="percent"
-        delta={deltas.passMem}
+        delta={metricDelta(kpis.softPassRate)}
         higherIsBetter
-        note={passNote}
+        note={testNote(kpis.softPassRate)}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass mềm">
             <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)
@@ -93,23 +98,24 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       />
       <KpiCard
         icon={<TrendingDown className="w-4 h-4" />}
-        label="Chuyển dịch nhãn"
-        value={labelFlow.net}
-        // Mỗi dòng trong bảng đổi nhãn là một LƯỢT, không phải một HV: một HV
-        // đổi nhãn hai lần trong kỳ sinh hai dòng.
+        label="Net Momentum"
+        value={kpis.netMomentum.value}
         unit="event"
-        delta={deltas.labelNet}
+        delta={netDelta}
         higherIsBetter
         note={flowNote}
       />
       <KpiCard
         icon={<UserMinus className="w-4 h-4" />}
-        label="Bỏ học"
-        value={aggregate.droppedStudents}
+        label="Bỏ học trong tháng"
+        value={kpis.periodAttritionRate.newDroppedStudents}
         unit="count"
-        delta={deltas.dropped}
+        delta={metricDelta(kpis.periodAttritionRate)}
         higherIsBetter={false}
-        note={droppedNote}
+        note={formatAttritionNote({
+          rate: kpis.periodAttritionRate.attritionRate,
+          newDroppedStudents: kpis.periodAttritionRate.newDroppedStudents,
+        })}
       />
     </div>
   );

@@ -10,23 +10,14 @@ import {
   YAxis,
 } from 'recharts';
 import { SectionHeader } from './SectionHeader';
-export type TrendMetric = 'attendanceAvg' | 'homeworkAvg' | 'passChuanRate' | 'passMemRate';
+import {
+  toTrendChartRows,
+  type TrendChartRow,
+  type TrendMetric,
+  type WeeklyTrendPoint,
+} from './trendChartModel';
 
-/**
- * Một điểm trên trục thời gian.
- *
- * Giá trị `null` nghĩa là CHƯA XÁC ĐỊNH, không phải bằng 0 — recharts sẽ ngắt
- * đường ở đó. Không bật `connectNulls`.
- */
-export interface TrendPoint {
-  /** Ngày dạng ISO 'YYYY-MM-DD'. */
-  date: string;
-  testCheckpoint: string | null;
-  attendanceAvg: number | null;
-  homeworkAvg: number | null;
-  passChuanRate: number | null;
-  passMemRate: number | null;
-}
+export type { TrendMetric, WeeklyTrendPoint } from './trendChartModel';
 
 export interface TrendSeries {
   key: TrendMetric;
@@ -38,40 +29,17 @@ export interface TrendSeries {
 interface TrendChartProps {
   title: string;
   subtitle: string;
-  /** Chuỗi điểm theo thời gian. Sẽ được sắp theo ngày. */
-  points: TrendPoint[];
+  points: WeeklyTrendPoint[];
   series: TrendSeries[];
-  /**
-   * Khoảng trục Y **tối thiểu**, không phải khoảng cố định.
-   *
-   * recharts chỉ NỚI RỘNG khoảng này để chứa hết dữ liệu, không bao giờ cắt bớt
-   * (trừ khi bật `allowDataOverflow`, mà ở đây cố tình KHÔNG bật: cắt mất một
-   * điểm dữ liệu trong buổi họp còn tệ hơn một trục hơi rộng). Nên hiểu prop này
-   * là "đừng để trục hẹp hơn ngần này" — nó chống được trục tự co lại quanh dải
-   * dữ liệu khiến biến động 1 điểm trông như sụp đổ, chứ nó KHÔNG ép được trục
-   * hẹp hơn dữ liệu. Vì vậy giá trị truyền vào phải bao trọn dải thật của chỉ số
-   * (tỷ lệ pass: 0–100), nếu không trục hiện ra sẽ khác con số ghi ở đây.
-   */
   domain: [number, number];
-  /**
-   * Hiện `testCheckpoint` (dạng `"N lớp thi"`) kèm ngày trong tooltip.
-   *
-   * Đây là chú thích **cỡ mẫu**, không phải chú thích sự kiện: chỉ bật cho những
-   * chỉ số mà mẫu số là "số lớp đã thi" — tỷ lệ pass 60% trên 1 lớp và trên 7
-   * lớp là hai con số có độ tin cậy khác hẳn nhau, và biểu đồ không nói điều đó
-   * ở chỗ nào khác. Với chỉ số vận hành (điểm danh, BTVN) thì mẫu số là toàn bộ
-   * học viên đang học, không liên quan gì tới lịch thi, nên bật vào chỉ là số
-   * lạc đề — để mặc định tắt.
-   */
   showTestCountInTooltip?: boolean;
   isDarkMode: boolean;
 }
 
-const DAY_MS = 86_400_000;
-
-function formatTick(timestamp: number): string {
-  const d = new Date(timestamp);
-  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+function displayDate(iso: string | null): string {
+  if (!iso) return 'chưa xác định';
+  const [, month, day] = iso.split('-');
+  return `${day}/${month}`;
 }
 
 export const TrendChart: React.FC<TrendChartProps> = ({
@@ -83,59 +51,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   showTestCountInTooltip = false,
   isDarkMode,
 }) => {
-  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
-
-  /*
-   * Nhãn trực tiếp được nhét sẵn vào dữ liệu dưới khoá `<key>__label`.
-   *
-   * Đây không phải mẹo cho gọn: prop `formatter` của LabelList trong recharts 3
-   * chỉ nhận một tham số (`LabelFormatter`), không nhận chỉ số phần tử, nên
-   * không có cách nào từ trong formatter biết đang ở điểm nào. Đã kiểm chứng
-   * bằng tsc: bản dùng formatter 3 tham số KHÔNG compile.
-   *
-   * Nhãn đặt ở điểm CUỐI CÙNG CÓ GIÁ TRỊ của từng chuỗi, không phải điểm cuối
-   * của mảng — chuỗi kết thúc bằng null thì đường đã ngắt trước đó, đặt nhãn ở
-   * cuối mảng sẽ thành nhãn treo lơ lửng không dính đường nào.
-   */
-  const lastValueIndex = new Map<TrendMetric, number>();
-  for (const item of series) {
-    let index = -1;
-    sorted.forEach((point, i) => {
-      if (point[item.key] !== null) index = i;
-    });
-    lastValueIndex.set(item.key, index);
-  }
-
-  const data = sorted.map((point, index) => {
-    const row: Record<string, number | string | null> = {
-      t: Date.parse(`${point.date}T00:00:00Z`),
-      // Không phải dataKey của đường nào — chỉ để tooltip đọc lại số lớp đã thi.
-      checkpointLabel: point.testCheckpoint,
-      attendanceAvg: point.attendanceAvg,
-      homeworkAvg: point.homeworkAvg,
-      passChuanRate: point.passChuanRate,
-      passMemRate: point.passMemRate,
-    };
-    for (const item of series) {
-      row[`${item.key}__label`] = index === lastValueIndex.get(item.key) ? item.name : '';
-    }
-    return row;
-  });
-
-  /*
-   * KHÔNG vẽ vạch dọc đánh dấu tuần có bài test. Đã thử và đã bỏ, đừng thêm lại.
-   *
-   * Vạch mốc test có nghĩa ở cấp LỚP, nơi Test 1..6 bám vòng đời một lớp nên
-   * thưa và tách bạch. Biểu đồ này ở cấp KHỐI, mà ở cấp khối thì 12/13 tuần đều
-   * có ít nhất một lớp thi: một tín hiệu bật 92% thời gian không giải thích được
-   * cú tụt nào của đường nào, nó chỉ chia nát vùng vẽ thành 12 khoang. Bản có
-   * nhãn `<Label position="top">` còn tệ hơn — 12 nhãn ~55px chen trong ~450px
-   * thành dải chữ nhòe ở mép trên.
-   *
-   * Thứ duy nhất còn giữ lại từ `testCheckpoint` là con số trong tooltip, và
-   * giữ với tư cách CỠ MẪU chứ không phải mốc sự kiện — xem
-   * `showTestCountInTooltip`.
-   */
+  const data = toTrendChartRows(points);
 
   if (data.length === 0) {
     return (
@@ -159,24 +75,26 @@ export const TrendChart: React.FC<TrendChartProps> = ({
           <LineChart data={data} margin={{ top: 8, right: 64, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#3f3f46' : '#e5e7eb'} opacity={0.6} vertical={false} />
             <XAxis
-              dataKey="t"
-              type="number"
-              scale="time"
-              domain={['dataMin - ' + DAY_MS, 'dataMax + ' + DAY_MS]}
-              tickFormatter={formatTick}
+              dataKey="weekLabel"
+              type="category"
               stroke={axisColor}
               fontSize={11}
               tickMargin={10}
+              interval="preserveStartEnd"
             />
             <YAxis stroke={axisColor} fontSize={11} domain={domain} width={40} />
             <Tooltip
-              labelFormatter={(t, payload) => {
-                const date = new Date(Number(t)).toISOString().slice(0, 10);
-                if (!showTestCountInTooltip) return date;
-                // `payload` là các điểm của CÙNG một tuần, nên hàng nào cũng mang
-                // đúng `checkpointLabel` đó; lấy hàng đầu tiên là đủ.
-                const checkpoint = payload?.[0]?.payload?.checkpointLabel as string | null | undefined;
-                return checkpoint ? `${date} · ${checkpoint}` : date;
+              labelFormatter={(_label, payload) => {
+                const row = payload?.[0]?.payload as TrendChartRow | undefined;
+                if (!row) return '';
+                return (
+                  <div className="mb-1.5 space-y-0.5">
+                    <div className="font-semibold">Tuần {row.weekLabel}</div>
+                    <div>{row.classesReported} lớp báo cáo · {row.activeStudentSample} HV</div>
+                    {showTestCountInTooltip && <div>{row.classesWithTests} lớp có test</div>}
+                    <div>Dữ liệu mới nhất đến {displayDate(row.latestDataAsOf)}</div>
+                  </div>
+                );
               }}
               contentStyle={{
                 background: isDarkMode ? '#27272a' : '#ffffff',
@@ -187,24 +105,24 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               }}
             />
 
-            {series.map((s) => (
+            {series.map((item) => (
               <Line
-                key={s.key}
+                key={item.key}
                 type="monotone"
-                dataKey={s.key}
-                name={s.name}
-                stroke={isDarkMode ? s.darkColor : s.lightColor}
+                dataKey={item.key}
+                name={item.name}
+                stroke={isDarkMode ? item.darkColor : item.lightColor}
                 strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 6 }}
+                dot={false}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
                 isAnimationActive={false}
               >
-                {/* Nhãn trực tiếp ở đầu mút — ràng buộc khả dụng, không được bỏ. */}
                 <LabelList
-                  dataKey={`${s.key}__label`}
+                  dataKey={`${item.key}Label`}
                   position="right"
                   fontSize={10}
-                  fill={isDarkMode ? s.darkColor : s.lightColor}
+                  fill={isDarkMode ? item.darkColor : item.lightColor}
                 />
               </Line>
             ))}

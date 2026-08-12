@@ -110,7 +110,7 @@ export interface ClassSummary {
   progress: {
     completedSessions: number;
     totalSessions: number;
-    percentage: number;
+    percentage: number | null;
   };
   studentCounts: {
     active: number;

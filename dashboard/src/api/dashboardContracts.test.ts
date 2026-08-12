@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   adaptTeacherStudent,
+  toLeadClassPresentation,
   toLeadWeeklyTrendPoint,
   type LeadDashboardClass,
   type TeacherDashboardStudent,
@@ -72,6 +73,30 @@ describe('dashboard screen-contract adapters', () => {
 
     expect(row.progress.percentage).toBe(81.5);
     expect(row.dataQuality.status).toBe('fallback');
+  });
+
+  it('maps current class progress without using the selected report month', () => {
+    const contract = {
+      classId: 1127,
+      activeStudents: 7,
+      onHoldStudents: 1,
+      droppedStudents: 1,
+      transferredStudents: 2,
+      attendanceAvg: 84.4,
+      homeworkAvg: 79.3,
+      passStandardRate: 55.6,
+      softPassRate: 100,
+      isAlarmTriggered: false,
+      progress: { completedSessions: 22, totalSessions: 27, percentage: 81.5, dataAsOf: '2026-08-10' },
+      labelDistribution: { green: 0, yellow: 7, red: 1, grey: 1, noData: 0 },
+      lastSnapshotDate: '2026-08-12',
+    } as LeadDashboardClass;
+
+    const julyView = toLeadClassPresentation(contract);
+    const augustView = toLeadClassPresentation(contract);
+
+    expect(julyView).toEqual(augustView);
+    expect(augustView.progress).toEqual({ completedSessions: 22, totalSessions: 27, percentage: 81.5 });
   });
 
   it('adapts an exclusive level 3 student without recalculating its label', () => {

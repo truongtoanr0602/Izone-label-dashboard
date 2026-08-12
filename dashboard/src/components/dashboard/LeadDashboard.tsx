@@ -11,14 +11,14 @@ import {
 } from '../../data/selectors';
 import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
-import { KpiRow, type KpiDeltas } from './KpiRow';
+import { KpiRow } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
 import { TrendChart, type TrendSeries } from './TrendChart';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { dashboardService } from '../../api/dashboardService';
 import {
-  toLeadTrendPoint,
-  type DashboardMetric,
+  toLeadClassPresentation,
+  toLeadWeeklyTrendPoint,
   type LeadDashboardResponse,
 } from '../../api/dashboardContracts';
 
@@ -62,17 +62,9 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     async function fetchData() {
       setIsLoading(true);
       try {
-        const today = new Date();
-        const [year, month] = selectedPeriod.split('-').map(Number);
-        const requestedEnd = selectedPeriod === currentMonthKey
-          ? today
-          : new Date(Date.UTC(year, month, 0));
-        const requestedStart = new Date(requestedEnd);
-        requestedStart.setUTCDate(requestedStart.getUTCDate() - 89);
         const response = await dashboardService.getLeadDashboard({
           khoiId,
-          from: requestedStart.toISOString().slice(0, 10),
-          to: requestedEnd.toISOString().slice(0, 10),
+          period: selectedPeriod,
           classStatus: 'on_going',
         });
         setDashboard(response);
@@ -86,7 +78,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   }, [currentMonthKey, khoiId, selectedPeriod]);
 
   const periods = useMemo<Period[]>(() => {
-    const keys = new Set((dashboard?.trend ?? []).map((point) => point.date.slice(0, 7)));
+    const keys = new Set((dashboard?.trend ?? []).map((point) => point.weekStart.slice(0, 7)));
     keys.add(currentMonthKey);
     return [...keys].sort().reverse().map((key) => {
       const [year, month] = key.split('-').map(Number);
@@ -99,25 +91,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     if (!dashboard) {
       return {
         aggregate: { classCount: 0, activeStudents: 0, droppedStudents: 0, riskPct: null, classesWithTests: 0, attendanceAvg: null, homeworkAvg: null, passChuanRate: null, passMemRate: null },
-        labelFlow: { up: 0, down: 0, net: null, bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 }, recalcEvents: 0, classesWithTest: 0 },
-        deltas: { attendance: { value: null, comparableClasses: 0, totalClasses: 0 }, homework: { value: null, comparableClasses: 0, totalClasses: 0 }, passChuan: { value: null, comparableClasses: 0, totalClasses: 0 }, passMem: { value: null, comparableClasses: 0, totalClasses: 0 }, dropped: { value: null, comparableClasses: 0, totalClasses: 0 }, labelNet: { value: null, comparableClasses: 0, totalClasses: 0 } },
         trendSeries: [],
         newClasses: 0,
         endedClasses: 0,
         noDataStudents: 0
       };
     }
-
-    const comparable = dashboard.classes.length;
-    const deltaOf = (metric: DashboardMetric) => ({ value: metric.delta, comparableClasses: comparable, totalClasses: comparable });
-    const deltas: KpiDeltas = {
-      attendance: deltaOf(dashboard.kpis.attendanceAvg),
-      homework: deltaOf(dashboard.kpis.homeworkAvg),
-      passChuan: deltaOf(dashboard.kpis.passStandardRate),
-      passMem: deltaOf(dashboard.kpis.softPassRate),
-      dropped: deltaOf(dashboard.kpis.periodAttritionRate),
-      labelNet: { value: dashboard.kpis.netMomentum.value, comparableClasses: dashboard.kpis.netMomentum.classesWithTests, totalClasses: comparable },
-    };
 
     return {
       aggregate: {
@@ -131,16 +110,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         riskPct: dashboard.kpis.riskRate.value,
         classesWithTests: dashboard.kpis.passStandardRate.classesWithTests ?? 0,
       },
-      labelFlow: {
-        up: dashboard.kpis.netMomentum.upTransitions,
-        down: dashboard.kpis.netMomentum.downTransitions,
-        net: dashboard.kpis.netMomentum.value,
-        bySeverity: { recovery: 0, warning: 0, serious: 0, critical: 0 },
-        recalcEvents: dashboard.kpis.netMomentum.recalculationEvents,
-        classesWithTest: dashboard.kpis.netMomentum.classesWithTests,
-      },
-      deltas,
-      trendSeries: dashboard.trend.map(toLeadTrendPoint),
+      trendSeries: dashboard.trend.map(toLeadWeeklyTrendPoint),
       newClasses: 0,
       endedClasses: 0,
       noDataStudents: dashboard.labelDistribution.noData,
@@ -151,31 +121,29 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     return <div className="p-8 text-center text-gray-500">Đang tải dữ liệu khối...</div>;
   }
 
-  const contractClassIds = new Set(dashboard?.classes.map((item) => item.classId) ?? []);
-  const contractClassById = new Map(dashboard?.classes.map((item) => [item.classId, item]) ?? []);
+  if (!dashboard) {
+    return <div className="p-8 text-center text-red-600">Không tải được dữ liệu khối. Vui lòng thử lại.</div>;
+  }
+
+  const contractClassIds = new Set(dashboard.classes.map((item) => item.classId));
+  const contractClassById = new Map(dashboard.classes.map((item) => [item.classId, item]));
   const displayClasses = classes.filter((item) => contractClassIds.has(item.classId)).map((item) => {
     const contract = contractClassById.get(item.classId);
     if (!contract) return item;
+    const presentation = toLeadClassPresentation(contract);
     return {
       ...item,
-      studentCounts: { ...item.studentCounts, active: contract.activeStudents, dropped: contract.droppedStudents },
-      progress: { ...item.progress, percentage: contract.progressPct ?? item.progress.percentage },
+      studentCounts: { ...item.studentCounts, ...presentation.studentCounts },
+      progress: presentation.progress,
       healthMetrics: {
         ...item.healthMetrics,
-        isAlarmTriggered: contract.isAlarmTriggered,
-        attendanceAverage: contract.attendanceAvg,
-        homeworkAverage: contract.homeworkAvg,
-        passChuanRate: contract.passStandardRate,
-        passMemRate: contract.softPassRate,
+        ...presentation.healthMetrics,
       },
       labelDistribution: {
         ...item.labelDistribution,
-        yellow: contract.labelDistribution.yellow,
-        red: contract.labelDistribution.red,
-        grey: contract.labelDistribution.grey,
-        noData: contract.labelDistribution.noData,
+        ...presentation.labelDistribution,
       },
-      lastSyncedAt: contract.lastSnapshotDate,
+      lastSyncedAt: presentation.lastSyncedAt ?? '',
     };
   });
   const barChartData = displayClasses.map((c) => ({
@@ -193,8 +161,12 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   );
 
   const getWarningStatus = (cls: ClassSummary) => {
+    const quality = contractClassById.get(cls.classId)?.dataQuality;
+    if (quality?.status === 'insufficient') {
+      return { label: 'Chưa đủ dữ liệu', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
+    }
     if (cls.healthMetrics.attendanceAverage === null || cls.healthMetrics.homeworkAverage === null) {
-      return { label: 'Chưa có dữ liệu', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
+      return { label: 'Chưa đủ dữ liệu', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
     }
     const avg = (cls.healthMetrics.attendanceAverage + cls.healthMetrics.homeworkAverage) / 2;
     if (avg > 80 && cls.healthMetrics.attendanceAverage >= 70 && cls.healthMetrics.homeworkAverage >= 70) 
@@ -209,6 +181,13 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     if (value > 80) return 'text-emerald-600 dark:text-emerald-400';
     if (value >= 70) return 'text-amber-600 dark:text-amber-400';
     return 'text-red-600 dark:text-red-400';
+  };
+
+  const formatMetric = (value: number | null) => value === null ? '—' : `${value}%`;
+  const formatDataAsOf = (iso: string | null) => {
+    if (!iso) return null;
+    const [, month, day] = iso.split('-');
+    return `${day}/${month}`;
   };
 
   return (
@@ -233,19 +212,15 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         newClasses={view.newClasses}
         endedClasses={view.endedClasses}
         noDataStudents={view.noDataStudents}
-        lastSyncedAt={dashboard?.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard?.meta.to ?? ''}
+        lastSyncedAt={dashboard.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard.meta.currentAsOf}
       />
 
-      <KpiRow
-        aggregate={view.aggregate}
-        deltas={view.deltas}
-        labelFlow={view.labelFlow}
-      />
+      <KpiRow kpis={dashboard.kpis} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TrendChart
           title="Chất lượng vận hành"
-          subtitle={`Tỷ lệ điểm danh và BTVN toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}.`}
+          subtitle={`Tỷ lệ điểm danh và BTVN toàn khối · 90 ngày · ${view.trendSeries.length} tuần tính đến ${dashboard.meta.reportAsOf}.`}
           points={view.trendSeries}
           series={OPERATIONS_SERIES}
           domain={[70, 100]}
@@ -253,7 +228,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         />
         <TrendChart
           title="Kết quả"
-          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối, ${view.trendSeries.length} tuần gần nhất tính đến hết ${periodLabel(selectedPeriod)}.`}
+          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối · 90 ngày · ${view.trendSeries.length} tuần tính đến ${dashboard.meta.reportAsOf}.`}
           points={view.trendSeries}
           series={OUTCOME_SERIES}
           domain={[0, 100]}
@@ -309,6 +284,16 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
               ) : (
                 filteredClasses.map((c) => {
                   const warning = getWarningStatus(c);
+                  const contract = contractClassById.get(c.classId);
+                  const fallbackDates = contract?.dataQuality.status === 'fallback'
+                    ? [
+                        contract.dataQuality.attendanceAsOf,
+                        contract.dataQuality.homeworkAsOf,
+                        contract.dataQuality.passAsOf,
+                        contract.dataQuality.progressAsOf,
+                      ].filter((date): date is string => Boolean(date)).sort()
+                    : [];
+                  const fallbackAsOf = fallbackDates.at(0) ?? null;
                   const coverage = coverageOf(contactLogs, []); // Empty array because we don't fetch all students for lead dashboard yet
                   return (
                   <tr
@@ -328,14 +313,21 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       {c.studentCounts.active} / {c.studentCounts.totalEnrolled}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className={`${getMetricColor(c.healthMetrics.attendanceAverage)} font-medium font-mono`}>ĐH: {c.healthMetrics.attendanceAverage}%</span>
+                      <span className={`${getMetricColor(c.healthMetrics.attendanceAverage)} font-medium font-mono`}>ĐH: {formatMetric(c.healthMetrics.attendanceAverage)}</span>
                       <span className="text-[#404040]/30 dark:text-[#52525b] mx-1">•</span>
-                      <span className={`${getMetricColor(c.healthMetrics.homeworkAverage)} font-medium font-mono`}>BT: {c.healthMetrics.homeworkAverage}%</span>
+                      <span className={`${getMetricColor(c.healthMetrics.homeworkAverage)} font-medium font-mono`}>BT: {formatMetric(c.healthMetrics.homeworkAverage)}</span>
+                      {fallbackAsOf && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                          Dữ liệu đến {formatDataAsOf(fallbackAsOf)}
+                        </p>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="font-mono font-bold text-[#404040] dark:text-[#e4e4e7]">{c.progress.percentage}%</span>
+                      <span className="font-mono font-bold text-[#404040] dark:text-[#e4e4e7]">
+                        {c.progress.percentage === null ? '—' : `${c.progress.percentage}%`}
+                      </span>
                       <div className="w-16 h-1.5 rounded-full bg-[#f3f4f6] dark:bg-[#3f3f46] mx-auto mt-1 overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress.percentage}%` }} />
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress.percentage ?? 0}%` }} />
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-center">
@@ -356,8 +348,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">{c.healthMetrics.passChuanRate}%</span>
-                      <span className="font-bold text-[#404040]/50 dark:text-[#71717a] text-[11px]"> / {c.healthMetrics.passMemRate}%</span>
+                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">{formatMetric(c.healthMetrics.passChuanRate)}</span>
+                      <span className="font-bold text-[#404040]/50 dark:text-[#71717a] text-[11px]"> / {formatMetric(c.healthMetrics.passMemRate)}</span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button className="px-3 py-1.5 rounded-[8px] bg-transparent text-[#404040]/70 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] transition-colors font-semibold inline-flex items-center gap-1">

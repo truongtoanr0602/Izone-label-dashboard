@@ -76,3 +76,12 @@ export function formatComparisonNote(delta: MetricDelta): string {
   }
   return `thay đổi tính trên ${delta.comparableClasses}/${delta.totalClasses} lớp so sánh được`;
 }
+
+export function formatAttritionNote(input: {
+  rate: number | null;
+  newDroppedStudents: number;
+}): string {
+  return input.rate === null
+    ? 'Tỷ lệ attrition: chưa đủ dữ liệu'
+    : `Tỷ lệ attrition: ${input.rate.toFixed(1)}%`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatComparisonNote, formatDelta, formatValue } from './kpiFormat';
+import { formatAttritionNote, formatComparisonNote, formatDelta, formatValue } from './kpiFormat';
 import type { MetricDelta } from '../../data/selectors';
 
 const delta = (over: Partial<MetricDelta> = {}): MetricDelta => ({
@@ -105,5 +105,17 @@ describe('formatComparisonNote', () => {
     ]) {
       expect(formatComparisonNote(d)).toContain('thay đổi');
     }
+  });
+});
+
+describe('formatAttritionNote', () => {
+  it('tách tỷ lệ attrition khỏi số học viên bỏ học trong tháng', () => {
+    expect(formatAttritionNote({ rate: 1.8, newDroppedStudents: 4 }))
+      .toBe('Tỷ lệ attrition: 1.8%');
+  });
+
+  it('không biến thiếu mẫu số thành tỷ lệ 0%', () => {
+    expect(formatAttritionNote({ rate: null, newDroppedStudents: 0 }))
+      .toBe('Tỷ lệ attrition: chưa đủ dữ liệu');
   });
 });

@@ -1,5 +1,4 @@
 import type { StudentDetail } from '../data/types';
-import type { TrendPoint } from '../components/dashboard/TrendChart';
 
 export type MetricDirection = 'improving' | 'declining' | 'stable' | 'unknown';
 export type InterventionLevel = 'level_1' | 'level_2' | 'level_3' | 'none';
@@ -111,6 +110,8 @@ export interface LeadDashboardResponse {
       studentsChanged: number;
       recalculationEvents: number;
       classesWithTests: number;
+      comparableClasses: number;
+      totalClasses: number;
       direction: MetricDirection;
     };
   };
@@ -217,16 +218,33 @@ export function toLeadWeeklyTrendPoint(point: LeadTrendContractPoint) {
   };
 }
 
-/** Compatibility adapter for the old daily chart while the component migrates. */
-export function toLeadTrendPoint(point: LeadTrendContractPoint): TrendPoint {
-  const weekly = toLeadWeeklyTrendPoint(point);
+export function toLeadClassPresentation(contract: LeadDashboardClass) {
   return {
-    date: weekly.weekEnd,
-    testCheckpoint: weekly.testCheckpoint,
-    attendanceAvg: weekly.attendanceAvg,
-    homeworkAvg: weekly.homeworkAvg,
-    passChuanRate: weekly.passChuanRate,
-    passMemRate: weekly.passMemRate,
+    studentCounts: {
+      active: contract.activeStudents,
+      onHold: contract.onHoldStudents,
+      dropped: contract.droppedStudents,
+      transferred: contract.transferredStudents,
+    },
+    progress: {
+      completedSessions: contract.progress.completedSessions,
+      totalSessions: contract.progress.totalSessions,
+      percentage: contract.progress.percentage,
+    },
+    healthMetrics: {
+      isAlarmTriggered: contract.isAlarmTriggered,
+      attendanceAverage: contract.attendanceAvg,
+      homeworkAverage: contract.homeworkAvg,
+      passChuanRate: contract.passStandardRate,
+      passMemRate: contract.softPassRate,
+    },
+    labelDistribution: {
+      yellow: contract.labelDistribution.yellow,
+      red: contract.labelDistribution.red,
+      grey: contract.labelDistribution.grey,
+      noData: contract.labelDistribution.noData,
+    },
+    lastSyncedAt: contract.lastSnapshotDate,
   };
 }
 
