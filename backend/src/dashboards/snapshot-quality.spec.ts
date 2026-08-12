@@ -75,7 +75,9 @@ describe('resolveClassObservation', () => {
     expect(result.dataQuality.warnings).toContain('PARTIAL_SNAPSHOT');
   });
 
-  it('keeps zero pass when test evidence exists', () => {
+  it('keeps zero pass when test evidence exists, sampleSize now reports tested students not roster size', () => {
+    // Trước đây sampleSize == recordCount (tổng sĩ số, 9). Từ Task 2 nó phải
+    // bằng testedStudents (6) — Task 3 dùng trường này làm trọng số.
     const input: ClassObservationEvidence = {
       ...base,
       studentMetrics: [
@@ -92,13 +94,17 @@ describe('resolveClassObservation', () => {
 
     expect(result.passStandard).toMatchObject({
       value: 0,
-      sampleSize: 9,
+      sampleSize: 6,
       testedStudents: 6,
     });
     expect(result.softPass.value).toBe(0);
   });
 
-  it('uses independent 80 percent coverage for attendance and homework', () => {
+  it('reports coverage independently for attendance and homework without gating either out', () => {
+    // Trước đây độ phủ homework 7/10 = 70% dưới ngưỡng 80% khiến cả bản ghi bị
+    // loại và rơi về ngày cũ hơn (fallback). Từ Task 2, coverage không còn là
+    // cổng chặn — bản ghi mới nhất vẫn được nhận, chỉ gắn thêm cảnh báo
+    // LOW_HOMEWORK_COVERAGE để Lead biết số này mỏng.
     const input: ClassObservationEvidence = {
       ...base,
       studentMetrics: [
@@ -123,9 +129,10 @@ describe('resolveClassObservation', () => {
       coveragePct: 80,
     });
     expect(result.homework).toMatchObject({
-      value: 79.3,
-      dataAsOf: '2026-08-10',
-      fallbackUsed: true,
+      value: 0,
+      dataAsOf: '2026-08-11',
+      coveragePct: 70,
+      fallbackUsed: false,
     });
     expect(result.dataQuality.warnings).toContain('LOW_HOMEWORK_COVERAGE');
   });
@@ -178,5 +185,59 @@ describe('resolveClassObservation', () => {
     expect(result.homework.value).toBeNull();
     expect(result.passStandard.value).toBeNull();
     expect(result.dataQuality.status).toBe('insufficient');
+  });
+});
+
+describe('coverage không còn là cổng loại lớp', () => {
+  it('vẫn nhận số liệu khi chỉ một phần học viên có dữ liệu', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      studentMetrics: [
+        {
+          date: '2026-08-10',
+          recordCount: 14,
+          attendanceSampleSize: 5,
+          attendanceAvg: 82,
+          homeworkSampleSize: 5,
+          homeworkAvg: 74,
+          testedStudents: 5,
+          passStandardStudents: 2,
+          softPassStudents: 3,
+        },
+      ],
+    };
+
+    const result = resolveClassObservation(input, '2026-08-10');
+
+    expect(result.attendance.value).toBe(82);
+    expect(result.attendance.sampleSize).toBe(5);
+    expect(result.attendance.coveragePct).toBe(35.7);
+    expect(result.dataQuality.status).not.toBe('insufficient');
+  });
+
+  it('chia tỷ lệ pass cho số học viên đã thi, không cho tổng sĩ số', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      studentMetrics: [
+        {
+          date: '2026-08-10',
+          recordCount: 20,
+          attendanceSampleSize: 20,
+          attendanceAvg: 90,
+          homeworkSampleSize: 20,
+          homeworkAvg: 90,
+          testedStudents: 8,
+          passStandardStudents: 2,
+          softPassStudents: 4,
+        },
+      ],
+    };
+
+    const result = resolveClassObservation(input, '2026-08-10');
+
+    expect(result.passStandard.value).toBe(25);
+    expect(result.passStandard.sampleSize).toBe(8);
+    expect(result.passStandard.testedStudents).toBe(8);
+    expect(result.softPass.value).toBe(50);
   });
 });

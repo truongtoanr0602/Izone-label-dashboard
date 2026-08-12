@@ -1,5 +1,3 @@
-const DEFAULT_MINIMUM_COVERAGE = 80;
-
 export type DataQualityWarning =
   | 'PARTIAL_SNAPSHOT'
   | 'LOW_ATTENDANCE_COVERAGE'
@@ -83,6 +81,12 @@ export interface ResolvedClassObservation {
   };
 }
 
+/**
+ * Dưới mức này thì gắn cảnh báo lên lớp — nhưng KHÔNG loại lớp khỏi số liệu.
+ * Đây là ngưỡng để nói với người dùng "số này mỏng", không phải để giấu số.
+ */
+const LOW_COVERAGE_WARNING_PCT = 80;
+
 const round1 = (value: number): number => Math.round(value * 10) / 10;
 
 const latestFirst = <T extends { date: string }>(rows: T[]): T[] =>
@@ -97,36 +101,52 @@ const emptyMetric = (): ResolvedMetric => ({
   fallbackUsed: false,
 });
 
+/**
+ * Bản ghi mới nhất CÓ số cho chỉ số này.
+ *
+ * Không còn ngưỡng độ phủ tối thiểu. Ngưỡng cũ (80%) loại cả lớp khi chỉ một
+ * phần học viên có dữ liệu — nó chỉ tồn tại để bù cho việc trung bình toàn
+ * khối cân theo sĩ số lớp thay vì theo số HV thực sự có số. Khi trọng số đã
+ * đúng (xem `weightedResolved` trong lead-aggregation.ts) thì ngưỡng này chỉ
+ * còn tác dụng giấu bớt lớp: 8/17 lớp biến mất khỏi biểu đồ dù có dữ liệu.
+ *
+ * `coveragePct` vẫn được tính, nhưng giờ là SỐ ĐỂ HIỂN THỊ — Lead tự đánh giá
+ * độ tin cậy thay vì bị hệ thống âm thầm quyết hộ.
+ */
 function resolveCoveredMetric(
   rows: StudentMetricEvidence[],
   rosterDate: string | null,
   kind: 'attendance' | 'homework',
-  minimumCoveragePct: number,
 ): ResolvedMetric {
   const sampleKey =
     kind === 'attendance' ? 'attendanceSampleSize' : 'homeworkSampleSize';
   const valueKey = kind === 'attendance' ? 'attendanceAvg' : 'homeworkAvg';
-  const row = rows.find((candidate) => {
-    if (candidate.recordCount <= 0 || candidate[valueKey] === null)
-      return false;
-    return (
-      (candidate[sampleKey] / candidate.recordCount) * 100 >= minimumCoveragePct
-    );
-  });
+  const row = rows.find(
+    (candidate) =>
+      candidate.recordCount > 0 &&
+      candidate[sampleKey] > 0 &&
+      candidate[valueKey] !== null,
+  );
   if (!row) return emptyMetric();
-  const coveragePct = round1((row[sampleKey] / row.recordCount) * 100);
   return {
     value: round1(Number(row[valueKey])),
     dataAsOf: row.date,
     sampleSize: row[sampleKey],
     recordCount: row.recordCount,
-    coveragePct,
+    coveragePct: round1((row[sampleKey] / row.recordCount) * 100),
     fallbackUsed:
       row.date !== rows[0]?.date ||
       (rosterDate !== null && row.date < rosterDate),
   };
 }
 
+/**
+ * Tỷ lệ pass tính trên SỐ HỌC VIÊN ĐÃ THI, không phải tổng sĩ số.
+ *
+ * Trả lời câu "trong số HV đã thi, bao nhiêu phần trăm đạt". Chia cho tổng sĩ
+ * số sẽ trộn hai chuyện khác nhau — HV thi trượt và HV chưa thi — vào cùng
+ * một con số, và kéo tỷ lệ xuống giả tạo ở các lớp mới học được vài buổi.
+ */
 function resolvePassMetric(
   rows: StudentMetricEvidence[],
   rosterDate: string | null,
@@ -137,11 +157,11 @@ function resolvePassMetric(
   );
   if (!row) return { ...emptyMetric(), testedStudents: 0 };
   return {
-    value: round1((row[passedKey] / row.recordCount) * 100),
+    value: round1((row[passedKey] / row.testedStudents) * 100),
     dataAsOf: row.date,
-    sampleSize: row.recordCount,
+    sampleSize: row.testedStudents,
     recordCount: row.recordCount,
-    coveragePct: 100,
+    coveragePct: round1((row.testedStudents / row.recordCount) * 100),
     fallbackUsed:
       row.date !== rows[0]?.date ||
       (rosterDate !== null && row.date < rosterDate),
@@ -152,10 +172,7 @@ function resolvePassMetric(
 export function resolveClassObservation(
   input: ClassObservationEvidence,
   asOf: string,
-  options: { minimumCoveragePct?: number } = {},
 ): ResolvedClassObservation {
-  const minimumCoveragePct =
-    options.minimumCoveragePct ?? DEFAULT_MINIMUM_COVERAGE;
   const futureRowsExist =
     input.snapshots.some((row) => row.date > asOf) ||
     input.studentMetrics.some((row) => row.date > asOf);
@@ -183,18 +200,8 @@ export function resolveClassObservation(
     Math.max(0, Number(progressRow?.completedSessions || 0)),
   );
 
-  const attendance = resolveCoveredMetric(
-    studentMetrics,
-    rosterDate,
-    'attendance',
-    minimumCoveragePct,
-  );
-  const homework = resolveCoveredMetric(
-    studentMetrics,
-    rosterDate,
-    'homework',
-    minimumCoveragePct,
-  );
+  const attendance = resolveCoveredMetric(studentMetrics, rosterDate, 'attendance');
+  const homework = resolveCoveredMetric(studentMetrics, rosterDate, 'homework');
   const passStandard = resolvePassMetric(
     studentMetrics,
     rosterDate,
@@ -213,7 +220,7 @@ export function resolveClassObservation(
     newestMetrics &&
     newestMetrics.recordCount > 0 &&
     (newestMetrics.attendanceSampleSize / newestMetrics.recordCount) * 100 <
-      minimumCoveragePct
+      LOW_COVERAGE_WARNING_PCT
   ) {
     warnings.add('LOW_ATTENDANCE_COVERAGE');
   }
@@ -221,7 +228,7 @@ export function resolveClassObservation(
     newestMetrics &&
     newestMetrics.recordCount > 0 &&
     (newestMetrics.homeworkSampleSize / newestMetrics.recordCount) * 100 <
-      minimumCoveragePct
+      LOW_COVERAGE_WARNING_PCT
   ) {
     warnings.add('LOW_HOMEWORK_COVERAGE');
   }
