@@ -4,7 +4,7 @@ import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboard
 import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
 import { InfoTooltip } from '../common/InfoTooltip';
-import { formatAttritionNote } from './kpiFormat';
+import { formatAttritionNote, formatReportingNote, formatTestNote } from './kpiFormat';
 
 interface KpiRowProps {
   kpis: LeadDashboardResponse['kpis'];
@@ -16,22 +16,6 @@ function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses'
     comparableClasses: metric.comparableClasses ?? 0,
     totalClasses: metric.totalClasses ?? 0,
   };
-}
-
-function reportingNote(metric: DashboardMetric): string {
-  const reported = metric.classesReported ?? 0;
-  const total = metric.totalClasses ?? 0;
-  const sample = metric.sampleSize ?? 0;
-  return `${reported}/${total} lớp báo cáo · ${sample} HV`;
-}
-
-function testNote(metric: DashboardMetric): string {
-  const tested = metric.classesWithTests ?? metric.classesReported ?? 0;
-  const total = metric.totalClasses ?? 0;
-  const sample = metric.sampleSize ?? 0;
-  return tested === 0
-    ? `chưa lớp nào có bài test · ${sample} HV có test`
-    : `${tested}/${total} lớp có test · ${sample} HV có test`;
 }
 
 export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
@@ -53,7 +37,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.attendanceAvg)}
         higherIsBetter
-        note={reportingNote(kpis.attendanceAvg)}
+        note={formatReportingNote({
+          classesReported: kpis.attendanceAvg.classesReported ?? 0,
+          totalClasses: kpis.attendanceAvg.totalClasses ?? 0,
+          sampleSize: kpis.attendanceAvg.sampleSize ?? 0,
+        })}
       />
       <KpiCard
         icon={<BookOpen className="w-4 h-4" />}
@@ -62,7 +50,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.homeworkAvg)}
         higherIsBetter
-        note={reportingNote(kpis.homeworkAvg)}
+        note={formatReportingNote({
+          classesReported: kpis.homeworkAvg.classesReported ?? 0,
+          totalClasses: kpis.homeworkAvg.totalClasses ?? 0,
+          sampleSize: kpis.homeworkAvg.sampleSize ?? 0,
+        })}
       />
       <KpiCard
         icon={<CheckCircle2 className="w-4 h-4" />}
@@ -71,7 +63,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.passStandardRate)}
         higherIsBetter
-        note={testNote(kpis.passStandardRate)}
+        note={formatTestNote({
+          classesWithTests: kpis.passStandardRate.classesWithTests ?? 0,
+          totalClasses: kpis.passStandardRate.totalClasses ?? 0,
+          sampleSize: kpis.passStandardRate.sampleSize ?? 0,
+        })}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass chuẩn">
             Điểm danh ≥90% <b>VÀ</b> BTVN ≥90% <b>VÀ</b> TB test ≥60 — cả 3 điều kiện.
@@ -85,7 +81,11 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.softPassRate)}
         higherIsBetter
-        note={testNote(kpis.softPassRate)}
+        note={formatTestNote({
+          classesWithTests: kpis.softPassRate.classesWithTests ?? 0,
+          totalClasses: kpis.softPassRate.totalClasses ?? 0,
+          sampleSize: kpis.softPassRate.sampleSize ?? 0,
+        })}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass mềm">
             <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)

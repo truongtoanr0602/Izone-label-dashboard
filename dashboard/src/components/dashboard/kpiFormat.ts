@@ -85,3 +85,47 @@ export function formatAttritionNote(input: {
     ? 'Tỷ lệ attrition: chưa đủ dữ liệu'
     : `Tỷ lệ attrition: ${input.rate.toFixed(1)}%`;
 }
+
+export interface ReportingNoteInput {
+  classesReported: number;
+  totalClasses: number;
+  sampleSize: number;
+}
+
+/**
+ * Dòng chú thích dưới các card điểm danh / BTVN.
+ *
+ * `sampleSize` là số HV THỰC SỰ CÓ SỐ cho chỉ số đó, không phải sĩ số. Hai con
+ * số này lệch nhau là bình thường — ngày 12/08 có 264 HV active nhưng 228 HV có
+ * bản ghi — và người đọc phải thấy được điều đó thay vì tưởng số liệu phủ 100%.
+ */
+export function formatReportingNote({
+  classesReported,
+  totalClasses,
+  sampleSize,
+}: ReportingNoteInput): string {
+  if (classesReported === 0) return 'chưa lớp nào có dữ liệu';
+  return `${classesReported}/${totalClasses} lớp · ${sampleSize} HV có dữ liệu`;
+}
+
+export interface TestNoteInput {
+  classesWithTests: number;
+  totalClasses: number;
+  sampleSize: number;
+}
+
+/**
+ * Dòng chú thích dưới các card pass chuẩn / pass mềm.
+ *
+ * Tỷ lệ pass chia cho SỐ HV ĐÃ THI, nên chú thích phải nói đúng con số đó.
+ * Trước đây dòng này in `recordCount` (tổng sĩ số) kèm chữ "HV có test" — sai
+ * nghĩa hoàn toàn.
+ */
+export function formatTestNote({
+  classesWithTests,
+  totalClasses,
+  sampleSize,
+}: TestNoteInput): string {
+  if (classesWithTests === 0) return 'chưa lớp nào có bài test';
+  return `${classesWithTests}/${totalClasses} lớp có test · ${sampleSize} HV đã thi`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAttritionNote, formatComparisonNote, formatDelta, formatValue } from './kpiFormat';
+import { formatAttritionNote, formatComparisonNote, formatDelta, formatReportingNote, formatTestNote, formatValue } from './kpiFormat';
 import type { MetricDelta } from '../../data/selectors';
 
 const delta = (over: Partial<MetricDelta> = {}): MetricDelta => ({
@@ -117,5 +117,29 @@ describe('formatAttritionNote', () => {
   it('không biến thiếu mẫu số thành tỷ lệ 0%', () => {
     expect(formatAttritionNote({ rate: null, newDroppedStudents: 0 }))
       .toBe('Tỷ lệ attrition: chưa đủ dữ liệu');
+  });
+});
+
+describe('formatReportingNote', () => {
+  it('nói rõ số lớp báo cáo và số HV có dữ liệu', () => {
+    expect(formatReportingNote({ classesReported: 17, totalClasses: 17, sampleSize: 228 }))
+      .toBe('17/17 lớp · 228 HV có dữ liệu');
+  });
+
+  it('không giấu việc chưa lớp nào báo cáo', () => {
+    expect(formatReportingNote({ classesReported: 0, totalClasses: 17, sampleSize: 0 }))
+      .toBe('chưa lớp nào có dữ liệu');
+  });
+});
+
+describe('formatTestNote', () => {
+  it('đếm học viên đã thi, không đếm sĩ số', () => {
+    expect(formatTestNote({ classesWithTests: 15, totalClasses: 17, sampleSize: 196 }))
+      .toBe('15/17 lớp có test · 196 HV đã thi');
+  });
+
+  it('nói rõ khi chưa lớp nào thi', () => {
+    expect(formatTestNote({ classesWithTests: 0, totalClasses: 17, sampleSize: 0 }))
+      .toBe('chưa lớp nào có bài test');
   });
 });
