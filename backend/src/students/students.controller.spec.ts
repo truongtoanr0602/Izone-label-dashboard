@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthGuard } from '../auth/auth.guard';
 import { StudentsController } from './students.controller';
+import { StudentsService } from './students.service';
 
 describe('StudentsController', () => {
   let controller: StudentsController;
@@ -7,7 +9,11 @@ describe('StudentsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StudentsController],
-    }).compile();
+      providers: [{ provide: StudentsService, useValue: {} }],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+      .compile();
 
     controller = module.get<StudentsController>(StudentsController);
   });
