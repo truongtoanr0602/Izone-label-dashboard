@@ -5,7 +5,6 @@ import {
 import type { ClassSummary } from '../../data/types';
 import {
   periodLabel,
-  type Period,
 } from '../../data/selectors';
 import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
@@ -69,16 +68,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     }
     fetchData();
   }, [currentMonthKey, khoiId, selectedPeriod]);
-
-  const periods = useMemo<Period[]>(() => {
-    const keys = new Set((dashboard?.trend ?? []).map((point) => point.weekStart.slice(0, 7)));
-    keys.add(currentMonthKey);
-    return [...keys].sort().reverse().map((key) => {
-      const [year, month] = key.split('-').map(Number);
-      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      return { key, label: periodLabel(key), startDate: `${key}-01`, endDate: `${key}-${String(lastDay).padStart(2, '0')}` };
-    });
-  }, [currentMonthKey, dashboard]);
 
   const view = useMemo(() => {
     if (!dashboard) {
@@ -194,8 +183,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       <ContextBar
-        periods={periods}
         selectedKey={selectedPeriod}
+        currentKey={dashboard.meta.currentAsOf.slice(0, 7)}
         onSelectPeriod={setSelectedPeriod}
         aggregate={view.aggregate}
         noDataStudents={view.noDataStudents}

@@ -1,11 +1,12 @@
 import React from 'react';
 import { CalendarRange, Database } from 'lucide-react';
-import type { KhoiAggregate, Period } from '../../data/selectors';
+import type { KhoiAggregate } from '../../data/selectors';
 import { periodLabel, previousPeriodKey } from '../../data/selectors';
+import { MonthYearPicker } from './MonthYearPicker';
 
 interface ContextBarProps {
-  periods: Period[];
   selectedKey: string;
+  currentKey: string;
   onSelectPeriod: (key: string) => void;
   aggregate: KhoiAggregate;
   noDataStudents: number;
@@ -13,8 +14,8 @@ interface ContextBarProps {
 }
 
 export const ContextBar: React.FC<ContextBarProps> = ({
-  periods,
   selectedKey,
+  currentKey,
   onSelectPeriod,
   aggregate,
   noDataStudents,
@@ -39,18 +40,11 @@ export const ContextBar: React.FC<ContextBarProps> = ({
             Kỳ báo cáo
           </span>
         </div>
-        <select
-          aria-label="Kỳ báo cáo"
-          value={selectedKey}
-          onChange={(e) => onSelectPeriod(e.target.value)}
-          className="px-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] transition-colors"
-        >
-          {periods.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <MonthYearPicker
+          selectedKey={selectedKey}
+          currentKey={currentKey}
+          onSelect={onSelectPeriod}
+        />
         <span className="text-xs text-[#404040]/60 dark:text-[#a1a1aa]">
           so với {periodLabel(previousPeriodKey(selectedKey))}
         </span>
