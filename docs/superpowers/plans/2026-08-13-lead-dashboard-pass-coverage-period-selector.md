@@ -521,4 +521,3 @@ Expected: no whitespace errors; only planned files changed; task commits appear 
 - [ ] **Step 4: Review requirements against the design**
 
 Confirm all four user-facing requirements and the current-vs-period boundary in `docs/superpowers/specs/2026-08-13-lead-dashboard-pass-coverage-period-selector-design.md` have matching tests and implementation.
-

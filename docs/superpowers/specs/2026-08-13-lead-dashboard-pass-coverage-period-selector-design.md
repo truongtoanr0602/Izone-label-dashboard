@@ -1,8 +1,8 @@
 # Lead Khối Dashboard: Contact Coverage, Exclusive Pass Metrics, and Selector UX
 
-**Date:** 2026-08-13  
-**Status:** Approved in conversation; pending written-spec review  
-**Scope:** Lead Khối Dashboard, `GET /api/v1/lead-dashboard`, global class selector  
+**Date:** 2026-08-13
+**Status:** Approved
+**Scope:** Lead Khối Dashboard, `GET /api/v1/lead-dashboard`, global class selector
 **Target:** Khối 3-4 (`course_id = 2`)
 
 ## 1. Objectives
@@ -352,4 +352,3 @@ cd dashboard && npm test && npm run build
 - Adding database columns or backfilling snapshots.
 - Supporting a different Lead course than `course_id = 2`.
 - Filtering the current Master Table by the historical report month.
-
