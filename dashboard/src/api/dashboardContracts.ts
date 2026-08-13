@@ -6,6 +6,7 @@ export type SystemLabel = 'green' | 'yellow' | 'red' | 'grey' | 'no_data';
 
 export interface DashboardMetric {
   value: number | null;
+  qualifiedStudents?: number;
   baselineValue: number | null;
   delta: number | null;
   direction: MetricDirection;
@@ -90,6 +91,7 @@ export interface LeadDashboardResponse {
     timezone: string;
     generatedAt: string;
     dataFreshnessAt: string | null;
+    hasDataForPeriod: boolean;
   };
   kpis: {
     activeStudents: DashboardMetric;
