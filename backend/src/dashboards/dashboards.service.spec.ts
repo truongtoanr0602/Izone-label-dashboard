@@ -135,9 +135,54 @@ describe('DashboardsService', () => {
           label_change_direction: 'up',
         },
       ])
-      .mockResolvedValueOnce([]) // configRows (coverage thresholds)
-      .mockResolvedValueOnce([]) // coverageStudentRows
-      .mockResolvedValueOnce([]); // contactLogRows
+      .mockResolvedValueOnce([
+        {
+          config_key: 'nguong_xam_max',
+          config_value: '45',
+        },
+        {
+          config_key: 'nguong_do_max',
+          config_value: '60',
+        },
+        {
+          config_key: 'pass_dh_min',
+          config_value: '90',
+        },
+        {
+          config_key: 'pass_btvn_min',
+          config_value: '90',
+        },
+      ]) // configRows (coverage thresholds)
+      .mockResolvedValueOnce([
+        {
+          // last_checkpoint is '' (the real DB empty-string case, not null) and
+          // latest_test_name comes from the LEFT JOIN LATERAL against
+          // test_scores added in Finding 1's fix. This row only exercises that
+          // fallback path if the checkpoint mapping actually reads
+          // row.latest_test_name — reverting that line back to
+          // `row.last_checkpoint || 'Chưa có test'` makes this student's
+          // derived checkpoint 'Chưa có test' instead of 'Test 5', the log
+          // below stops matching, and the assertion on contactCoverage fails.
+          student_id: 500,
+          class_id: 1,
+          attendance_pct: 50, // below attendanceMin (90) -> habit_reminder
+          homework_pct: 95,
+          test_average: 90,
+          flag_attendance_drop: false,
+          flag_homework_drop: false,
+          last_checkpoint: '',
+          registration_status: 'on_going',
+          latest_test_name: 'Test 5',
+        },
+      ]) // coverageStudentRows
+      .mockResolvedValueOnce([
+        {
+          student_id: 500,
+          class_id: 1,
+          trigger_type: 'habit_reminder',
+          checkpoint: 'Test 5',
+        },
+      ]); // contactLogRows
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(
@@ -158,6 +203,21 @@ describe('DashboardsService', () => {
     expect(result.classes[0].progress.completedSessions).toBe(10);
     expect(result.classes[0].attendanceAvg).toBe(80);
     expect(result.classes[0].dataQuality.status).toBe('fallback');
+    // Student 500's episode (habit_reminder / 'Test 5') is closed by the
+    // contact log above ONLY if the checkpoint mapping resolved '' through
+    // latest_test_name to 'Test 5' rather than stopping at 'Chưa có test'.
+    expect(result.classes[0].contactCoverage).toEqual({
+      done: 1,
+      total: 1,
+      pct: 100,
+    });
+    // Class 2 has no coverage students at all -- must be null, not 0, so a
+    // "no warnings" class and a "0% covered" class stay visually distinct.
+    expect(result.classes[1].contactCoverage).toEqual({
+      done: 0,
+      total: 0,
+      pct: null,
+    });
   });
 
   it('returns every student and derives exclusive Teacher action counts', async () => {
