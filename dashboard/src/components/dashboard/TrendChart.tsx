@@ -90,7 +90,12 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                 return (
                   <div className="mb-1.5 space-y-0.5">
                     <div className="font-semibold">Tuần {row.weekLabel}</div>
-                    <div>{row.classesReported} lớp báo cáo · {row.activeStudentSample} HV</div>
+                    <div>
+                      {row.classesReported} lớp báo cáo · {row.activeStudentSample}
+                      {row.activeStudentRoster === null
+                        ? ''
+                        : `/${row.activeStudentRoster}`} HV có dữ liệu
+                    </div>
                     {showTestCountInTooltip && <div>{row.classesWithTests} lớp có test</div>}
                     <div>Dữ liệu mới nhất đến {displayDate(row.latestDataAsOf)}</div>
                   </div>

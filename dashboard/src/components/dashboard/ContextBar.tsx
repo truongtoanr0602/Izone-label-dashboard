@@ -8,8 +8,6 @@ interface ContextBarProps {
   selectedKey: string;
   onSelectPeriod: (key: string) => void;
   aggregate: KhoiAggregate;
-  newClasses: number;
-  endedClasses: number;
   noDataStudents: number;
   lastSyncedAt: string;
 }
@@ -19,8 +17,6 @@ export const ContextBar: React.FC<ContextBarProps> = ({
   selectedKey,
   onSelectPeriod,
   aggregate,
-  newClasses,
-  endedClasses,
   noDataStudents,
   lastSyncedAt,
 }) => {
@@ -62,8 +58,6 @@ export const ContextBar: React.FC<ContextBarProps> = ({
 
       <p className="text-xs text-[#404040]/70 dark:text-[#a1a1aa] font-mono">
         Khối 3-4 · {aggregate.classCount} lớp đang chạy · {aggregate.activeStudents} HV active
-        {newClasses > 0 && ` · ${newClasses} lớp mới khai giảng`}
-        {endedClasses > 0 && ` · ${endedClasses} lớp vừa kết thúc`}
       </p>
 
       <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a] flex items-center gap-1.5">

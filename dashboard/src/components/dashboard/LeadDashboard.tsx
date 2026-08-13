@@ -85,8 +85,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       return {
         aggregate: { classCount: 0, activeStudents: 0, droppedStudents: 0, riskPct: null, classesWithTests: 0, attendanceAvg: null, homeworkAvg: null, passChuanRate: null, passMemRate: null },
         trendSeries: [],
-        newClasses: 0,
-        endedClasses: 0,
         noDataStudents: 0
       };
     }
@@ -104,8 +102,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         classesWithTests: dashboard.kpis.passStandardRate.classesWithTests ?? 0,
       },
       trendSeries: dashboard.trend.map(toLeadWeeklyTrendPoint),
-      newClasses: 0,
-      endedClasses: 0,
       noDataStudents: dashboard.labelDistribution.noData,
     };
   }, [dashboard]);
@@ -202,8 +198,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         selectedKey={selectedPeriod}
         onSelectPeriod={setSelectedPeriod}
         aggregate={view.aggregate}
-        newClasses={view.newClasses}
-        endedClasses={view.endedClasses}
         noDataStudents={view.noDataStudents}
         lastSyncedAt={dashboard.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard.meta.currentAsOf}
       />
@@ -213,7 +207,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TrendChart
           title="Chất lượng vận hành"
-          subtitle={`Tỷ lệ điểm danh và BTVN toàn khối · 90 ngày · ${view.trendSeries.length} tuần tính đến ${dashboard.meta.reportAsOf}.`}
+          subtitle={`Điểm danh và BTVN toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · mỗi tuần chỉ tính lớp có dữ liệu trong 7 ngày, nên số lớp thấp hơn tổng số lớp đang chạy`}
           points={view.trendSeries}
           series={OPERATIONS_SERIES}
           domain={[70, 100]}
@@ -221,7 +215,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         />
         <TrendChart
           title="Kết quả"
-          subtitle={`Tỷ lệ pass chuẩn và pass mềm toàn khối · 90 ngày · ${view.trendSeries.length} tuần tính đến ${dashboard.meta.reportAsOf}.`}
+          subtitle={`Pass chuẩn và pass mềm toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · tỷ lệ tính trên học viên đã thi, không tính học viên chưa có bài test nào`}
           points={view.trendSeries}
           series={OUTCOME_SERIES}
           domain={[0, 100]}

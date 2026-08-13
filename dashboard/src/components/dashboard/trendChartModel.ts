@@ -10,6 +10,7 @@ export interface WeeklyTrendPoint {
   passMemRate: number | null;
   classesReported: number;
   activeStudentSample: number;
+  activeStudentRoster: number | null;
   classesWithTests: number;
   latestDataAsOf: string | null;
 }
