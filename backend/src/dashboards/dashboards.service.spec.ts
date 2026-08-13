@@ -134,7 +134,10 @@ describe('DashboardsService', () => {
           class_id: 1,
           label_change_direction: 'up',
         },
-      ]);
+      ])
+      .mockResolvedValueOnce([]) // configRows (coverage thresholds)
+      .mockResolvedValueOnce([]) // coverageStudentRows
+      .mockResolvedValueOnce([]); // contactLogRows
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(

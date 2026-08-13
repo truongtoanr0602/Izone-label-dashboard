@@ -14,6 +14,12 @@ import {
   type InterventionLevel,
 } from './labeling-engine';
 import {
+  contactCoverageByClass,
+  type ContactCoverage,
+  type CoverageLog,
+  type CoverageStudent,
+} from './contact-coverage';
+import {
   buildWeeklyTrend,
   calculateNetMomentum,
   compareMonthlyMetrics,
@@ -190,6 +196,109 @@ export class DashboardsService {
       ORDER BY r.record_date ASC
     `;
 
+    const configRows = await this.prisma.$queryRaw<any[]>`
+      SELECT config_key, config_value
+      FROM izone.system_configs
+      WHERE config_key IN ('nguong_xam_max', 'nguong_do_max', 'pass_dh_min', 'pass_btvn_min')
+    `;
+
+    /*
+     * Dòng live của HV đang học tại mốc hiện tại — dùng để phân loại mức can
+     * thiệp cho từng HV, từ đó ra mẫu số của độ phủ liên hệ. Khoảng 264 dòng
+     * cho toàn khối nên không cần phân trang.
+     */
+    const coverageStudentRows = await this.prisma.$queryRaw<any[]>`
+      SELECT DISTINCT ON (r.student_id, r.class_id)
+             r.student_id, r.class_id, r.attendance_pct, r.homework_pct,
+             r.test_average, r.flag_attendance_drop, r.flag_homework_drop,
+             r.last_checkpoint, s.registration_status
+      FROM izone.student_daily_records r
+      JOIN izone.students s ON s.student_id = r.student_id
+      JOIN izone.classes c ON c.class_id = r.class_id
+      JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+        AND t.khoi_id = ${khoiId}
+        AND c.status = ${classStatus}
+        AND r.snapshot_stage IS NULL
+        AND s.registration_status = 'on_going'
+        AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
+        AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
+        AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+      ORDER BY r.student_id, r.class_id, r.record_date DESC
+    `;
+
+    const contactLogRows = await this.prisma.$queryRaw<any[]>`
+      SELECT cl.student_id, cl.class_id, cl.trigger_type, cl.checkpoint
+      FROM izone.contact_logs cl
+      JOIN izone.classes c ON c.class_id = cl.class_id
+      JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+        AND t.khoi_id = ${khoiId}
+        AND c.status = ${classStatus}
+        AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
+        AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+    `;
+
+    const coverageConfig = new Map(
+      configRows.map((row) => [row.config_key, row.config_value]),
+    );
+    const coverageThresholds: DashboardThresholds = {
+      greyMax: this.configNumber(
+        coverageConfig,
+        'nguong_xam_max',
+        DEFAULT_DASHBOARD_THRESHOLDS.greyMax,
+      ),
+      redMax: this.configNumber(
+        coverageConfig,
+        'nguong_do_max',
+        DEFAULT_DASHBOARD_THRESHOLDS.redMax,
+      ),
+      attendanceMin: this.configNumber(
+        coverageConfig,
+        'pass_dh_min',
+        DEFAULT_DASHBOARD_THRESHOLDS.attendanceMin,
+      ),
+      homeworkMin: this.configNumber(
+        coverageConfig,
+        'pass_btvn_min',
+        DEFAULT_DASHBOARD_THRESHOLDS.homeworkMin,
+      ),
+    };
+
+    const coverageByClass = contactCoverageByClass(
+      coverageStudentRows.map((row): CoverageStudent => {
+        const classification = classifyStudent(
+          {
+            registrationStatus: row.registration_status,
+            attendancePct: this.nullableNumber(row.attendance_pct),
+            homeworkPct: this.nullableNumber(row.homework_pct),
+            testAverage: this.nullableNumber(row.test_average),
+            flagAttendanceDrop: Boolean(row.flag_attendance_drop),
+            flagHomeworkDrop: Boolean(row.flag_homework_drop),
+          },
+          coverageThresholds,
+        );
+        return {
+          studentId: Number(row.student_id),
+          classId: Number(row.class_id),
+          messageTemplateKey:
+            classification.recommendedAction.messageTemplateKey,
+          /*
+           * `||` chứ không phải `??`: last_checkpoint trong DB dùng CHUỖI RỖNG
+           * cho HV chưa có test (35/228 HV ngày 12/08), không phải NULL. Dùng
+           * `??` thì checkpoint thành '' và không khớp được contact_logs.
+           */
+          checkpoint: row.last_checkpoint || 'Chưa có test',
+        };
+      }),
+      contactLogRows.map((row): CoverageLog => ({
+        studentId: Number(row.student_id),
+        classId: Number(row.class_id),
+        triggerType: String(row.trigger_type),
+        checkpoint: String(row.checkpoint),
+      })),
+    );
+
     const transitions: LabelTransitionRow[] = transitionRows.map((row) => ({
       date: this.isoDate(row.record_date),
       studentId: Number(row.student_id),
@@ -272,7 +381,16 @@ export class DashboardsService {
         observation.classId,
         calendar.currentAsOf,
       );
-      return this.mapResolvedLeadClass(meta, observation, metrics);
+      return this.mapResolvedLeadClass(
+        meta,
+        observation,
+        metrics,
+        coverageByClass.get(observation.classId) ?? {
+          done: 0,
+          total: 0,
+          pct: null,
+        },
+      );
     });
     const dataFreshnessAt =
       [...snapshotRows, ...studentMetricRows]
@@ -468,8 +586,13 @@ export class DashboardsService {
         thresholds,
       );
       const review = reviewsByStudent.get(Number(row.student_id));
+      /*
+       * `||` chứ không phải `??`: last_checkpoint trong DB dùng CHUỖI RỖNG cho
+       * HV chưa có test (35/228 HV ngày 12/08), không phải NULL. Dùng `??` thì
+       * checkpoint thành '' và không khớp được contact_logs.
+       */
       const checkpoint =
-        row.last_checkpoint ?? scores.at(-1)?.testName ?? 'Chưa có test';
+        row.last_checkpoint || scores.at(-1)?.testName || 'Chưa có test';
       const trigger = classification.recommendedAction.messageTemplateKey;
       const contact = (
         contactsByStudent.get(Number(row.student_id)) ?? []
@@ -861,6 +984,7 @@ export class DashboardsService {
     row: any,
     observation: ResolvedClassObservation,
     metrics: any,
+    contactCoverage: ContactCoverage,
   ) {
     const activeStudents = observation.roster.activeStudents;
     const yellow = Number(metrics?.label_yellow ?? 0);
@@ -917,6 +1041,7 @@ export class DashboardsService {
         noData,
       },
       lastSnapshotDate: observation.roster.dataAsOf,
+      contactCoverage,
       dataQuality: observation.dataQuality,
     };
   }
