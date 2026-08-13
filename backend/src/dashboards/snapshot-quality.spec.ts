@@ -238,6 +238,8 @@ describe('coverage không còn là cổng loại lớp', () => {
     expect(result.passStandard.value).toBe(25);
     expect(result.passStandard.sampleSize).toBe(8);
     expect(result.passStandard.testedStudents).toBe(8);
+    expect(result.passStandard).toMatchObject({ qualifiedStudents: 2 });
     expect(result.softPass.value).toBe(50);
+    expect(result.softPass).toMatchObject({ qualifiedStudents: 4 });
   });
 });

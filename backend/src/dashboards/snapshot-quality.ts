@@ -47,6 +47,7 @@ export interface ResolvedMetric {
 
 export interface ResolvedPassMetric extends ResolvedMetric {
   testedStudents: number;
+  qualifiedStudents: number;
 }
 
 export interface ResolvedClassObservation {
@@ -155,7 +156,9 @@ function resolvePassMetric(
   const row = rows.find(
     (candidate) => candidate.recordCount > 0 && candidate.testedStudents > 0,
   );
-  if (!row) return { ...emptyMetric(), testedStudents: 0 };
+  if (!row) {
+    return { ...emptyMetric(), testedStudents: 0, qualifiedStudents: 0 };
+  }
   return {
     value: round1((row[passedKey] / row.testedStudents) * 100),
     dataAsOf: row.date,
@@ -166,6 +169,7 @@ function resolvePassMetric(
       row.date !== rows[0]?.date ||
       (rosterDate !== null && row.date < rosterDate),
     testedStudents: row.testedStudents,
+    qualifiedStudents: row[passedKey],
   };
 }
 
