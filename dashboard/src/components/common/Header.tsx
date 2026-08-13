@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ExternalLink, Download, Menu, Moon, Sun } from 'lucide-react';
 import type { ClassSummary } from '../../data/types';
+import { groupClassesByCourse } from './classGrouping';
 
 interface HeaderProps {
   classes: ClassSummary[];
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
   const classMenuRef = useRef<HTMLDivElement>(null);
+  const classGroups = useMemo(() => groupClassesByCourse(classes), [classes]);
 
   useEffect(() => {
     if (!isClassMenuOpen) return;
@@ -98,44 +100,53 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Dropdown Menu */}
             {isClassMenuOpen && (
               <div
-                role="listbox"
                 className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] rounded-[16px] shadow-[0px_3px_5px_0px_rgba(0,0,0,0.2)] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
               >
-                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase text-[#404040]/50 dark:text-[#71717a] tracking-wider">
-                  Khối 3-4 (Active Classes)
-                </p>
-                <div className="space-y-1 mt-1">
-                  {classes.map((cls) => (
-                    <button
-                      key={cls.classId}
-                      role="option"
-                      aria-selected={selectedClass?.classId === cls.classId}
-                      onClick={() => {
-                        onSelectClass(cls);
-                        setIsClassMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-[8px] text-xs transition-all flex items-center justify-between border-l-2 ${
-                        selectedClass?.classId === cls.classId
-                          ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] border-l-[#db0829] text-[#404040] dark:text-[#e4e4e7] font-semibold'
-                          : 'border-l-transparent text-[#404040] dark:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]'
-                      }`}
-                    >
-                      <div>
-                        <span className="font-bold font-mono">{cls.className}</span>
-                        <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a]">{cls.teacher.fullName}</p>
+                <div
+                  role="listbox"
+                  aria-label="Danh sách lớp theo khóa học"
+                  className="max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1"
+                >
+                  {classGroups.map((group) => (
+                    <div key={group.courseName} className="pb-2 last:pb-0">
+                      <p className="sticky top-0 z-10 bg-white/95 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#404040]/50 backdrop-blur dark:bg-[#27272a]/95 dark:text-[#71717a]">
+                        {group.courseName} · {group.classes.length} lớp
+                      </p>
+                      <div className="space-y-1">
+                        {group.classes.map((cls) => (
+                          <button
+                            key={cls.classId}
+                            role="option"
+                            aria-selected={selectedClass?.classId === cls.classId}
+                            onClick={() => {
+                              onSelectClass(cls);
+                              setIsClassMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-[8px] text-xs transition-all flex items-center justify-between border-l-2 ${
+                              selectedClass?.classId === cls.classId
+                                ? 'bg-[#f3f4f6] dark:bg-[#3f3f46] border-l-[#db0829] text-[#404040] dark:text-[#e4e4e7] font-semibold'
+                                : 'border-l-transparent text-[#404040] dark:text-[#e4e4e7] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]'
+                            }`}
+                          >
+                            <div>
+                              <span className="font-bold font-mono">{cls.className}</span>
+                              <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a]">{cls.teacher.fullName}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                cls.healthMetrics.classRiskLevel === 'high'
+                                  ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                  : cls.healthMetrics.classRiskLevel === 'medium'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              }`}>
+                                Score: {cls.healthMetrics.healthScore ?? '—'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          cls.healthMetrics.classRiskLevel === 'high'
-                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-                            : cls.healthMetrics.classRiskLevel === 'medium'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                        }`}>
-                          Score: {cls.healthMetrics.healthScore ?? '—'}
-                        </span>
-                      </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>

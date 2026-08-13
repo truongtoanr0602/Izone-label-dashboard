@@ -129,3 +129,17 @@ export function formatTestNote({
   if (classesWithTests === 0) return 'chưa lớp nào có bài test';
   return `${classesWithTests}/${totalClasses} lớp có test · ${sampleSize} HV đã thi`;
 }
+
+export interface PassNoteInput extends TestNoteInput {
+  qualifiedStudents: number;
+}
+
+export function formatPassNote({
+  qualifiedStudents,
+  sampleSize,
+  classesWithTests,
+  totalClasses,
+}: PassNoteInput): string {
+  if (classesWithTests === 0) return 'chưa lớp nào có bài test';
+  return `${qualifiedStudents}/${sampleSize} HV đã thi · ${classesWithTests}/${totalClasses} lớp có test`;
+}

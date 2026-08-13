@@ -5,7 +5,6 @@ import {
 import type { ClassSummary } from '../../data/types';
 import {
   periodLabel,
-  type Period,
 } from '../../data/selectors';
 import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
@@ -69,16 +68,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     }
     fetchData();
   }, [currentMonthKey, khoiId, selectedPeriod]);
-
-  const periods = useMemo<Period[]>(() => {
-    const keys = new Set((dashboard?.trend ?? []).map((point) => point.weekStart.slice(0, 7)));
-    keys.add(currentMonthKey);
-    return [...keys].sort().reverse().map((key) => {
-      const [year, month] = key.split('-').map(Number);
-      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      return { key, label: periodLabel(key), startDate: `${key}-01`, endDate: `${key}-${String(lastDay).padStart(2, '0')}` };
-    });
-  }, [currentMonthKey, dashboard]);
 
   const view = useMemo(() => {
     if (!dashboard) {
@@ -194,35 +183,48 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       <ContextBar
-        periods={periods}
         selectedKey={selectedPeriod}
+        currentKey={dashboard.meta.currentAsOf.slice(0, 7)}
         onSelectPeriod={setSelectedPeriod}
         aggregate={view.aggregate}
         noDataStudents={view.noDataStudents}
         lastSyncedAt={dashboard.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard.meta.currentAsOf}
       />
 
-      <KpiRow kpis={dashboard.kpis} />
+      {dashboard.meta.hasDataForPeriod ? (
+        <>
+          <KpiRow kpis={dashboard.kpis} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <TrendChart
-          title="Chất lượng vận hành"
-          subtitle={`Điểm danh và BTVN toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · mỗi tuần chỉ tính lớp có dữ liệu trong 7 ngày, nên số lớp thấp hơn tổng số lớp đang chạy`}
-          points={view.trendSeries}
-          series={OPERATIONS_SERIES}
-          domain={[70, 100]}
-          isDarkMode={isDarkMode}
-        />
-        <TrendChart
-          title="Kết quả"
-          subtitle={`Pass chuẩn và pass mềm toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · tỷ lệ tính trên học viên đã thi, không tính học viên chưa có bài test nào`}
-          points={view.trendSeries}
-          series={OUTCOME_SERIES}
-          domain={[0, 100]}
-          showTestCountInTooltip
-          isDarkMode={isDarkMode}
-        />
-      </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <TrendChart
+              title="Chất lượng vận hành"
+              subtitle={`Điểm danh và BTVN toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · mỗi tuần chỉ tính lớp có dữ liệu trong 7 ngày, nên số lớp thấp hơn tổng số lớp đang chạy`}
+              points={view.trendSeries}
+              series={OPERATIONS_SERIES}
+              domain={[70, 100]}
+              isDarkMode={isDarkMode}
+            />
+            <TrendChart
+              title="Kết quả"
+              subtitle={`Pass chuẩn và pass mềm loại trừ toàn khối · ${view.trendSeries.length} tuần đến ${dashboard.meta.reportAsOf} · cả hai tỷ lệ tính trên học viên đã thi`}
+              points={view.trendSeries}
+              series={OUTCOME_SERIES}
+              domain={[0, 100]}
+              showTestCountInTooltip
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="rounded-[16px] bg-white dark:bg-[#27272a] px-6 py-12 text-center shadow-sm">
+          <p className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7]">
+            Không có dữ liệu cho {periodLabel(selectedPeriod)}
+          </p>
+          <p className="mt-1 text-xs text-[#404040]/50 dark:text-[#71717a]">
+            Bảng quản lý lớp bên dưới vẫn hiển thị hiện trạng mới nhất.
+          </p>
+        </div>
+      )}
 
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] shadow-sm flex flex-col overflow-hidden">
         <SectionHeader
@@ -256,8 +258,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 <th className="py-3 px-4 text-center">Điểm danh / BTVN</th>
                 <th className="py-3 px-4 text-center">Tiến độ</th>
                 <th className="py-3 px-4 text-center">Trạng thái Cảnh báo</th>
-                <th className="py-3 px-4 text-center" title="Số cảnh báo GV đã xác nhận đã liên hệ, tại mốc test hiện tại của lớp">Độ phủ liên hệ</th>
-                <th className="py-3 px-4 text-center">Tỷ lệ Pass (Chuẩn/Mềm)</th>
+                <th className="py-3 px-4 text-center" title="Số HV cần cảnh báo đã được liên hệ trên tổng số HV cần cảnh báo, tại mốc test hiện tại của lớp">Độ phủ liên hệ</th>
+                <th className="py-3 px-4 text-center" title="Hai tỷ lệ dùng chung mẫu số HV đã thi; tử số Pass chuẩn và Pass mềm không trùng nhau">Tỷ lệ Pass</th>
                 <th className="py-3 px-4 text-right">Hành động</th>
               </tr>
             </thead>
@@ -324,19 +326,26 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {coverage.pct === null ? (
-                        <span className="font-mono text-[#404040]/40 dark:text-[#52525b]" title="Lớp không có cảnh báo nào đang mở">--</span>
+                        <>
+                          <span className="font-mono text-[#404040]/40 dark:text-[#52525b]">—</span>
+                          <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-0.5">Không có HV cần cảnh báo</p>
+                        </>
                       ) : (
                         <>
                           <span className={`font-bold font-mono ${getMetricColor(coverage.pct)}`}>{coverage.pct}%</span>
                           <p className="text-[11px] font-mono text-[#404040]/50 dark:text-[#71717a] mt-0.5">
-                            {coverage.done}/{coverage.total} cảnh báo
+                            {coverage.done}/{coverage.total} HV cần cảnh báo
                           </p>
                         </>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">{formatMetric(c.healthMetrics.passChuanRate)}</span>
-                      <span className="font-bold text-[#404040]/50 dark:text-[#71717a] text-[11px]"> / {formatMetric(c.healthMetrics.passMemRate)}</span>
+                      <p className="font-mono text-[11px] text-[#404040]/60 dark:text-[#a1a1aa]">
+                        Chuẩn <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatMetric(c.healthMetrics.passChuanRate)}</span>
+                      </p>
+                      <p className="font-mono text-[11px] text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
+                        Mềm <span className="font-bold text-purple-600 dark:text-purple-400">{formatMetric(c.healthMetrics.passMemRate)}</span>
+                      </p>
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button className="px-3 py-1.5 rounded-[8px] bg-transparent text-[#404040]/70 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46] hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46] transition-colors font-semibold inline-flex items-center gap-1">

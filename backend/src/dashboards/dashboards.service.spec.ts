@@ -117,9 +117,9 @@ describe('DashboardsService', () => {
       ])
       .mockResolvedValueOnce([
         metricRow(1, '2026-07-31', 10, 70, 70, 4, 5),
-        metricRow(1, '2026-08-10', 10, 80, 80, 4, 5),
+        metricRow(1, '2026-08-10', 10, 80, 80, 4, 4),
         metricRow(2, '2026-07-31', 30, 90, 80, 18, 21),
-        metricRow(2, '2026-08-10', 30, 100, 90, 18, 21),
+        metricRow(2, '2026-08-10', 30, 100, 90, 18, 5),
       ])
       .mockResolvedValueOnce([
         {
@@ -194,6 +194,16 @@ describe('DashboardsService', () => {
     expect(result.kpis.attendanceAvg.value).toBe(95);
     expect(result.kpis.attendanceAvg.delta).toBe(10);
     expect(result.kpis.attendanceAvg.comparableClasses).toBe(2);
+    expect(result.kpis.passStandardRate).toMatchObject({
+      value: 55,
+      qualifiedStudents: 22,
+      sampleSize: 40,
+    });
+    expect(result.kpis.softPassRate).toMatchObject({
+      value: 22.5,
+      qualifiedStudents: 9,
+      sampleSize: 40,
+    });
     expect(result.kpis.netMomentum.value).toBe(1);
     expect(result.kpis.netMomentum.delta).toBeNull();
     expect(result.kpis.netMomentum.comparableClasses).toBe(0);
@@ -218,6 +228,52 @@ describe('DashboardsService', () => {
       total: 0,
       pct: null,
     });
+
+    const studentMetricSql = (
+      queryRaw.mock.calls[2][0] as TemplateStringsArray
+    ).join('?');
+    expect(studentMetricSql).toContain('r.test_average >= 60');
+    expect(studentMetricSql).toContain('r.test_average >= 50');
+    expect(studentMetricSql).toContain('r.test_average < 55');
+    expect(studentMetricSql).toContain('r.test_average < 60');
+    expect(studentMetricSql).not.toContain('r.pass_mem_status IN');
+  });
+
+  it('returns an empty macro period while preserving current Master Table state', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          class_id: 1,
+          class_name: '34A',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
+          teacher_id: 10,
+          teacher_name: 'GV A',
+          teacher_email: 'a@izone.edu.vn',
+        },
+      ])
+      .mockResolvedValueOnce([snapshotRow(1, '2026-08-12', 10, 10)])
+      .mockResolvedValueOnce([
+        metricRow(1, '2026-08-12', 10, 86, 82, 4, 2),
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    const result = await service.getLeadDashboard(
+      { courseId: '2', khoiId: '34', period: '2026-07' },
+      leadUser,
+    );
+
+    expect(result.meta.hasDataForPeriod).toBe(false);
+    expect(result.kpis.attendanceAvg.value).toBeNull();
+    expect(result.kpis.passStandardRate.value).toBeNull();
+    expect(result.trend).toEqual([]);
+    expect(result.classes[0].attendanceAvg).toBe(86);
   });
 
   it('returns every student and derives exclusive Teacher action counts', async () => {
