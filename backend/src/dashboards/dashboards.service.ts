@@ -134,9 +134,26 @@ export class DashboardsService {
              ROUND(AVG(r.attendance_pct) FILTER (WHERE r.attendance_pct IS NOT NULL), 2) AS attendance_avg,
              COUNT(r.homework_pct)::integer AS homework_sample_size,
              ROUND(AVG(r.homework_pct) FILTER (WHERE r.homework_pct IS NOT NULL), 2) AS homework_avg,
-             COUNT(*) FILTER (WHERE COALESCE(r.tests_taken, 0) > 0)::integer AS tested_students,
-             COUNT(*) FILTER (WHERE r.pass_chuan_status IN ('Có khả năng pass', 'Đạt tiêu chuẩn', 'passed', 'likely_pass'))::integer AS pass_standard_students,
-             COUNT(*) FILTER (WHERE r.pass_mem_status IN ('Đạt pass mềm', 'passed', 'approved'))::integer AS soft_pass_students,
+             COUNT(*) FILTER (
+               WHERE COALESCE(r.tests_taken, 0) > 0
+                 AND r.test_average IS NOT NULL
+             )::integer AS tested_students,
+             COUNT(*) FILTER (
+               WHERE COALESCE(r.tests_taken, 0) > 0
+                 AND r.test_average >= 60
+                 AND r.attendance_pct >= 90
+                 AND r.homework_pct >= 90
+             )::integer AS pass_standard_students,
+             COUNT(*) FILTER (
+               WHERE COALESCE(r.tests_taken, 0) > 0
+                 AND (
+                   (r.test_average >= 50 AND r.test_average < 55
+                    AND r.attendance_pct >= 100 AND r.homework_pct >= 100)
+                   OR
+                   (r.test_average >= 55 AND r.test_average < 60
+                    AND r.attendance_pct >= 90 AND r.homework_pct >= 90)
+                 )
+             )::integer AS soft_pass_students,
              COUNT(*) FILTER (WHERE r.current_label = 'green')::integer AS label_green,
              COUNT(*) FILTER (WHERE r.current_label = 'yellow')::integer AS label_yellow,
              COUNT(*) FILTER (WHERE r.current_label = 'red')::integer AS label_red,
