@@ -148,11 +148,17 @@ type MetricKey = 'attendance' | 'homework' | 'passStandard' | 'softPass';
 function weightedResolved(
   rows: ResolvedClassObservation[],
   key: MetricKey,
-): { value: number | null; sampleSize: number; classes: number } {
+): {
+  value: number | null;
+  sampleSize: number;
+  classes: number;
+  qualifiedStudents?: number;
+} {
   const valid = rows.filter(
     (row) => row[key].sampleSize > 0 && row[key].value !== null,
   );
   const denominator = valid.reduce((sum, row) => sum + row[key].sampleSize, 0);
+  const isPassMetric = key === 'passStandard' || key === 'softPass';
   return {
     value:
       denominator === 0
@@ -165,6 +171,15 @@ function weightedResolved(
           ),
     sampleSize: denominator,
     classes: valid.length,
+    ...(isPassMetric
+      ? {
+          qualifiedStudents: valid.reduce(
+            (sum, row) =>
+              sum + (row[key] as ResolvedPassMetric).qualifiedStudents,
+            0,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -209,7 +224,10 @@ function compareMetric(
     comparableClasses: comparableCurrent.length,
     totalClasses: current.length,
     ...(key === 'passStandard' || key === 'softPass'
-      ? { classesWithTests: allCurrent.classes }
+      ? {
+          classesWithTests: allCurrent.classes,
+          qualifiedStudents: allCurrent.qualifiedStudents ?? 0,
+        }
       : {}),
   };
 }
@@ -498,4 +516,5 @@ import {
   type ClassObservationEvidence,
   type ResolvedClassObservation,
   type ResolvedMetric,
+  type ResolvedPassMetric,
 } from './snapshot-quality';

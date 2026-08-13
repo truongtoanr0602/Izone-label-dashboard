@@ -4,7 +4,7 @@ import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboard
 import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
 import { InfoTooltip } from '../common/InfoTooltip';
-import { formatAttritionNote, formatReportingNote, formatTestNote } from './kpiFormat';
+import { formatAttritionNote, formatPassNote, formatReportingNote } from './kpiFormat';
 
 interface KpiRowProps {
   kpis: LeadDashboardResponse['kpis'];
@@ -54,7 +54,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.passStandardRate)}
         higherIsBetter
-        note={formatTestNote({
+        note={formatPassNote({
+          qualifiedStudents: kpis.passStandardRate.qualifiedStudents ?? 0,
           classesWithTests: kpis.passStandardRate.classesWithTests ?? 0,
           totalClasses: kpis.passStandardRate.totalClasses ?? 0,
           sampleSize: kpis.passStandardRate.sampleSize ?? 0,
@@ -72,7 +73,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         unit="percent"
         delta={metricDelta(kpis.softPassRate)}
         higherIsBetter
-        note={formatTestNote({
+        note={formatPassNote({
+          qualifiedStudents: kpis.softPassRate.qualifiedStudents ?? 0,
           classesWithTests: kpis.softPassRate.classesWithTests ?? 0,
           totalClasses: kpis.softPassRate.totalClasses ?? 0,
           sampleSize: kpis.softPassRate.sampleSize ?? 0,
@@ -82,8 +84,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
             <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)
             <br />
             <b>Nhóm 2</b>: TB test 55–&lt;60, ĐH &amp; BTVN ≥90% (cần GV duyệt)
-            <br />
-            <b>Nhóm 3</b>: TB test ≥60 (tự động đạt)
+            <br />Không bao gồm học viên đã đạt Pass chuẩn.
           </InfoTooltip>
         }
       />

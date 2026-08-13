@@ -1,13 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   adaptTeacherStudent,
   toLeadClassPresentation,
   toLeadWeeklyTrendPoint,
   type LeadDashboardClass,
+  type LeadDashboardResponse,
   type TeacherDashboardStudent,
 } from './dashboardContracts';
 
 describe('dashboard screen-contract adapters', () => {
+  it('declares period availability and independent pass numerators', () => {
+    expectTypeOf<LeadDashboardResponse['meta']['hasDataForPeriod']>()
+      .toEqualTypeOf<boolean>();
+    expectTypeOf<LeadDashboardResponse['kpis']['softPassRate']['qualifiedStudents']>()
+      .toEqualTypeOf<number | undefined>();
+  });
+
   it('keeps missing Lead measurements null for Recharts gaps', () => {
     expect(
       toLeadWeeklyTrendPoint({

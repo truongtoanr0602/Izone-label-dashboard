@@ -60,6 +60,16 @@ describe('lead aggregation', () => {
       comparableClasses: 2,
       totalClasses: 3,
     });
+    expect(result.passStandardRate).toMatchObject({
+      value: 50,
+      sampleSize: 60,
+      qualifiedStudents: 30,
+    });
+    expect(result.softPassRate).toMatchObject({
+      value: 60,
+      sampleSize: 60,
+      qualifiedStudents: 36,
+    });
   });
 
   it('builds ISO-week points and expires carry-forward after seven days', () => {
@@ -400,8 +410,18 @@ function resolved(
       coveragePct: (attendanceSampleSize / activeStudents) * 100,
     },
     homework: { ...metric, value: 80 },
-    passStandard: { ...metric, value: 50, testedStudents: activeStudents },
-    softPass: { ...metric, value: 60, testedStudents: activeStudents },
+    passStandard: {
+      ...metric,
+      value: 50,
+      testedStudents: activeStudents,
+      qualifiedStudents: activeStudents * 0.5,
+    },
+    softPass: {
+      ...metric,
+      value: 60,
+      testedStudents: activeStudents,
+      qualifiedStudents: activeStudents * 0.6,
+    },
     dataQuality: {
       status: 'complete',
       warnings: [],

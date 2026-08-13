@@ -13,6 +13,7 @@ export type MetricDirection = 'improving' | 'declining' | 'stable' | 'unknown';
 
 export interface DashboardMetric {
   value: number | null;
+  qualifiedStudents?: number;
   baselineValue: number | null;
   delta: number | null;
   direction: MetricDirection;
