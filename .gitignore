@@ -7,7 +7,5 @@ dist/
 database/postgres_data/
 database/pgadmin_data/
 ~$*.docx
-ARCHITECTURE.md
-CLAUDE.md
 docs/
 scripts/
