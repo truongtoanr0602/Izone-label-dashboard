@@ -33,6 +33,10 @@ import {
   type ResolvedClassObservation,
   type StudentMetricEvidence,
 } from './snapshot-quality';
+import {
+  emptyDashboardMetric,
+  hasLeadPeriodData,
+} from './period-data';
 import type {
   DashboardMetric,
   LeadDashboardQuery,
@@ -354,6 +358,11 @@ export class DashboardsService {
       snapshotRows,
       studentMetricRows,
     );
+    const hasDataForPeriod = hasLeadPeriodData(
+      snapshotRows,
+      studentMetricRows,
+      calendar.period,
+    );
     const reportRows = evidence.map((item) =>
       resolveClassObservation(item, calendar.reportAsOf),
     );
@@ -403,7 +412,10 @@ export class DashboardsService {
       previousComparableMomentum.value === null
         ? null
         : currentComparableMomentum.value - previousComparableMomentum.value;
-    const weeklyTrend = buildWeeklyTrend(evidence, calendar).map((point) => {
+    const weeklyTrend = (hasDataForPeriod
+      ? buildWeeklyTrend(evidence, calendar)
+      : []
+    ).map((point) => {
       const weeklyMomentum = calculateNetMomentum(
         transitions.filter(
           (row) => row.date >= point.weekStart && row.date <= point.weekEnd,
@@ -442,7 +454,15 @@ export class DashboardsService {
         .filter(Boolean)
         .sort()
         .at(-1) ?? null;
-    const activeStudents = this.activeStudentsMetric(reportRows, previousRows);
+    const emptyMetric = emptyDashboardMetric(reportRows.length);
+    const emptyPassMetric: DashboardMetric = {
+      ...emptyMetric,
+      qualifiedStudents: 0,
+      classesWithTests: 0,
+    };
+    const activeStudents = hasDataForPeriod
+      ? this.activeStudentsMetric(reportRows, previousRows)
+      : emptyMetric;
     const attritionDelta =
       attrition.newDroppedStudents - previousAttrition.newDroppedStudents;
 
@@ -461,33 +481,68 @@ export class DashboardsService {
         timezone: 'Asia/Ho_Chi_Minh',
         generatedAt: new Date().toISOString(),
         dataFreshnessAt,
+        hasDataForPeriod,
       },
       kpis: {
         activeStudents,
-        attendanceAvg: monthly.attendanceAvg,
-        homeworkAvg: monthly.homeworkAvg,
-        passStandardRate: monthly.passStandardRate,
-        softPassRate: monthly.softPassRate,
-        riskRate: this.riskMetric(reportRows, previousRows, studentMetricRows),
+        attendanceAvg: hasDataForPeriod
+          ? monthly.attendanceAvg
+          : emptyMetric,
+        homeworkAvg: hasDataForPeriod ? monthly.homeworkAvg : emptyMetric,
+        passStandardRate: hasDataForPeriod
+          ? monthly.passStandardRate
+          : emptyPassMetric,
+        softPassRate: hasDataForPeriod
+          ? monthly.softPassRate
+          : emptyPassMetric,
+        riskRate: hasDataForPeriod
+          ? this.riskMetric(reportRows, previousRows, studentMetricRows)
+          : emptyMetric,
         periodAttritionRate: {
-          value: attrition.newDroppedStudents,
-          baselineValue: previousAttrition.newDroppedStudents,
-          delta: attritionDelta,
-          direction: this.direction(attritionDelta, true),
-          newDroppedStudents: attrition.newDroppedStudents,
-          previousNewDroppedStudents: previousAttrition.newDroppedStudents,
-          attritionRate: attrition.periodAttritionRate,
-          comparableClasses: attrition.comparableClasses,
+          value: hasDataForPeriod ? attrition.newDroppedStudents : null,
+          baselineValue: hasDataForPeriod
+            ? previousAttrition.newDroppedStudents
+            : null,
+          delta: hasDataForPeriod ? attritionDelta : null,
+          direction: hasDataForPeriod
+            ? this.direction(attritionDelta, true)
+            : 'unknown',
+          newDroppedStudents: hasDataForPeriod
+            ? attrition.newDroppedStudents
+            : 0,
+          previousNewDroppedStudents: hasDataForPeriod
+            ? previousAttrition.newDroppedStudents
+            : 0,
+          attritionRate: hasDataForPeriod
+            ? attrition.periodAttritionRate
+            : null,
+          comparableClasses: hasDataForPeriod
+            ? attrition.comparableClasses
+            : 0,
           totalClasses: reportRows.length,
         },
-        netMomentum: {
-          ...momentum,
-          baselineValue: previousComparableMomentum.value,
-          delta: momentumDelta,
-          comparableClasses: comparableMomentumClassIds.size,
-          totalClasses: reportRows.length,
-          direction: this.direction(momentumDelta, false),
-        },
+        netMomentum: hasDataForPeriod
+          ? {
+              ...momentum,
+              baselineValue: previousComparableMomentum.value,
+              delta: momentumDelta,
+              comparableClasses: comparableMomentumClassIds.size,
+              totalClasses: reportRows.length,
+              direction: this.direction(momentumDelta, false),
+            }
+          : {
+              value: null,
+              baselineValue: null,
+              delta: null,
+              upTransitions: 0,
+              downTransitions: 0,
+              studentsChanged: 0,
+              recalculationEvents: 0,
+              classesWithTests: 0,
+              comparableClasses: 0,
+              totalClasses: reportRows.length,
+              direction: 'unknown',
+            },
       },
       trend: weeklyTrend,
       labelDistribution: this.resolvedLabelDistribution(currentClassRows),

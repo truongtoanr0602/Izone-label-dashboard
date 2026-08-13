@@ -239,6 +239,43 @@ describe('DashboardsService', () => {
     expect(studentMetricSql).not.toContain('r.pass_mem_status IN');
   });
 
+  it('returns an empty macro period while preserving current Master Table state', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          class_id: 1,
+          class_name: '34A',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
+          teacher_id: 10,
+          teacher_name: 'GV A',
+          teacher_email: 'a@izone.edu.vn',
+        },
+      ])
+      .mockResolvedValueOnce([snapshotRow(1, '2026-08-12', 10, 10)])
+      .mockResolvedValueOnce([
+        metricRow(1, '2026-08-12', 10, 86, 82, 4, 2),
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    const result = await service.getLeadDashboard(
+      { courseId: '2', khoiId: '34', period: '2026-07' },
+      leadUser,
+    );
+
+    expect(result.meta.hasDataForPeriod).toBe(false);
+    expect(result.kpis.attendanceAvg.value).toBeNull();
+    expect(result.kpis.passStandardRate.value).toBeNull();
+    expect(result.trend).toEqual([]);
+    expect(result.classes[0].attendanceAvg).toBe(86);
+  });
+
   it('returns every student and derives exclusive Teacher action counts', async () => {
     const queryRaw = jest
       .fn()
