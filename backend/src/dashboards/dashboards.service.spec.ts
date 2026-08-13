@@ -315,4 +315,113 @@ describe('DashboardsService', () => {
       1,
     );
   });
+
+  it('falls back an empty-string last_checkpoint to the latest confirmed test name, not to Chưa có test', async () => {
+    // last_checkpoint = '' (not null) is what the DB actually stores for a
+    // student without a saved checkpoint. `??` would keep '' as-is because
+    // '' is not null/undefined; only `||` falls through past it. This test
+    // fails under `??` and passes under `||`, proving the fix stays fixed.
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          class_id: 5000,
+          class_name: '34Z-5000',
+          course_id: 2,
+          status: 'on_going',
+          schedule: 'T2-T4',
+          location: 'Online',
+          portal_url: null,
+          teacher_id: 1002,
+          teacher_name: 'GV A',
+          teacher_email: 'gv@izone.edu.vn',
+          completed_sessions: 10,
+          total_sessions: 28,
+          progress_pct: 35.71,
+          active_students: 1,
+          on_hold_students: 0,
+          dropped_students: 0,
+          transferred_students: 0,
+          snapshot_date: '2026-08-12',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          config_key: 'nguong_xam_max',
+          config_value: '45',
+          updated_at: '2026-08-11T00:00:00Z',
+        },
+        {
+          config_key: 'nguong_do_max',
+          config_value: '60',
+          updated_at: '2026-08-11T00:00:00Z',
+        },
+        {
+          config_key: 'pass_dh_min',
+          config_value: '90',
+          updated_at: '2026-08-11T00:00:00Z',
+        },
+        {
+          config_key: 'pass_btvn_min',
+          config_value: '90',
+          updated_at: '2026-08-11T00:00:00Z',
+        },
+        {
+          config_key: 'review_deadline_days',
+          config_value: '7',
+          updated_at: '2026-08-11T00:00:00Z',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          student_id: 1,
+          full_name: 'Student Empty Checkpoint',
+          phone: '0901',
+          email: null,
+          registration_status: 'on_going',
+          admitted_at: '2026-01-01',
+          record_date: '2026-08-12',
+          attendance_pct: 95,
+          attendance_present: 19,
+          attendance_total: 20,
+          homework_pct: 95,
+          homework_done: 19,
+          homework_total: 20,
+          test_average: 80,
+          flag_attendance_drop: false,
+          flag_homework_drop: false,
+          last_checkpoint: '',
+          pass_chuan_status: 'not_met',
+          pass_chuan_reasons: '',
+          pass_mem_status: '',
+          pass_mem_group: '',
+          teacher_feedback_btvn: '',
+          teacher_feedback_orient: '',
+          teacher_note: '',
+          scraped_at: '2026-08-12T03:00:00Z',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          student_id: 1,
+          test_order: 3,
+          test_name: 'Test 3',
+          raw_score: 80,
+          makeup_score: null,
+          final_score: 80,
+          is_makeup: false,
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    const result = await service.getTeacherDashboard(5000, '2026-08-12', {
+      ...leadUser,
+      role: 'teacher',
+      classIds: [5000],
+    });
+
+    expect(result.students[0].actionState.checkpoint).toBe('Test 3');
+  });
 });

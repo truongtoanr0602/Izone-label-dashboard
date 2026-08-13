@@ -211,11 +211,29 @@ export class DashboardsService {
       SELECT DISTINCT ON (r.student_id, r.class_id)
              r.student_id, r.class_id, r.attendance_pct, r.homework_pct,
              r.test_average, r.flag_attendance_drop, r.flag_homework_drop,
-             r.last_checkpoint, s.registration_status
+             r.last_checkpoint, s.registration_status,
+             COALESCE(ts.test_name, 'Test ' || ts.test_order) AS latest_test_name
       FROM izone.student_daily_records r
       JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      /*
+       * LEFT JOIN LATERAL ... LIMIT 1, KHÔNG được join thẳng: test_scores có
+       * thể nhiều dòng cho một (student, class) — gốc + phúc khảo, nhiều mốc
+       * test — join thẳng sẽ nhân dòng r lên và phá vỡ DISTINCT ON bên dưới.
+       * Lấy đúng MỘT dòng: mốc test mới nhất đã confirmed, ưu tiên dòng gốc
+       * khi cùng mốc — mirror scores.at(-1)?.testName mà groupTests() tính
+       * cho Teacher dashboard.
+       */
+      LEFT JOIN LATERAL (
+        SELECT ts.test_name, ts.test_order
+        FROM izone.test_scores ts
+        WHERE ts.student_id = r.student_id
+          AND ts.class_id = r.class_id
+          AND ts.grade_status = 'confirmed'
+        ORDER BY ts.test_order DESC, ts.is_makeup ASC
+        LIMIT 1
+      ) ts ON TRUE
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
@@ -287,8 +305,17 @@ export class DashboardsService {
            * `||` chứ không phải `??`: last_checkpoint trong DB dùng CHUỖI RỖNG
            * cho HV chưa có test (35/228 HV ngày 12/08), không phải NULL. Dùng
            * `??` thì checkpoint thành '' và không khớp được contact_logs.
+           *
+           * latest_test_name (từ LEFT JOIN LATERAL test_scores phía trên)
+           * mirror đúng `scores.at(-1)?.testName` mà Teacher dashboard dùng.
+           * Thiếu fallback này thì ~23-24 HV có last_checkpoint rỗng NHƯNG đã
+           * có điểm test confirmed sẽ luôn lệch mốc: Teacher ra tên test
+           * thật (vd 'Test 5'), Lead ra thẳng 'Chưa có test' — episode của
+           * họ vĩnh viễn không khớp được contact_logs (GV ghi log mang mốc
+           * của Teacher).
            */
-          checkpoint: row.last_checkpoint || 'Chưa có test',
+          checkpoint:
+            row.last_checkpoint || row.latest_test_name || 'Chưa có test',
         };
       }),
       contactLogRows.map((row): CoverageLog => ({
