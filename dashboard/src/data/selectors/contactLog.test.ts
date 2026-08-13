@@ -40,13 +40,12 @@ function student(
 
   return {
     studentId,
-    studentCode: `HV${studentId}`,
     fullName: `Học viên ${studentId}`,
     phone: '0900000000',
     email: 'a@b.c',
     classId: 1,
     className: 'IC0001',
-    registrationStatus: over.registrationStatus ?? 'active',
+    registrationStatus: over.registrationStatus ?? 'on_going',
     admittedAt: '2026-01-01',
     targetOutputStatus: 'Chưa đạt',
     attendance: {
