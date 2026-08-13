@@ -33,6 +33,7 @@ import {
   type ResolvedClassObservation,
   type StudentMetricEvidence,
 } from './snapshot-quality';
+import { resolveCountMetric } from './student-metrics';
 import type {
   DashboardMetric,
   LeadDashboardQuery,
@@ -199,50 +200,56 @@ export class DashboardsService {
     const configRows = await this.prisma.$queryRaw<any[]>`
       SELECT config_key, config_value
       FROM izone.system_configs
-      WHERE config_key IN ('nguong_xam_max', 'nguong_do_max', 'pass_dh_min', 'pass_btvn_min')
+      WHERE config_key IN (
+        'nguong_xam_max', 'nguong_do_max', 'pass_dh_min', 'pass_btvn_min',
+        'test_makeup_rule'
+      )
     `;
 
     /*
      * Dòng live của HV đang học tại mốc hiện tại — dùng để phân loại mức can
-     * thiệp cho từng HV, từ đó ra mẫu số của độ phủ liên hệ. Khoảng 264 dòng
+     * thiệp cho từng HV, từ đó ra mẫu số của độ phủ liên hệ. Phải khớp cả
+     * s.class_id = r.class_id để loại record lịch sử ở lớp cũ của HV đã chuyển
+     * lớp; Teacher dashboard đọc roster hiện tại theo students.class_id nên
+     * thiếu điều kiện này sẽ làm mẫu số Lead lớn hơn Teacher. Khoảng 264 dòng
      * cho toàn khối nên không cần phân trang.
      */
     const coverageStudentRows = await this.prisma.$queryRaw<any[]>`
       SELECT DISTINCT ON (r.student_id, r.class_id)
-             r.student_id, r.class_id, r.attendance_pct, r.homework_pct,
+             r.student_id, r.class_id,
+             r.attendance_pct, r.attendance_present, r.attendance_total,
+             r.homework_pct, r.homework_done, r.homework_total,
              r.test_average, r.flag_attendance_drop, r.flag_homework_drop,
-             r.last_checkpoint, s.registration_status,
-             COALESCE(ts.test_name, 'Test ' || ts.test_order) AS latest_test_name
+             s.registration_status
       FROM izone.student_daily_records r
       JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      /*
-       * LEFT JOIN LATERAL ... LIMIT 1, KHÔNG được join thẳng: test_scores có
-       * thể nhiều dòng cho một (student, class) — gốc + phúc khảo, nhiều mốc
-       * test — join thẳng sẽ nhân dòng r lên và phá vỡ DISTINCT ON bên dưới.
-       * Lấy đúng MỘT dòng: mốc test mới nhất đã confirmed, ưu tiên dòng gốc
-       * khi cùng mốc — mirror scores.at(-1)?.testName mà groupTests() tính
-       * cho Teacher dashboard.
-       */
-      LEFT JOIN LATERAL (
-        SELECT ts.test_name, ts.test_order
-        FROM izone.test_scores ts
-        WHERE ts.student_id = r.student_id
-          AND ts.class_id = r.class_id
-          AND ts.grade_status = 'confirmed'
-        ORDER BY ts.test_order DESC, ts.is_makeup ASC
-        LIMIT 1
-      ) ts ON TRUE
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status = ${classStatus}
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
+        AND s.class_id = r.class_id
         AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
       ORDER BY r.student_id, r.class_id, r.record_date DESC
+    `;
+
+    const coverageTestRows = await this.prisma.$queryRaw<any[]>`
+      SELECT ts.student_id, ts.class_id, ts.test_order, ts.test_name,
+             ts.raw_score, ts.makeup_score, ts.final_score, ts.is_makeup
+      FROM izone.test_scores ts
+      JOIN izone.classes c ON c.class_id = ts.class_id
+      JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+        AND t.khoi_id = ${khoiId}
+        AND c.status = ${classStatus}
+        AND ts.grade_status = 'confirmed'
+        AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
+        AND (${classId}::integer IS NULL OR c.class_id = ${classId})
+      ORDER BY ts.student_id, ts.test_order, ts.is_makeup
     `;
 
     const contactLogRows = await this.prisma.$queryRaw<any[]>`
@@ -282,15 +289,60 @@ export class DashboardsService {
         DEFAULT_DASHBOARD_THRESHOLDS.homeworkMin,
       ),
     };
+    const coverageTestsByStudentClass = this.groupTestsByStudentClass(
+      coverageTestRows,
+      String(coverageConfig.get('test_makeup_rule') ?? 'max'),
+    );
+    const checkpointByClass = new Map<
+      number,
+      { order: number; name: string }
+    >();
+    for (const row of coverageTestRows) {
+      const classId = Number(row.class_id);
+      const order = Number(row.test_order ?? 0);
+      const current = checkpointByClass.get(classId);
+      if (!current || order > current.order) {
+        checkpointByClass.set(classId, {
+          order,
+          name: String(row.test_name || `Test ${order}`),
+        });
+      }
+    }
 
     const coverageByClass = contactCoverageByClass(
       coverageStudentRows.map((row): CoverageStudent => {
+        const scores =
+          coverageTestsByStudentClass.get(
+            `${Number(row.student_id)}:${Number(row.class_id)}`,
+          ) ?? [];
+        const scoredTests = scores.filter((score) => score.finalScore !== null);
+        const computedTestAverage =
+          scoredTests.length === 0
+            ? null
+            : Math.round(
+                (scoredTests.reduce(
+                  (sum, score) => sum + Number(score.finalScore),
+                  0,
+                ) /
+                  scoredTests.length) *
+                  10,
+              ) / 10;
+        const attendance = resolveCountMetric({
+          done: this.nullableNumber(row.attendance_present),
+          total: this.nullableNumber(row.attendance_total),
+          sourcePercentage: this.nullableNumber(row.attendance_pct),
+        });
+        const homework = resolveCountMetric({
+          done: this.nullableNumber(row.homework_done),
+          total: this.nullableNumber(row.homework_total),
+          sourcePercentage: this.nullableNumber(row.homework_pct),
+        });
         const classification = classifyStudent(
           {
             registrationStatus: row.registration_status,
-            attendancePct: this.nullableNumber(row.attendance_pct),
-            homeworkPct: this.nullableNumber(row.homework_pct),
-            testAverage: this.nullableNumber(row.test_average),
+            attendancePct: attendance.percentage,
+            homeworkPct: homework.percentage,
+            testAverage: computedTestAverage,
             flagAttendanceDrop: Boolean(row.flag_attendance_drop),
             flagHomeworkDrop: Boolean(row.flag_homework_drop),
           },
@@ -301,21 +353,8 @@ export class DashboardsService {
           classId: Number(row.class_id),
           messageTemplateKey:
             classification.recommendedAction.messageTemplateKey,
-          /*
-           * `||` chứ không phải `??`: last_checkpoint trong DB dùng CHUỖI RỖNG
-           * cho HV chưa có test (35/228 HV ngày 12/08), không phải NULL. Dùng
-           * `??` thì checkpoint thành '' và không khớp được contact_logs.
-           *
-           * latest_test_name (từ LEFT JOIN LATERAL test_scores phía trên)
-           * mirror đúng `scores.at(-1)?.testName` mà Teacher dashboard dùng.
-           * Thiếu fallback này thì ~23-24 HV có last_checkpoint rỗng NHƯNG đã
-           * có điểm test confirmed sẽ luôn lệch mốc: Teacher ra tên test
-           * thật (vd 'Test 5'), Lead ra thẳng 'Chưa có test' — episode của
-           * họ vĩnh viễn không khớp được contact_logs (GV ghi log mang mốc
-           * của Teacher).
-           */
           checkpoint:
-            row.last_checkpoint || row.latest_test_name || 'Chưa có test',
+            checkpointByClass.get(Number(row.class_id))?.name ?? 'Chưa có test',
         };
       }),
       contactLogRows.map((row): CoverageLog => ({
@@ -362,7 +401,6 @@ export class DashboardsService {
       row.date.startsWith(calendar.previousAsOf.slice(0, 7)),
     );
     const momentum = calculateNetMomentum(selectedTransitions);
-    const previousMomentum = calculateNetMomentum(previousTransitions);
     const previousMomentumClassIds = new Set(
       previousTransitions.map((row) => row.classId),
     );
@@ -586,6 +624,18 @@ export class DashboardsService {
       testRows,
       String(config.get('test_makeup_rule') ?? 'max'),
     );
+    const contactCheckpoint = testRows.reduce(
+      (latest, row) => {
+        const order = Number(row.test_order ?? 0);
+        return order > latest.order
+          ? {
+              order,
+              name: String(row.test_name || `Test ${order}`),
+            }
+          : latest;
+      },
+      { order: 0, name: 'Chưa có test' },
+    ).name;
     const reviewsByStudent = new Map(
       reviewRows.map((row) => [Number(row.student_id), row]),
     );
@@ -609,13 +659,22 @@ export class DashboardsService {
                 scoredTests.length) *
                 10,
             ) / 10;
-      const testAverage =
-        computedTestAverage ?? this.nullableNumber(row.test_average);
+      const testAverage = computedTestAverage;
+      const attendance = resolveCountMetric({
+        done: this.nullableNumber(row.attendance_present),
+        total: this.nullableNumber(row.attendance_total),
+        sourcePercentage: this.nullableNumber(row.attendance_pct),
+      });
+      const homework = resolveCountMetric({
+        done: this.nullableNumber(row.homework_done),
+        total: this.nullableNumber(row.homework_total),
+        sourcePercentage: this.nullableNumber(row.homework_pct),
+      });
       const classification = classifyStudent(
         {
           registrationStatus,
-          attendancePct: this.nullableNumber(row.attendance_pct),
-          homeworkPct: this.nullableNumber(row.homework_pct),
+          attendancePct: attendance.percentage,
+          homeworkPct: homework.percentage,
           testAverage,
           flagAttendanceDrop: Boolean(row.flag_attendance_drop),
           flagHomeworkDrop: Boolean(row.flag_homework_drop),
@@ -623,22 +682,29 @@ export class DashboardsService {
         thresholds,
       );
       const review = reviewsByStudent.get(Number(row.student_id));
-      /*
-       * `||` chứ không phải `??`: last_checkpoint trong DB dùng CHUỖI RỖNG cho
-       * HV chưa có test (35/228 HV ngày 12/08), không phải NULL. Dùng `??` thì
-       * checkpoint thành '' và không khớp được contact_logs.
-       */
-      const checkpoint =
-        row.last_checkpoint || scores.at(-1)?.testName || 'Chưa có test';
       const trigger = classification.recommendedAction.messageTemplateKey;
       const contact = (
         contactsByStudent.get(Number(row.student_id)) ?? []
       ).find(
         (item) =>
-          item.trigger_type === trigger && item.checkpoint === checkpoint,
+          item.trigger_type === trigger &&
+          item.checkpoint === contactCheckpoint,
       );
       const warnings: string[] = [];
+      if (!attendance.invalidCounts && attendance.percentage === null)
+        warnings.push('MISSING_ATTENDANCE_DATA');
+      if (attendance.invalidCounts) warnings.push('INVALID_ATTENDANCE_COUNTS');
+      if (attendance.sourceMismatch)
+        warnings.push('ATTENDANCE_SOURCE_PERCENT_MISMATCH');
+      if (!homework.invalidCounts && homework.percentage === null)
+        warnings.push('MISSING_HOMEWORK_DATA');
+      if (homework.invalidCounts) warnings.push('INVALID_HOMEWORK_COUNTS');
+      if (homework.sourceMismatch)
+        warnings.push('HOMEWORK_SOURCE_PERCENT_MISMATCH');
       const snapshotAverage = this.nullableNumber(row.test_average);
+      if (computedTestAverage === null && snapshotAverage !== null) {
+        warnings.push('TEST_AVERAGE_WITHOUT_CONFIRMED_SCORE');
+      }
       if (
         computedTestAverage !== null &&
         snapshotAverage !== null &&
@@ -655,13 +721,13 @@ export class DashboardsService {
         registrationStatus,
         recordDate: row.record_date ? this.isoDate(row.record_date) : null,
         attendance: {
-          percentage: this.nullableNumber(row.attendance_pct),
+          percentage: attendance.percentage,
           present: this.nullableNumber(row.attendance_present),
           total: this.nullableNumber(row.attendance_total),
           isDropping: Boolean(row.flag_attendance_drop),
         },
         homework: {
-          percentage: this.nullableNumber(row.homework_pct),
+          percentage: homework.percentage,
           completed: this.nullableNumber(row.homework_done),
           total: this.nullableNumber(row.homework_total),
           isDropping: Boolean(row.flag_homework_drop),
@@ -685,7 +751,7 @@ export class DashboardsService {
               : contact
                 ? 'contacted'
                 : 'pending',
-          checkpoint,
+          checkpoint: contactCheckpoint,
           lastContactedAt: contact
             ? this.isoTimestamp(contact.created_at)
             : null,
@@ -741,7 +807,10 @@ export class DashboardsService {
             .sort()
             .at(-1) ?? null,
       },
-      classHeader: this.mapClassHeader(classRow, students.length),
+      classHeader: {
+        ...this.mapClassHeader(classRow, students.length),
+        contactCheckpoint,
+      },
       actionSummary: {
         level1: {
           count: countLevel('level_1'),
@@ -1309,6 +1378,24 @@ export class DashboardsService {
           };
         });
       result.set(studentId, scores);
+    }
+    return result;
+  }
+
+  private groupTestsByStudentClass(rows: any[], rule: string) {
+    const rowsByStudentClass = new Map<string, any[]>();
+    for (const row of rows) {
+      const key = `${Number(row.student_id)}:${Number(row.class_id)}`;
+      rowsByStudentClass.set(key, [
+        ...(rowsByStudentClass.get(key) ?? []),
+        row,
+      ]);
+    }
+
+    const result = new Map<string, Array<any>>();
+    for (const [key, scopedRows] of rowsByStudentClass) {
+      const studentId = Number(scopedRows[0].student_id);
+      result.set(key, this.groupTests(scopedRows, rule).get(studentId) ?? []);
     }
     return result;
   }

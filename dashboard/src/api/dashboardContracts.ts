@@ -180,6 +180,7 @@ export interface TeacherDashboardResponse {
     schedule: string | null;
     location: string | null;
     portalUrl: string | null;
+    contactCheckpoint: string;
     teacher: { teacherId: number; fullName: string; email: string };
     progress: { completedSessions: number; totalSessions: number; percentage: number | null };
     studentCounts: { total: number; active: number; onHold: number; dropped: number; transferred: number };
@@ -272,6 +273,7 @@ export function adaptTeacherStudent(
     classId,
     className,
     registrationStatus: student.registrationStatus,
+    recordDate: student.recordDate,
     admittedAt: '',
     targetOutputStatus: 'Chưa đạt',
     attendance: {
@@ -304,6 +306,7 @@ export function adaptTeacherStudent(
     },
     interventionLevel: student.interventionLevel,
     issues: student.issues,
+    dataQuality: student.dataQuality,
     evaluation: {
       riskScore: student.recommendedAction.priority * (100 / 3),
       suggestedAction:

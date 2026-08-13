@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Draft for user review
+**Status:** Approved and implemented in the isolated worktree; production data repair remains pending explicit approval
 
 **Amends:** `report/2026-08-12-screen-contract-data-flow-design.md` and the in-progress `fix/teacher-dashboard-data` work
 

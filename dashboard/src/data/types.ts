@@ -30,6 +30,7 @@ export interface StudentDetail {
   classId: number;
   className: string;
   registrationStatus: 'on_going' | 'transferred' | 'pending' | 'on_hold' | 'cancelled' | 'completed' | 'dropped' | 'not_completed' | 'queuing';
+  recordDate: string | null;
   admittedAt: string;
   targetOutputStatus: 'Chưa đạt' | 'Đạt';
   attendance: {
@@ -68,6 +69,10 @@ export interface StudentDetail {
     actual: number | null;
     threshold: number | null;
   }>;
+  dataQuality: {
+    status: 'complete' | 'warning';
+    warnings: string[];
+  };
   evaluation: {
     riskScore: number; // 0 to 100
     suggestedAction: 'call_parent' | 'assign_hw' | 'review_pass' | 'none';

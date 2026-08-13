@@ -148,6 +148,7 @@ function mapStudentDetail(data: any): StudentDetail {
     classId: data.class_id || 0,
     className: data.class_name || '',
     registrationStatus: data.registration_status,
+    recordDate: data.record_date ?? null,
     admittedAt: data.admitted_at,
     targetOutputStatus: 'Chưa đạt',
     attendance: {
@@ -185,6 +186,7 @@ function mapStudentDetail(data: any): StudentDetail {
       changeDirection: 'same',
       lastCheckpoint: data.last_checkpoint || '',
     },
+    dataQuality: { status: 'complete', warnings: [] },
     evaluation: {
       riskScore: 0,
       suggestedAction: 'none',

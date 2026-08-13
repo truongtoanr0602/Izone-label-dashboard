@@ -145,6 +145,8 @@ describe('dashboard screen-contract adapters', () => {
     expect(adapted.labeling.currentLabel).toBe('grey');
     expect(adapted.interventionLevel).toBe('level_3');
     expect(adapted.evaluation.riskScore).toBe(100);
+    expect(adapted.recordDate).toBe('2026-08-12');
+    expect(adapted.dataQuality).toEqual({ status: 'complete', warnings: [] });
   });
 
   it('keeps missing Teacher measurements null instead of inventing zero', () => {

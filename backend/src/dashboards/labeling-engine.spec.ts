@@ -31,18 +31,39 @@ describe('classifyStudent', () => {
     },
   );
 
-  it('classifies a fully passing student as green without intervention', () => {
+  it('keeps a fully passing student yellow without intervention', () => {
     const result = classifyStudent(
       { ...activeStudent, testAverage: 60, attendancePct: 90, homeworkPct: 90 },
       DEFAULT_DASHBOARD_THRESHOLDS,
     );
 
     expect(result).toMatchObject({
-      label: 'green',
+      label: 'yellow',
       interventionLevel: 'none',
       recommendedAction: { code: 'NONE', priority: 0 },
       issues: [],
     });
+  });
+
+  it('keeps a passing Test label when homework data is missing', () => {
+    const result = classifyStudent(
+      { ...activeStudent, testAverage: 88.75, homeworkPct: null },
+      DEFAULT_DASHBOARD_THRESHOLDS,
+    );
+
+    expect(result).toMatchObject({
+      label: 'yellow',
+      interventionLevel: 'none',
+      recommendedAction: { code: 'NONE', priority: 0 },
+    });
+    expect(result.issues).toEqual([
+      {
+        code: 'MISSING_HOMEWORK_DATA',
+        metric: 'homeworkPct',
+        actual: null,
+        threshold: null,
+      },
+    ]);
   });
 
   it('classifies passing test data with weak habits as level 1', () => {
@@ -105,5 +126,26 @@ describe('classifyStudent', () => {
     expect(result.issues.map((issue) => issue.code)).toContain(
       'MISSING_TEST_DATA',
     );
+  });
+
+  it('keeps a missing-test student no_data while opening a habit intervention', () => {
+    const result = classifyStudent(
+      {
+        ...activeStudent,
+        attendancePct: 70,
+        homeworkPct: 80,
+        testAverage: null,
+      },
+      DEFAULT_DASHBOARD_THRESHOLDS,
+    );
+
+    expect(result).toMatchObject({
+      label: 'no_data',
+      interventionLevel: 'level_1',
+      recommendedAction: {
+        code: 'REMIND_STUDY_HABIT',
+        messageTemplateKey: 'habit_reminder',
+      },
+    });
   });
 });

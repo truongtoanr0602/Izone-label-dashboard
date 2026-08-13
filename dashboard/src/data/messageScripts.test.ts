@@ -23,6 +23,7 @@ function student(over: {
     classId: 1,
     className: 'IC0001',
     registrationStatus: 'on_going',
+    recordDate: '2026-08-12',
     admittedAt: '2026-01-01',
     targetOutputStatus: 'Chưa đạt',
     attendance: {
@@ -53,6 +54,7 @@ function student(over: {
       changeDirection: 'same',
       lastCheckpoint: 'Test 4',
     },
+    dataQuality: { status: 'complete', warnings: [] },
     evaluation: {
       riskScore: 70,
       suggestedAction: 'none',
@@ -95,6 +97,60 @@ describe('buildZaloMessage — ràng buộc chung cho mọi kịch bản', () =>
     const msg = buildZaloMessage(trigger, student({ attendance: 72, homework: 65 }), 'Ngọc Anh', 'IC2174');
     expect(msg).toContain('72%');
     expect(msg).toContain('65%');
+  });
+
+  it('không in null% khi chỉ số hiện tại chưa có mẫu số', () => {
+    const noMeasurement = student();
+    noMeasurement.attendance = {
+      percentage: null,
+      presentSessions: 0,
+      totalSessions: 0,
+      isDroppingRecently: false,
+    };
+    noMeasurement.homework = {
+      percentage: null,
+      completedCount: 0,
+      totalCount: 0,
+      isDroppingRecently: false,
+    };
+
+    const msg = buildZaloMessage(
+      'red_followup',
+      noMeasurement,
+      'Ngọc Anh',
+      'IC2174',
+    );
+
+    expect(msg).toContain('Đi học: — (0/0 buổi)');
+    expect(msg).toContain('BTVN: — (0/0 bài)');
+    expect(msg).not.toContain('null%');
+  });
+
+  it('không biến số đếm nguồn bị thiếu thành 0/0', () => {
+    const noSnapshot = student();
+    noSnapshot.attendance = {
+      percentage: null,
+      presentSessions: null,
+      totalSessions: null,
+      isDroppingRecently: false,
+    };
+    noSnapshot.homework = {
+      percentage: null,
+      completedCount: null,
+      totalCount: null,
+      isDroppingRecently: false,
+    };
+
+    const msg = buildZaloMessage(
+      'red_followup',
+      noSnapshot,
+      'Ngọc Anh',
+      'IC2174',
+    );
+
+    expect(msg).toContain('Đi học: — (—/— buổi)');
+    expect(msg).toContain('BTVN: — (—/— bài)');
+    expect(msg).not.toContain('(0/0');
   });
 });
 

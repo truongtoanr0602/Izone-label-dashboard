@@ -24,9 +24,17 @@ const PASS_THRESHOLD_PCT = 90;
 
 /** Ba dòng "nhịp tim" của học viên, dùng chung cho mọi kịch bản. */
 function statsBlock(s: StudentDetail): string {
+  const attendanceText =
+    s.attendance.percentage === null ? '—' : `${s.attendance.percentage}%`;
+  const homeworkText =
+    s.homework.percentage === null ? '—' : `${s.homework.percentage}%`;
+  const attendancePresent = s.attendance.presentSessions ?? '—';
+  const attendanceTotal = s.attendance.totalSessions ?? '—';
+  const homeworkCompleted = s.homework.completedCount ?? '—';
+  const homeworkTotal = s.homework.totalCount ?? '—';
   const lines = [
-    `• Đi học: ${s.attendance.percentage}% (${s.attendance.presentSessions}/${s.attendance.totalSessions} buổi)`,
-    `• BTVN: ${s.homework.percentage}% (${s.homework.completedCount}/${s.homework.totalCount} bài)`,
+    `• Đi học: ${attendanceText} (${attendancePresent}/${attendanceTotal} buổi)`,
+    `• BTVN: ${homeworkText} (${homeworkCompleted}/${homeworkTotal} bài)`,
   ];
 
   // Chưa thi bài nào thì KHÔNG bịa ra dòng điểm — thà thiếu còn hơn nói sai

@@ -186,24 +186,25 @@ export function classifyStudent(
   let label: SystemLabel = 'no_data';
   let interventionLevel: InterventionLevel = 'none';
 
-  if (input.testAverage !== null && input.testAverage < thresholds.greyMax) {
+  if (input.testAverage === null) {
+    label = 'no_data';
+  } else if (input.testAverage < thresholds.greyMax) {
     label = 'grey';
+  } else if (input.testAverage < thresholds.redMax) {
+    label = 'red';
+  } else {
+    label = 'yellow';
+  }
+
+  if (input.testAverage !== null && input.testAverage < thresholds.greyMax) {
     interventionLevel = isActive ? 'level_3' : 'none';
   } else if (
     input.testAverage !== null &&
     input.testAverage < thresholds.redMax
   ) {
-    label = 'red';
     interventionLevel = isActive ? 'level_2' : 'none';
   } else if (habitIssue) {
-    label = 'yellow';
     interventionLevel = isActive ? 'level_1' : 'none';
-  } else if (
-    input.testAverage !== null &&
-    input.attendancePct !== null &&
-    input.homeworkPct !== null
-  ) {
-    label = 'green';
   }
 
   const actionKey = !isActive

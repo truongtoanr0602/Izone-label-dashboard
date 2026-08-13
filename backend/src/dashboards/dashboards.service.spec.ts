@@ -155,18 +155,14 @@ describe('DashboardsService', () => {
       ]) // configRows (coverage thresholds)
       .mockResolvedValueOnce([
         {
-          // last_checkpoint is '' (the real DB empty-string case, not null) and
-          // latest_test_name comes from the LEFT JOIN LATERAL against
-          // test_scores added in Finding 1's fix. This row only exercises that
-          // fallback path if the checkpoint mapping actually reads
-          // row.latest_test_name — reverting that line back to
-          // `row.last_checkpoint || 'Chưa có test'` makes this student's
-          // derived checkpoint 'Chưa có test' instead of 'Test 5', the log
-          // below stops matching, and the assertion on contactCoverage fails.
           student_id: 500,
           class_id: 1,
-          attendance_pct: 50, // below attendanceMin (90) -> habit_reminder
+          attendance_pct: 95,
+          attendance_present: 1,
+          attendance_total: 2,
           homework_pct: 95,
+          homework_done: 19,
+          homework_total: 20,
           test_average: 90,
           flag_attendance_drop: false,
           flag_homework_drop: false,
@@ -174,13 +170,64 @@ describe('DashboardsService', () => {
           registration_status: 'on_going',
           latest_test_name: 'Test 5',
         },
+        {
+          // No confirmed Test row exists for this student. A stale aggregate
+          // in student_daily_records must not manufacture a grey episode.
+          student_id: 502,
+          class_id: 1,
+          attendance_pct: 100,
+          attendance_present: 10,
+          attendance_total: 10,
+          homework_pct: 100,
+          homework_done: 10,
+          homework_total: 10,
+          test_average: 40,
+          flag_attendance_drop: false,
+          flag_homework_drop: false,
+          last_checkpoint: 'Test 1',
+          registration_status: 'on_going',
+        },
       ]) // coverageStudentRows
       .mockResolvedValueOnce([
         {
           student_id: 500,
           class_id: 1,
+          test_order: 5,
+          test_name: 'Test 5',
+          raw_score: 90,
+          makeup_score: null,
+          final_score: 90,
+          is_makeup: false,
+        },
+        {
+          // Historical score from Student 500's former class must not enter
+          // the current-class label/intervention calculation.
+          student_id: 500,
+          class_id: 2,
+          test_order: 6,
+          test_name: 'Test 6',
+          raw_score: 20,
+          makeup_score: null,
+          final_score: 20,
+          is_makeup: false,
+        },
+        {
+          student_id: 501,
+          class_id: 1,
+          test_order: 6,
+          test_name: 'Test 6',
+          raw_score: 80,
+          makeup_score: null,
+          final_score: 80,
+          is_makeup: false,
+        },
+      ]) // coverageTestRows: Test 6 is the checkpoint for the whole class
+      .mockResolvedValueOnce([
+        {
+          student_id: 500,
+          class_id: 1,
           trigger_type: 'habit_reminder',
-          checkpoint: 'Test 5',
+          checkpoint: 'Test 6',
         },
       ]); // contactLogRows
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
@@ -203,9 +250,9 @@ describe('DashboardsService', () => {
     expect(result.classes[0].progress.completedSessions).toBe(10);
     expect(result.classes[0].attendanceAvg).toBe(80);
     expect(result.classes[0].dataQuality.status).toBe('fallback');
-    // Student 500's episode (habit_reminder / 'Test 5') is closed by the
-    // contact log above ONLY if the checkpoint mapping resolved '' through
-    // latest_test_name to 'Test 5' rather than stopping at 'Chưa có test'.
+    // Counts (1/2), not the stale 95% source field, open Student 500's habit
+    // episode. Student 501's newer Test 6 establishes the checkpoint for the
+    // whole class, so the Teacher-written Test 6 contact closes it on Lead.
     expect(result.classes[0].contactCoverage).toEqual({
       done: 1,
       total: 1,
@@ -218,6 +265,11 @@ describe('DashboardsService', () => {
       total: 0,
       pct: null,
     });
+    const queryCalls = queryRaw.mock.calls as unknown as Array<
+      [TemplateStringsArray, ...unknown[]]
+    >;
+    const coverageStudentSql = Array.from(queryCalls[5][0]).join('?');
+    expect(coverageStudentSql).toMatch(/s\.class_id\s*=\s*r\.class_id/i);
   });
 
   it('returns every student and derives exclusive Teacher action counts', async () => {
@@ -281,10 +333,10 @@ describe('DashboardsService', () => {
           registration_status: 'on_going',
           admitted_at: '2026-01-01',
           record_date: '2026-08-12',
-          attendance_pct: 80,
+          attendance_pct: 37.5,
           attendance_present: 8,
           attendance_total: 10,
-          homework_pct: 80,
+          homework_pct: 28.57,
           homework_done: 8,
           homework_total: 10,
           test_average: 40,
@@ -327,6 +379,33 @@ describe('DashboardsService', () => {
           teacher_note: null,
           scraped_at: null,
         },
+        {
+          student_id: 3,
+          full_name: 'Student With Stale Stored Average',
+          phone: null,
+          email: null,
+          registration_status: 'on_going',
+          admitted_at: '2026-01-03',
+          record_date: '2026-08-12',
+          attendance_pct: 100,
+          attendance_present: 10,
+          attendance_total: 10,
+          homework_pct: 100,
+          homework_done: 10,
+          homework_total: 10,
+          test_average: 90,
+          flag_attendance_drop: false,
+          flag_homework_drop: false,
+          last_checkpoint: 'Test 1',
+          pass_chuan_status: null,
+          pass_chuan_reasons: null,
+          pass_mem_status: null,
+          pass_mem_group: null,
+          teacher_feedback_btvn: null,
+          teacher_feedback_orient: null,
+          teacher_note: null,
+          scraped_at: '2026-08-12T03:00:00Z',
+        },
       ])
       .mockResolvedValueOnce([
         {
@@ -347,6 +426,15 @@ describe('DashboardsService', () => {
           final_score: 35,
           is_makeup: true,
         },
+        {
+          student_id: 2,
+          test_order: 1,
+          test_name: 'Test 1',
+          raw_score: 88.75,
+          makeup_score: null,
+          final_score: 88.75,
+          is_makeup: false,
+        },
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -358,19 +446,41 @@ describe('DashboardsService', () => {
       classIds: [1159],
     });
 
-    expect(result.students).toHaveLength(2);
+    expect(result.students).toHaveLength(3);
     expect(result.students[0]).toMatchObject({
       label: 'grey',
       interventionLevel: 'level_3',
+      attendance: { percentage: 80, present: 8, total: 10 },
+      homework: { percentage: 80, completed: 8, total: 10 },
+      actionState: { checkpoint: 'Test 1' },
+      dataQuality: {
+        status: 'warning',
+        warnings: [
+          'ATTENDANCE_SOURCE_PERCENT_MISMATCH',
+          'HOMEWORK_SOURCE_PERCENT_MISMATCH',
+        ],
+      },
     });
+    expect(result.classHeader.contactCheckpoint).toBe('Test 1');
     expect(result.students[0].tests.average).toBe(40);
     expect(result.students[0].issues).toHaveLength(3);
     expect(result.students[1]).toMatchObject({
+      label: 'yellow',
+      interventionLevel: 'none',
+      attendance: { percentage: null, present: null, total: null },
+      homework: { percentage: null, completed: null, total: null },
+      dataQuality: {
+        status: 'warning',
+        warnings: ['MISSING_ATTENDANCE_DATA', 'MISSING_HOMEWORK_DATA'],
+      },
+    });
+    expect(result.students[2]).toMatchObject({
       label: 'no_data',
       interventionLevel: 'none',
+      tests: { average: null, scores: [] },
     });
     expect(result.actionSummary.level3.count).toBe(1);
-    expect(result.tabs.all).toBe(2);
+    expect(result.tabs.all).toBe(3);
     expect(result.tabs.level1 + result.tabs.level2 + result.tabs.level3).toBe(
       1,
     );
@@ -524,7 +634,10 @@ describe('DashboardsService', () => {
       classIds: [5000],
     });
 
-    const studentRowsStrings = queryRaw.mock.calls[2][0] as TemplateStringsArray;
+    const queryCalls = queryRaw.mock.calls as unknown as Array<
+      [TemplateStringsArray, ...unknown[]]
+    >;
+    const studentRowsStrings = queryCalls[2][0];
     const studentRowsSql = Array.from(studentRowsStrings).join('?');
     expect(studentRowsSql).toMatch(/snapshot_stage\s+IS\s+NULL/i);
   });

@@ -46,6 +46,7 @@ function student(
     classId: 1,
     className: 'IC0001',
     registrationStatus: over.registrationStatus ?? 'on_going',
+    recordDate: '2026-08-12',
     admittedAt: '2026-01-01',
     targetOutputStatus: 'Chưa đạt',
     attendance: {
@@ -76,6 +77,7 @@ function student(
       changeDirection: 'same',
       lastCheckpoint: 'Test 1',
     },
+    dataQuality: { status: 'complete', warnings: [] },
     evaluation: {
       riskScore: 10,
       suggestedAction: 'none',

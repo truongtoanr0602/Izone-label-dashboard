@@ -144,9 +144,9 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                         </span>
                       </h4>
                       <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex flex-wrap items-center gap-2">
-                        <span>ĐH: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.attendance.percentage}%</b></span>
+                        <span>ĐH: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.attendance.percentage === null ? '—' : `${s.attendance.percentage}%`}</b></span>
                         <span className="text-[#404040]/30 dark:text-[#52525b]">•</span>
-                        <span>BTVN: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.homework.percentage}%</b></span>
+                        <span>BTVN: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.homework.percentage === null ? '—' : `${s.homework.percentage}%`}</b></span>
                         <span className="text-[#404040]/30 dark:text-[#52525b]">•</span>
                         <span>TB Test: <b className="text-[#404040] dark:text-[#e4e4e7] font-mono">{s.testPerformance.averageScore ?? '--'}</b></span>
                         <span className="text-[#404040]/30 dark:text-[#52525b]">•</span>

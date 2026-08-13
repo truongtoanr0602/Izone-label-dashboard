@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.service';
 
@@ -9,7 +13,7 @@ export class ContactLogsService {
   async getContactLogs(user: AuthUser, classId?: number, khoiId?: number) {
     if (user.role === 'teacher') {
       if (!classId || !user.classIds.includes(classId)) return [];
-      
+
       const logs = await this.prisma.contact_logs.findMany({
         where: { class_id: classId },
         orderBy: { created_at: 'desc' },
@@ -30,9 +34,25 @@ export class ContactLogsService {
     return [];
   }
 
-  async createContactLog(user: AuthUser, data: { studentId: number, classId: number, triggerType: string, checkpoint: string }) {
+  async createContactLog(
+    user: AuthUser,
+    data: {
+      studentId: number;
+      classId: number;
+      triggerType: string;
+      checkpoint: string;
+    },
+  ) {
     if (user.role === 'teacher' && !user.classIds.includes(data.classId)) {
       throw new ConflictException('You do not have permission for this class');
+    }
+
+    const currentStudent = await this.prisma.students.findFirst({
+      where: { student_id: data.studentId, class_id: data.classId },
+      select: { student_id: true },
+    });
+    if (!currentStudent) {
+      throw new ConflictException('Student is not in the selected class');
     }
 
     try {
@@ -44,25 +64,30 @@ export class ContactLogsService {
           channel: 'zalo',
           trigger_type: data.triggerType,
           checkpoint: data.checkpoint,
-        }
+        },
       });
       return this.serializeBigInt(newLog);
     } catch (error: any) {
       // Prisma Unique Constraint violation
       if (error.code === 'P2002') {
-        throw new ConflictException('Checkpoint already exists for this trigger');
+        throw new ConflictException(
+          'Checkpoint already exists for this trigger',
+        );
       }
       throw error;
     }
   }
 
-  async undoContactLog(user: AuthUser, data: { studentId: number, triggerType: string, checkpoint: string }) {
+  async undoContactLog(
+    user: AuthUser,
+    data: { studentId: number; triggerType: string; checkpoint: string },
+  ) {
     const log = await this.prisma.contact_logs.findFirst({
       where: {
         student_id: data.studentId,
         trigger_type: data.triggerType,
         checkpoint: data.checkpoint,
-      }
+      },
     });
 
     if (!log) {
@@ -74,7 +99,7 @@ export class ContactLogsService {
     }
 
     await this.prisma.contact_logs.delete({
-      where: { contact_id: log.contact_id }
+      where: { contact_id: log.contact_id },
     });
 
     return { success: true };

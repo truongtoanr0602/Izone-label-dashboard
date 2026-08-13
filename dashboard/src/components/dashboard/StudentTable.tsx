@@ -8,6 +8,7 @@ import { isContacted, matchesTrigger, primaryTrigger } from '../../data/selector
 import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
+import { currentHabitMetrics } from './studentMetricModel';
 
 export type TableFilter = 'all' | ContactTrigger | 'pass' | 'review';
 
@@ -232,6 +233,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                 const sparkData = s.testPerformance.scores
                   .filter((t) => t.finalScore !== null)
                   .map((t) => ({ name: t.testName, score: t.finalScore }));
+                const habitMetrics = currentHabitMetrics({
+                  recordDate: s.recordDate,
+                  attendance: s.attendance,
+                  homework: s.homework,
+                  warnings: s.dataQuality.warnings,
+                });
 
                 const trigger = primaryTrigger(s);
                 const contacted =
@@ -529,32 +536,25 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                                     </ResponsiveContainer>
                                   </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">Chuyên cần</h4>
-                                  <div className="h-20 w-full bg-white dark:bg-[#27272a] rounded-[12px] p-1 px-4 overflow-hidden border border-[#f3f4f6] dark:border-[#3f3f46]">
-                                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                                      <LineChart data={attendancePct === null ? [] : [{v: 100}, {v: attendancePct > 85 ? 95 : 85}, {v: attendancePct}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
-                                        <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6', fontSize: '10px' }} itemStyle={{ color: '#10b981' }} />
-                                        <Line type="monotone" dataKey="v" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#ffffff' }}>
-                                          <LabelList dataKey="v" position="top" offset={8} fontSize={9} className="fill-[#404040]/60 dark:fill-[#a1a1aa]" />
-                                        </Line>
-                                      </LineChart>
-                                    </ResponsiveContainer>
+                                {habitMetrics.map((metric) => (
+                                  <div key={metric.key} className="space-y-2">
+                                    <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">{metric.title}</h4>
+                                    <div className="min-h-20 w-full bg-white dark:bg-[#27272a] rounded-[12px] px-4 py-3 border border-[#f3f4f6] dark:border-[#3f3f46] text-center space-y-1">
+                                      <p className="font-mono text-lg font-extrabold text-[#404040] dark:text-[#e4e4e7]">
+                                        {metric.percentage === null ? '—' : `${metric.percentage}%`}
+                                      </p>
+                                      <p className="text-[10px] text-[#404040]/60 dark:text-[#a1a1aa]">
+                                        {metric.done ?? '—'}/{metric.total ?? '—'} {metric.unit}
+                                        {metric.recordDate ? ` · dữ liệu ${metric.recordDate.split('-').reverse().join('/')}` : ' · chưa có ngày dữ liệu'}
+                                      </p>
+                                      {metric.hasWarning && (
+                                        <p className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                                          {metric.warningMessage}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <h4 className="text-[10px] font-bold text-[#404040]/50 dark:text-[#71717a] uppercase tracking-wider text-center">Bài tập VN</h4>
-                                  <div className="h-20 w-full bg-white dark:bg-[#27272a] rounded-[12px] p-1 px-4 overflow-hidden border border-[#f3f4f6] dark:border-[#3f3f46]">
-                                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                                      <LineChart data={homeworkPct === null ? [] : [{v: 90}, {v: homeworkPct > 70 ? 80 : 60}, {v: homeworkPct}]} margin={{ top: 15, right: 10, left: 10, bottom: 5 }}>
-                                        <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#f3f4f6', fontSize: '10px' }} itemStyle={{ color: '#f59e0b' }} />
-                                        <Line type="monotone" dataKey="v" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b', strokeWidth: 2, stroke: '#ffffff' }}>
-                                          <LabelList dataKey="v" position="top" offset={8} fontSize={9} className="fill-[#404040]/60 dark:fill-[#a1a1aa]" />
-                                        </Line>
-                                      </LineChart>
-                                    </ResponsiveContainer>
-                                  </div>
-                                </div>
+                                ))}
                               </div>
                             </div>
                           </div>

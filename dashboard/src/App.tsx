@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/common/Header';
 import { TopRibbon } from './components/dashboard/TopRibbon';
 import { StudentTable } from './components/dashboard/StudentTable';
@@ -7,7 +7,7 @@ import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import { Login } from './components/auth/Login';
 import type { TableFilter } from './components/dashboard/StudentTable';
 import type { ClassSummary, ContactLog, ContactTrigger, StudentDetail, LabelChangeLog } from './data/types';
-import { currentCheckpoint, remainingCount } from './data/selectors';
+import { NO_CHECKPOINT, remainingCount } from './data/selectors';
 import { TRIGGER_SHORT_TITLE } from './data/labels';
 import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare, LogOut } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
@@ -47,6 +47,10 @@ export default function App() {
   const [students, setStudents] = useState<StudentDetail[]>([]);
   const [labelEvents, setLabelEvents] = useState<LabelChangeLog[]>([]);
   const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
+  const [contactCheckpoint, setContactCheckpoint] = useState(NO_CHECKPOINT);
+  const [teacherDataClassId, setTeacherDataClassId] = useState<number | null>(null);
+  const selectedClassIdRef = useRef<number | null>(null);
+  selectedClassIdRef.current = selectedClass?.classId ?? null;
   const [actionTotals, setActionTotals] = useState<Record<ContactTrigger, number>>({
     habit_reminder: 0,
     red_followup: 0,
@@ -101,6 +105,8 @@ export default function App() {
     setClasses([]);
     setStudents([]);
     setContactLogs([]);
+    setContactCheckpoint(NO_CHECKPOINT);
+    setTeacherDataClassId(null);
   };
 
   useEffect(() => {
@@ -118,6 +124,13 @@ export default function App() {
     const classId = selectedClass?.classId;
     if (!classId) return;
     const requestedClassId = classId;
+    let isCurrentRequest = true;
+    setStudents([]);
+    setLabelEvents([]);
+    setContactLogs([]);
+    setContactCheckpoint(NO_CHECKPOINT);
+    setTeacherDataClassId(null);
+    setActionTotals({ habit_reminder: 0, red_followup: 0, relearn_advice: 0 });
 
     async function fetchTeacherDashboard() {
       try {
@@ -126,11 +139,18 @@ export default function App() {
           api.getLabelEvents({ classId: requestedClassId }),
           api.getContactLogs({ classId: requestedClassId }),
         ]);
+        if (!isCurrentRequest) return;
+        const responseCheckpoint = screen.classHeader.contactCheckpoint;
+        if (typeof responseCheckpoint !== 'string' || responseCheckpoint.trim() === '') {
+          throw new Error('Teacher Dashboard response is missing contactCheckpoint');
+        }
         setStudents(screen.students.map((student) =>
           adaptTeacherStudent(student, requestedClassId, screen.classHeader.className),
         ));
         setLabelEvents(labels);
         setContactLogs(logs);
+        setContactCheckpoint(responseCheckpoint);
+        setTeacherDataClassId(requestedClassId);
         setActionTotals({
           habit_reminder: screen.actionSummary.level1.count,
           red_followup: screen.actionSummary.level2.count,
@@ -170,24 +190,30 @@ export default function App() {
           lastSyncedAt: screen.meta.generatedAt,
         } : current);
       } catch (error) {
+        if (!isCurrentRequest) return;
         console.error('Failed to fetch Teacher Dashboard', error);
       }
     }
 
     fetchTeacherDashboard();
+    return () => {
+      isCurrentRequest = false;
+    };
   }, [selectedClass?.classId]);
 
-  const checkpoint = currentCheckpoint(students);
+  const checkpoint = contactCheckpoint;
 
   const markContacted = async (trigger: ContactTrigger, s: StudentDetail) => {
-    if (!selectedClass) return;
+    if (!selectedClass || teacherDataClassId !== selectedClass.classId) return;
+    const requestedClassId = selectedClass.classId;
     try {
       const newLog = await api.createContactLog({
         studentId: s.studentId,
-        classId: selectedClass.classId,
+        classId: requestedClassId,
         trigger,
         checkpoint
       });
+      if (selectedClassIdRef.current !== requestedClassId) return;
       setContactLogs(prev => [newLog, ...prev]);
     } catch (e: any) {
       if (e.response?.status === 409) {
@@ -199,12 +225,15 @@ export default function App() {
   };
 
   const undoContacted = async (trigger: ContactTrigger, s: StudentDetail) => {
+    if (!selectedClass || teacherDataClassId !== selectedClass.classId) return;
+    const requestedClassId = selectedClass.classId;
     try {
       await api.undoContactLog({
         studentId: s.studentId,
         trigger,
         checkpoint
       });
+      if (selectedClassIdRef.current !== requestedClassId) return;
       setContactLogs(prev => prev.filter(log => !(
         log.studentId === s.studentId && 
         log.trigger === trigger && 
