@@ -1,10 +1,9 @@
 import React from 'react';
-import { MessageSquare, Award, Clock, ArrowUpRight, Compass, TrendingUp } from 'lucide-react';
-import type { ClassSummary, ContactTrigger } from '../../data/types';
+import { MessageSquare, Compass, TrendingUp } from 'lucide-react';
+import type { ContactTrigger } from '../../data/types';
 import { TRIGGER_SHORT_TITLE } from '../../data/labels';
 
 interface TopRibbonProps {
-  selectedClass: ClassSummary;
   /**
    * Tổng số HV của từng luồng, tính ở App.tsx từ danh sách HV thật của lớp.
    *
@@ -106,15 +105,14 @@ const RemainingStat: React.FC<{ remaining: number; total: number; tone: string }
 );
 
 export const TopRibbon: React.FC<TopRibbonProps> = ({
-  selectedClass,
   totals,
   remaining,
   onOpenTrigger,
   onFilterTrigger,
 }) => (
-  // Bốn thẻ bằng nhau: ba thẻ hành động theo thang can thiệp + một thẻ hành
-  // chính. Ưu tiên thể hiện bằng THỨ TỰ và MÀU, không bằng kích thước.
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+  // Ba thẻ hành động theo thang can thiệp. Ưu tiên thể hiện bằng THỨ TỰ và
+  // MÀU, không bằng kích thước.
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
     {CARDS.map((c) => (
       <div
         key={c.trigger}
@@ -161,48 +159,5 @@ export const TopRibbon: React.FC<TopRibbonProps> = ({
         </div>
       </div>
     ))}
-
-    {/* Thẻ hành chính — không nằm trên thang can thiệp, không sinh ra tin nhắn nào. */}
-    <div className="relative overflow-hidden rounded-[16px] p-[24px] bg-white dark:bg-[#27272a] flex flex-col">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-[12px] bg-slate-500/10 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
-            <Award className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded-full border border-slate-500/20 font-mono">
-              <Clock className="w-3 h-3" /> SLA 7 ngày
-            </span>
-            <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7] mt-1">
-              Chờ duyệt Pass mềm
-            </h3>
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <span className="text-2xl font-extrabold font-mono text-slate-600 dark:text-slate-400 leading-none">
-            {selectedClass.actionItems.pendingPassReviews}
-          </span>
-          <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-0.5">Hồ sơ</p>
-        </div>
-      </div>
-
-      <p className="text-[11px] font-semibold text-[#404040] dark:text-[#e4e4e7] mt-3 font-mono">
-        Pass mềm Nhóm 1 &amp; Nhóm 2
-      </p>
-      <p className="text-xs text-[#404040]/70 dark:text-[#a1a1aa] mt-1">
-        Việc hành chính, không phải việc nhắc nhở — duyệt trên Portal.
-      </p>
-
-      <div className="mt-auto pt-3 border-t border-[#f3f4f6] dark:border-[#3f3f46] flex items-center justify-end">
-        <a
-          href={selectedClass.portalUrl || 'https://portal.izone.edu.vn'}
-          target="_blank"
-          rel="noreferrer"
-          className="px-3 py-2 rounded-[8px] bg-transparent border border-slate-400 dark:border-slate-500 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors font-semibold text-xs flex items-center gap-1.5 active:scale-95"
-        >
-          Duyệt trên Portal <ArrowUpRight className="w-3.5 h-3.5" />
-        </a>
-      </div>
-    </div>
   </div>
 );

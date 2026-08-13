@@ -484,4 +484,48 @@ describe('DashboardsService', () => {
 
     expect(result.students[0].actionState.checkpoint).toBe('Test 3');
   });
+
+  it('excludes snapshot_stage backfill rows from the per-student teacher-dashboard row pick', async () => {
+    // A stage-snapshot row (migration 007) never sets attendance/homework
+    // columns and can still win "ORDER BY record_date DESC, scraped_at DESC
+    // LIMIT 1" over the live row for the same student — exactly the bug the
+    // Lead Dashboard queries were already patched for (see studentMetricRows).
+    // This asserts the per-student LATERAL subquery carries the same filter.
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          class_id: 5000,
+          class_name: '34Z-5000',
+          course_id: 2,
+          status: 'on_going',
+          schedule: 'T2-T4',
+          location: 'Online',
+          portal_url: null,
+          teacher_id: 1002,
+          teacher_name: 'GV A',
+          teacher_email: 'gv@izone.edu.vn',
+          completed_sessions: 10,
+          total_sessions: 28,
+          progress_pct: 35.71,
+          active_students: 1,
+          on_hold_students: 0,
+          dropped_students: 0,
+          transferred_students: 0,
+          snapshot_date: '2026-08-12',
+        },
+      ])
+      .mockResolvedValue([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    await service.getTeacherDashboard(5000, '2026-08-12', {
+      ...leadUser,
+      role: 'teacher',
+      classIds: [5000],
+    });
+
+    const studentRowsStrings = queryRaw.mock.calls[2][0] as TemplateStringsArray;
+    const studentRowsSql = Array.from(studentRowsStrings).join('?');
+    expect(studentRowsSql).toMatch(/snapshot_stage\s+IS\s+NULL/i);
+  });
 });

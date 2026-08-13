@@ -425,7 +425,6 @@ export default function App() {
               </div>
 
               <TopRibbon
-                selectedClass={selectedClass}
                 totals={totals}
                 remaining={remaining}
                 onOpenTrigger={setOpenTrigger}

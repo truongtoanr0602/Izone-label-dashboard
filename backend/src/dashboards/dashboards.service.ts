@@ -520,6 +520,16 @@ export class DashboardsService {
         WHERE sr.student_id = st.student_id
           AND sr.class_id = ${classId}
           AND sr.record_date <= ${asOf.date}
+          /*
+           * snapshot_stage IS NULL: dòng stage 1..8 (migration 007) là ảnh
+           * chụp theo mốc test, luôn NULL điểm danh/BTVN, và record_date của
+           * chúng là ngày backfill nên có thể mới hơn dòng live cùng ngày —
+           * thiếu điều kiện này thì ORDER BY ... LIMIT 1 có thể chọn nhầm
+           * dòng stage, xoá mất điểm danh/BTVN thật và kéo nhãn về no_data dù
+           * đã có điểm test. Cùng lý do đã áp cho studentMetricRows ở
+           * getLeadDashboard.
+           */
+          AND sr.snapshot_stage IS NULL
         ORDER BY sr.record_date DESC, sr.scraped_at DESC
         LIMIT 1
       ) r ON TRUE
