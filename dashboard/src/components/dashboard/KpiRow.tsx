@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, BookOpen, CheckCircle2, TrendingDown, UserCheck, UserMinus } from 'lucide-react';
+import { Award, BookOpen, CheckCircle2, UserCheck, UserMinus } from 'lucide-react';
 import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboardContracts';
 import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
@@ -19,17 +19,8 @@ function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses'
 }
 
 export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
-  const netDelta: MetricDelta = {
-    value: kpis.netMomentum.delta,
-    comparableClasses: kpis.netMomentum.comparableClasses,
-    totalClasses: kpis.netMomentum.totalClasses,
-  };
-  const flowNote = kpis.netMomentum.recalculationEvents === 0
-    ? 'chưa có lượt tính lại nhãn nào trong tháng'
-    : `${kpis.netMomentum.classesWithTests} lớp có chuyển dịch · ${kpis.netMomentum.recalculationEvents} lượt tính lại`;
-
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       <KpiCard
         icon={<UserCheck className="w-4 h-4" />}
         label="Điểm danh (TB)"
@@ -95,15 +86,6 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
             <b>Nhóm 3</b>: TB test ≥60 (tự động đạt)
           </InfoTooltip>
         }
-      />
-      <KpiCard
-        icon={<TrendingDown className="w-4 h-4" />}
-        label="Net Momentum"
-        value={kpis.netMomentum.value}
-        unit="event"
-        delta={netDelta}
-        higherIsBetter
-        note={flowNote}
       />
       <KpiCard
         icon={<UserMinus className="w-4 h-4" />}
