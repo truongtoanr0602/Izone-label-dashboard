@@ -27,6 +27,7 @@ export interface LeadTrendContractPoint {
   activeStudents: number | null;
   classesReported: number;
   activeStudentSample: number;
+  activeStudentRoster: number | null;
   classesWithTests: number;
   latestDataAsOf: string | null;
   upTransitions: number;
@@ -62,6 +63,7 @@ export interface LeadDashboardClass {
   isAlarmTriggered: boolean;
   labelDistribution: { green: number; yellow: number; red: number; grey: number; noData: number };
   lastSnapshotDate: string | null;
+  contactCoverage: { done: number; total: number; pct: number | null };
   dataQuality: {
     status: 'complete' | 'fallback' | 'insufficient';
     warnings: string[];
@@ -213,6 +215,7 @@ export function toLeadWeeklyTrendPoint(point: LeadTrendContractPoint) {
     passMemRate: point.softPassRate,
     classesReported: point.classesReported,
     activeStudentSample: point.activeStudentSample,
+    activeStudentRoster: point.activeStudentRoster,
     classesWithTests: point.classesWithTests,
     latestDataAsOf: point.latestDataAsOf,
   };
@@ -245,6 +248,7 @@ export function toLeadClassPresentation(contract: LeadDashboardClass) {
       noData: contract.labelDistribution.noData,
     },
     lastSyncedAt: contract.lastSnapshotDate,
+    contactCoverage: contract.contactCoverage,
   };
 }
 

@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
-import type { ClassSummary, ContactLog } from '../../data/types';
+import type { ClassSummary } from '../../data/types';
 import {
-  contactCoverage,
-  currentCheckpoint,
   periodLabel,
   type Period,
 } from '../../data/selectors';
@@ -39,10 +37,6 @@ const OUTCOME_SERIES: TrendSeries[] = [
   { key: 'passMemRate', name: 'Pass mềm', lightColor: '#a855f7', darkColor: '#a855f7' },
 ];
 
-function coverageOf(logs: ContactLog[], currentStudents: any[]) {
-  return contactCoverage(currentStudents, logs, currentCheckpoint(currentStudents));
-}
-
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
   onSelectClassAndDrillDown,
@@ -52,7 +46,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   const [searchClass, setSearchClass] = useState('');
   
   const [dashboard, setDashboard] = useState<LeadDashboardResponse | null>(null);
-  const [contactLogs] = useState<ContactLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
   const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -285,6 +278,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                 filteredClasses.map((c) => {
                   const warning = getWarningStatus(c);
                   const contract = contractClassById.get(c.classId);
+                  const coverage = contract?.contactCoverage ?? { done: 0, total: 0, pct: null };
                   const fallbackDates = contract?.dataQuality.status === 'fallback'
                     ? [
                         contract.dataQuality.attendanceAsOf,
@@ -294,7 +288,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                       ].filter((date): date is string => Boolean(date)).sort()
                     : [];
                   const fallbackAsOf = fallbackDates.at(0) ?? null;
-                  const coverage = coverageOf(contactLogs, []); // Empty array because we don't fetch all students for lead dashboard yet
                   return (
                   <tr
                     key={c.classId}

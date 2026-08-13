@@ -21,6 +21,7 @@ describe('dashboard screen-contract adapters', () => {
         activeStudents: null,
         classesReported: 0,
         activeStudentSample: 0,
+        activeStudentRoster: null,
         classesWithTests: 0,
         latestDataAsOf: null,
         upTransitions: 0,
@@ -60,6 +61,7 @@ describe('dashboard screen-contract adapters', () => {
       isAlarmTriggered: false,
       labelDistribution: { green: 0, yellow: 7, red: 1, grey: 1, noData: 0 },
       lastSnapshotDate: '2026-08-12',
+      contactCoverage: { done: 4, total: 5, pct: 80 },
       dataQuality: {
         status: 'fallback',
         warnings: ['PARTIAL_SNAPSHOT'],
@@ -175,5 +177,60 @@ describe('dashboard screen-contract adapters', () => {
     expect(noData.attendance.percentage).toBeNull();
     expect(noData.homework.percentage).toBeNull();
     expect(noData.testPerformance.averageScore).toBeNull();
+  });
+});
+
+describe('toLeadClassPresentation — độ phủ liên hệ', () => {
+  const leadClassFixture: LeadDashboardClass = {
+    classId: 1127,
+    className: 'IC2142',
+    courseId: 2,
+    status: 'on_going',
+    schedule: '[5,1]',
+    location: null,
+    portalUrl: null,
+    teacher: { teacherId: 1, fullName: 'GV A', email: 'a@izone.edu.vn' },
+    activeStudents: 7,
+    onHoldStudents: 0,
+    droppedStudents: 1,
+    transferredStudents: 1,
+    attendanceAvg: 84.4,
+    homeworkAvg: 79.3,
+    passStandardRate: 55.6,
+    softPassRate: 100,
+    riskRate: 22.2,
+    progress: { completedSessions: 22, totalSessions: 27, percentage: 81.5, dataAsOf: '2026-08-10' },
+    healthStatus: 'watch',
+    isAlarmTriggered: false,
+    labelDistribution: { green: 0, yellow: 7, red: 1, grey: 1, noData: 0 },
+    lastSnapshotDate: '2026-08-12',
+    dataQuality: {
+      status: 'fallback',
+      warnings: ['PARTIAL_SNAPSHOT'],
+      rosterAsOf: '2026-08-12',
+      progressAsOf: '2026-08-10',
+      attendanceAsOf: '2026-08-10',
+      homeworkAsOf: '2026-08-10',
+      passAsOf: '2026-08-10',
+    },
+    contactCoverage: { done: 0, total: 0, pct: null },
+  };
+
+  it('truyền nguyên độ phủ từ contract', () => {
+    const result = toLeadClassPresentation({
+      ...leadClassFixture,
+      contactCoverage: { done: 3, total: 5, pct: 60 },
+    });
+
+    expect(result.contactCoverage).toEqual({ done: 3, total: 5, pct: 60 });
+  });
+
+  it('giữ pct null khi lớp không có cảnh báo nào', () => {
+    const result = toLeadClassPresentation({
+      ...leadClassFixture,
+      contactCoverage: { done: 0, total: 0, pct: null },
+    });
+
+    expect(result.contactCoverage.pct).toBeNull();
   });
 });
