@@ -11,7 +11,7 @@ export class ClassesService {
     let classes = [];
     if (user.role === 'lead' && user.khoiId) {
       classes = await this.prisma.$queryRaw`
-        SELECT v.* 
+        SELECT v.*, t.teacher_phone 
         FROM izone.v_class_latest v
         JOIN izone.classes c ON v.class_id = c.class_id
         JOIN izone.teachers t ON c.teacher_id = t.teacher_id
@@ -21,10 +21,12 @@ export class ClassesService {
     } else if (user.role === 'teacher') {
       if (user.classIds.length === 0) return [];
       classes = await this.prisma.$queryRaw`
-        SELECT * 
-        FROM izone.v_class_latest 
-        WHERE class_id IN (${Prisma.join(user.classIds)})
-        ORDER BY class_id DESC;
+        SELECT v.*, t.teacher_phone
+        FROM izone.v_class_latest v
+        JOIN izone.classes c ON v.class_id = c.class_id
+        JOIN izone.teachers t ON c.teacher_id = t.teacher_id
+        WHERE v.class_id IN (${Prisma.join(user.classIds)})
+        ORDER BY v.class_id DESC;
       `;
     }
     

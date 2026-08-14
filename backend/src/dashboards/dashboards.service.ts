@@ -104,7 +104,7 @@ export class DashboardsService {
     const classRows = await this.prisma.$queryRaw<any[]>`
       SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
              c.location, c.portal_url, c.total_sessions,
-             c.teacher_id, t.teacher_name, t.teacher_email
+             c.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone
       FROM izone.classes c
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
@@ -931,7 +931,7 @@ export class DashboardsService {
       SELECT
         c.class_id, c.class_name, c.course_id, c.status, c.schedule, c.location,
         c.portal_url, c.total_sessions AS class_total_sessions,
-        t.teacher_id, t.teacher_name, t.teacher_email,
+        t.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone,
         s.completed_sessions, s.total_sessions, s.progress_pct,
         s.active_students, s.on_hold_students, s.dropped_students,
         s.transferred_students, s.snapshot_date
@@ -1196,6 +1196,7 @@ export class DashboardsService {
         teacherId: Number(row?.teacher_id ?? 0),
         fullName: row?.teacher_name ?? '',
         email: row?.teacher_email ?? '',
+        phone: row?.teacher_phone ?? 'N/A',
       },
       activeStudents,
       onHoldStudents: observation.roster.onHoldStudents,
@@ -1509,6 +1510,7 @@ export class DashboardsService {
         teacherId: Number(row.teacher_id),
         fullName: row.teacher_name,
         email: row.teacher_email,
+        phone: row.teacher_phone ?? 'N/A',
       },
       progress: {
         completedSessions: Number(row.completed_sessions ?? 0),

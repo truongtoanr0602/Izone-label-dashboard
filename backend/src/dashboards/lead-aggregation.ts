@@ -194,34 +194,21 @@ function compareMetric(
   previous: ResolvedClassObservation[],
   key: MetricKey,
 ): DashboardMetric {
-  const previousByClass = new Map(previous.map((row) => [row.classId, row]));
-  const comparableCurrent = current.filter((row) => {
-    const before = previousByClass.get(row.classId);
-    return (
-      row[key].value !== null &&
-      before !== undefined &&
-      before[key].value !== null
-    );
-  });
-  const comparableIds = new Set(comparableCurrent.map((row) => row.classId));
-  const comparablePrevious = previous.filter((row) =>
-    comparableIds.has(row.classId),
-  );
   const allCurrent = weightedResolved(current, key);
-  const currentComparable = weightedResolved(comparableCurrent, key).value;
-  const previousComparable = weightedResolved(comparablePrevious, key).value;
+  const allPrevious = weightedResolved(previous, key);
+  
   const delta =
-    currentComparable === null || previousComparable === null
+    allCurrent.value === null || allPrevious.value === null
       ? null
-      : round1(currentComparable - previousComparable);
+      : round1(allCurrent.value - allPrevious.value);
   return {
     value: allCurrent.value,
-    baselineValue: previousComparable,
+    baselineValue: allPrevious.value,
     delta,
     direction: direction(delta),
     sampleSize: allCurrent.sampleSize,
     classesReported: allCurrent.classes,
-    comparableClasses: comparableCurrent.length,
+    comparableClasses: current.length,
     totalClasses: current.length,
     ...(key === 'passStandard' || key === 'softPass'
       ? {

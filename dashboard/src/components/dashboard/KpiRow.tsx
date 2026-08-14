@@ -1,10 +1,10 @@
 import React from 'react';
-import { Award, BookOpen, CheckCircle2, UserCheck, UserMinus } from 'lucide-react';
+import { Award, BookOpen, CheckCircle2, UserCheck } from 'lucide-react';
 import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboardContracts';
 import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
 import { InfoTooltip } from '../common/InfoTooltip';
-import { formatAttritionNote, formatPassNote, formatReportingNote } from './kpiFormat';
+import { formatPassNote, formatReportingNote } from './kpiFormat';
 
 interface KpiRowProps {
   kpis: LeadDashboardResponse['kpis'];
@@ -20,7 +20,7 @@ function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses'
 
 export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       <KpiCard
         icon={<UserCheck className="w-4 h-4" />}
         label="Điểm danh (TB)"
@@ -88,18 +88,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
           </InfoTooltip>
         }
       />
-      <KpiCard
-        icon={<UserMinus className="w-4 h-4" />}
-        label="Bỏ học trong tháng"
-        value={kpis.periodAttritionRate.newDroppedStudents}
-        unit="count"
-        delta={metricDelta(kpis.periodAttritionRate)}
-        higherIsBetter={false}
-        note={formatAttritionNote({
-          rate: kpis.periodAttritionRate.attritionRate,
-          newDroppedStudents: kpis.periodAttritionRate.newDroppedStudents,
-        })}
-      />
+
     </div>
   );
 };

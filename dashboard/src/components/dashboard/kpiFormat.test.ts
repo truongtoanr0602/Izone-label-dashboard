@@ -80,28 +80,22 @@ describe('formatDelta', () => {
 });
 
 describe('formatComparisonNote', () => {
-  it('nêu rõ mẫu số khi không phải mọi lớp đều so được', () => {
-    expect(formatComparisonNote(delta({ comparableClasses: 12, totalClasses: 15 })))
-      .toBe('thay đổi tính trên 12/15 lớp so sánh được');
+  it('nêu rõ thay đổi so với trung bình tháng trước', () => {
+    expect(formatComparisonNote(delta({ totalClasses: 15 })))
+      .toBe('thay đổi so với trung bình tháng trước');
   });
 
-  it('nói gọn khi toàn bộ lớp đều so được', () => {
-    expect(formatComparisonNote(delta({ comparableClasses: 15, totalClasses: 15 })))
-      .toBe('thay đổi tính trên toàn bộ 15 lớp so sánh được');
-  });
-
-  it('nêu lý do khi không lớp nào so được', () => {
-    expect(formatComparisonNote(delta({ comparableClasses: 0, totalClasses: 15 })))
-      .toBe('thay đổi: không có lớp nào so sánh được giữa hai kỳ');
+  it('nêu lý do khi không có lớp nào trong kỳ', () => {
+    expect(formatComparisonNote(delta({ totalClasses: 0 })))
+      .toBe('thay đổi: không có lớp nào trong kỳ');
   });
 
   it('luôn tự nói rõ nó mô tả DELTA, vì thẻ KPI hiện hai dòng mẫu số cạnh nhau', () => {
     // Dòng này nằm ngay dưới dòng mẫu số của giá trị lớn; thiếu chữ "thay đổi"
     // thì hai mẫu số khác tập lớp hiện ra như thể cùng một mẫu số.
     for (const d of [
-      delta({ comparableClasses: 3, totalClasses: 10 }),
-      delta({ comparableClasses: 10, totalClasses: 10 }),
-      delta({ comparableClasses: 0, totalClasses: 10 }),
+      delta({ totalClasses: 10 }),
+      delta({ totalClasses: 0 }),
     ]) {
       expect(formatComparisonNote(d)).toContain('thay đổi');
     }

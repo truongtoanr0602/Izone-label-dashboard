@@ -1,0 +1,206 @@
+{
+  "name": "Sync Master Data (Teachers, Classes, Students) MySQL -> Postgres",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-teachers",
+      "name": "1. Sync Teachers",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id as teacher_id, full_name as teacher_name, email as teacher_email, phone as teacher_phone FROM users WHERE role = 'teacher' OR role = 'lead';"
+      },
+      "id": "mysql-teachers",
+      "name": "Fetch Teachers (MySQL)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [200, 0],
+      "credentials": {
+        "mySql": {
+          "id": "XnB2SP73qqnEX11Z",
+          "name": "SQL_IZONE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO izone.teachers (teacher_id, teacher_name, teacher_email, teacher_phone) VALUES ({{$json.teacher_id}}, '{{$json.teacher_name}}', '{{$json.teacher_email}}', '{{$json.teacher_phone}}') ON CONFLICT (teacher_id) DO UPDATE SET teacher_name=EXCLUDED.teacher_name, teacher_email=EXCLUDED.teacher_email, teacher_phone=EXCLUDED.teacher_phone;",
+        "options": {}
+      },
+      "id": "postgres-upsert-teachers",
+      "name": "Upsert Teachers (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 0],
+      "credentials": {
+        "postgres": {
+          "id": "Postgres_IZONE_Prod",
+          "name": "Postgres_IZONE_Prod"
+        }
+      }
+    },
+    
+    {
+      "parameters": {},
+      "id": "manual-trigger-classes",
+      "name": "2. Sync Classes",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id as class_id, name as class_name, course_id, teacher_id, status, schedule, opening_date FROM course_classes WHERE status != 'deleted';"
+      },
+      "id": "mysql-classes",
+      "name": "Fetch Classes (MySQL)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [200, 200],
+      "credentials": {
+        "mySql": {
+          "id": "XnB2SP73qqnEX11Z",
+          "name": "SQL_IZONE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO izone.classes (class_id, class_name, course_id, teacher_id, status, schedule, opening_date) VALUES ({{$json.class_id}}, '{{$json.class_name}}', {{$json.course_id}}, {{$json.teacher_id}}, '{{$json.status}}', '{{$json.schedule}}', '{{$json.opening_date}}') ON CONFLICT (class_id) DO UPDATE SET class_name=EXCLUDED.class_name, course_id=EXCLUDED.course_id, teacher_id=EXCLUDED.teacher_id, status=EXCLUDED.status, schedule=EXCLUDED.schedule, opening_date=EXCLUDED.opening_date;",
+        "options": {}
+      },
+      "id": "postgres-upsert-classes",
+      "name": "Upsert Classes (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 200],
+      "credentials": {
+        "postgres": {
+          "id": "Postgres_IZONE_Prod",
+          "name": "Postgres_IZONE_Prod"
+        }
+      }
+    },
+    
+    {
+      "parameters": {},
+      "id": "manual-trigger-students",
+      "name": "3. Sync Students",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id as student_id, c.full_name, c.phone, c.email, r.course_class_id as class_id, r.status as registration_status FROM contacts c JOIN class_registrations r ON c.id = r.contact_id;"
+      },
+      "id": "mysql-students",
+      "name": "Fetch Students (MySQL)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [200, 400],
+      "credentials": {
+        "mySql": {
+          "id": "XnB2SP73qqnEX11Z",
+          "name": "SQL_IZONE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO izone.students (student_id, full_name, phone, email, class_id, registration_status) VALUES ({{$json.student_id}}, '{{$json.full_name}}', '{{$json.phone}}', '{{$json.email}}', {{$json.class_id}}, '{{$json.registration_status}}') ON CONFLICT (student_id) DO UPDATE SET full_name=EXCLUDED.full_name, phone=EXCLUDED.phone, email=EXCLUDED.email, class_id=EXCLUDED.class_id, registration_status=EXCLUDED.registration_status;",
+        "options": {}
+      },
+      "id": "postgres-upsert-students",
+      "name": "Upsert Students (Postgres)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 400],
+      "credentials": {
+        "postgres": {
+          "id": "Postgres_IZONE_Prod",
+          "name": "Postgres_IZONE_Prod"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1. Sync Teachers": {
+      "main": [
+        [
+          {
+            "node": "Fetch Teachers (MySQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Teachers (MySQL)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Teachers (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Sync Classes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Classes (MySQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Classes (MySQL)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Classes (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Sync Students": {
+      "main": [
+        [
+          {
+            "node": "Fetch Students (MySQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Students (MySQL)": {
+      "main": [
+        [
+          {
+            "node": "Upsert Students (Postgres)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
+    

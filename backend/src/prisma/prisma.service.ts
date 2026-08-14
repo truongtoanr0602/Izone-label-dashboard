@@ -6,7 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:Izone%402026!@localhost:5432/izone_dashboard?schema=izone';
+    const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:Izone%402026!@160.187.146.127:5432/izone_dashboard?schema=izone';
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool, { schema: 'izone' });
     super({ adapter });

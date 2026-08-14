@@ -50,7 +50,7 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: K
   const magnitude = unit === 'percent'
     ? Math.abs(delta.value).toFixed(1)
     : String(Math.round(Math.abs(delta.value)));
-  const suffix = unit === 'percent' ? 'điểm' : unit === 'event' ? 'lượt' : 'HV';
+  const suffix = unit === 'percent' ? '%' : unit === 'event' ? 'lượt' : 'HV';
 
   return {
     text: `${rising ? '▲' : '▼'}${magnitude} ${suffix}`,
@@ -68,13 +68,10 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: K
  * Vì thế mở đầu bằng chữ "thay đổi".
  */
 export function formatComparisonNote(delta: MetricDelta): string {
-  if (delta.comparableClasses === 0) {
-    return 'thay đổi: không có lớp nào so sánh được giữa hai kỳ';
+  if (delta.totalClasses === 0) {
+    return 'thay đổi: không có lớp nào trong kỳ';
   }
-  if (delta.comparableClasses === delta.totalClasses) {
-    return `thay đổi tính trên toàn bộ ${delta.totalClasses} lớp so sánh được`;
-  }
-  return `thay đổi tính trên ${delta.comparableClasses}/${delta.totalClasses} lớp so sánh được`;
+  return `thay đổi so với trung bình tháng trước`;
 }
 
 export function formatAttritionNote(input: {
