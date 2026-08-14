@@ -47,7 +47,7 @@ Ba doc kiến trúc/hướng dẫn ở root (`ARCHITECTURE.md`, `CLAUDE.md`) **k
 
 ## 1. Cơ sở dữ liệu Postgres (`backend/prisma/schema.prisma`, schema `izone`)
 
-> **Sơ đồ quan hệ đầy đủ (ER diagram) + mô tả chi tiết từng bảng**: xem [`docs/infrastructure/database-architecture.md`](docs/infrastructure/database-architecture.md) — sinh trực tiếp từ introspect Postgres production (`\d+`, `information_schema`), không phải từ Prisma schema, nên phản ánh đúng DB thật kể cả khi lệch với `schema.prisma`. Phần dưới đây giữ nguyên vai trò ánh xạ sang 9 sheet Google Sheets cũ; không lặp lại chi tiết cột/constraint đã có ở file kia.
+> **Sơ đồ quan hệ đầy đủ (ER diagram) + mô tả chi tiết từng bảng**: xem [`docs/infrastructure/database-architecture.md`](docs/infrastructure/database-architecture.md) — sinh trực tiếp từ introspect Postgres production (`\d+`, `information_schema`), không phải từ Prisma schema, nên phản ánh đúng DB thật kể cả khi lệch với `schema.prisma`. Chi tiết 2 hàm PL/pgSQL (`label_from_average`, `refresh_student_daily_snapshot`) xem [database-architecture.md §4](docs/infrastructure/database-architecture.md#4-hàm-plpgsql-business-logic-sống-trong-db-không-phải-chỉ-ở-backend). Phần dưới đây giữ nguyên vai trò ánh xạ sang 9 sheet Google Sheets cũ; không lặp lại chi tiết cột/constraint đã có ở file kia.
 
 Provisioning: `database/docker-compose.yml` (Postgres 16-alpine + pgAdmin, port 5432/5050), tự chạy `database/migrations/*.sql` theo thứ tự khi container khởi tạo lần đầu. **Không dùng Prisma Migrate** — migration là SQL tay viết, Prisma schema được `db pull` từ Postgres (giải thích các comment "requires additional setup for migrations" rải khắp `schema.prisma`).
 
