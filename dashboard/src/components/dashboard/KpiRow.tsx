@@ -84,6 +84,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
             <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)
             <br />
             <b>Nhóm 2</b>: TB test 55–&lt;60, ĐH &amp; BTVN ≥90% (cần GV duyệt)
+            <br />
+            <b>Nhóm 3</b>: TB test ≥60, không đạt ĐH &amp; BTVN (cần GV duyệt)
             <br />Không bao gồm học viên đã đạt Pass chuẩn.
           </InfoTooltip>
         }

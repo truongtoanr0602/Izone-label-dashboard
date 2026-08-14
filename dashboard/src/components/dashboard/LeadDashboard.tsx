@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowUpRight, BarChart3, Search, Table2
+  ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, BarChart3, Search, Table2
 } from 'lucide-react';
 import type { ClassSummary } from '../../data/types';
 import {
@@ -36,6 +36,15 @@ const OUTCOME_SERIES: TrendSeries[] = [
   { key: 'passMemRate', name: 'Pass mềm', lightColor: '#a855f7', darkColor: '#a855f7' },
 ];
 
+const WARNING_STATUS_FILTERS = ['Bình thường', 'Cần theo dõi', 'Cần can thiệp', 'Chưa đủ dữ liệu'] as const;
+type WarningStatusFilter = 'all' | (typeof WARNING_STATUS_FILTERS)[number];
+
+type ClassSortKey = 'className' | 'active' | 'attendance' | 'homework' | 'coverage' | 'passChuan' | 'passMem';
+interface ClassSortConfig {
+  key: ClassSortKey;
+  direction: 'asc' | 'desc';
+}
+
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
   onSelectClassAndDrillDown,
@@ -43,7 +52,9 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   khoiId,
 }) => {
   const [searchClass, setSearchClass] = useState('');
-  
+  const [statusFilter, setStatusFilter] = useState<WarningStatusFilter>('all');
+  const [sortConfig, setSortConfig] = useState<ClassSortConfig | null>(null);
+
   const [dashboard, setDashboard] = useState<LeadDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
@@ -132,12 +143,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     Xám: c.labelDistribution.grey,
   }));
 
-  const filteredClasses = displayClasses.filter(c =>
-    c.className.toLowerCase().includes(searchClass.toLowerCase()) || 
-    c.courseName.toLowerCase().includes(searchClass.toLowerCase()) ||
-    c.teacher.fullName.toLowerCase().includes(searchClass.toLowerCase())
-  );
-
   const getWarningStatus = (cls: ClassSummary) => {
     const quality = contractClassById.get(cls.classId)?.dataQuality;
     if (quality?.status === 'insufficient') {
@@ -146,12 +151,57 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     if (cls.healthMetrics.attendanceAverage === null || cls.healthMetrics.homeworkAverage === null) {
       return { label: 'Chưa đủ dữ liệu', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
     }
-    const avg = (cls.healthMetrics.attendanceAverage + cls.healthMetrics.homeworkAverage) / 2;
-    if (avg > 80 && cls.healthMetrics.attendanceAverage >= 70 && cls.healthMetrics.homeworkAverage >= 70) 
+    const { attendanceAverage, homeworkAverage } = cls.healthMetrics;
+    if (attendanceAverage > 80 && homeworkAverage > 80)
       return { label: 'Bình thường', color: 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' };
-    if (avg >= 70) 
+    if (attendanceAverage >= 70 && homeworkAverage >= 70)
       return { label: 'Cần theo dõi', color: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' };
     return { label: 'Cần can thiệp', color: 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20' };
+  };
+
+  const filteredClasses = displayClasses.filter(c => {
+    const matchesSearch = c.className.toLowerCase().includes(searchClass.toLowerCase()) ||
+      c.courseName.toLowerCase().includes(searchClass.toLowerCase()) ||
+      c.teacher.fullName.toLowerCase().includes(searchClass.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || getWarningStatus(c).label === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getClassSortValue = (cls: ClassSummary, key: ClassSortKey): number | string | null => {
+    switch (key) {
+      case 'className': return cls.className;
+      case 'active': return cls.studentCounts.active;
+      case 'attendance': return cls.healthMetrics.attendanceAverage;
+      case 'homework': return cls.healthMetrics.homeworkAverage;
+      case 'coverage': return contractClassById.get(cls.classId)?.contactCoverage?.pct ?? null;
+      case 'passChuan': return cls.healthMetrics.passChuanRate;
+      case 'passMem': return cls.healthMetrics.passMemRate;
+    }
+  };
+
+  const sortedClasses = sortConfig === null ? filteredClasses : [...filteredClasses].sort((a, b) => {
+    const av = getClassSortValue(a, sortConfig.key);
+    const bv = getClassSortValue(b, sortConfig.key);
+    if (av === null && bv === null) return 0;
+    if (av === null) return 1;
+    if (bv === null) return -1;
+    const direction = sortConfig.direction === 'asc' ? 1 : -1;
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return String(av).localeCompare(String(bv)) * direction;
+    }
+    return (av - bv) * direction;
+  });
+
+  const toggleClassSort = (key: ClassSortKey) => {
+    setSortConfig(current => {
+      if (current?.key !== key) return { key, direction: key === 'className' ? 'asc' : 'desc' };
+      return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+    });
+  };
+
+  const renderSortIcon = (column: ClassSortKey) => {
+    if (sortConfig?.key !== column) return <ArrowUpDown className="w-3 h-3 opacity-30" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />;
   };
 
   const getMetricColor = (value: number | null) => {
@@ -243,6 +293,16 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                   className="pl-8 pr-3 py-1.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#3f3f46] text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] w-full sm:w-56 transition-all"
                 />
               </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as WarningStatusFilter)}
+                className="py-1.5 px-2.5 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#3f3f46] text-[#404040] dark:text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#DB0829] transition-all"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                {WARNING_STATUS_FILTERS.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
               <span className="hidden sm:inline text-[10px] text-[#404040]/50 dark:text-[#71717a]">Bấm vào hàng để vào lớp</span>
             </div>
           }
@@ -252,26 +312,59 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
           <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
             <thead>
               <tr className="border-b border-[#f3f4f6] dark:border-[#3f3f46] bg-[#f3f4f6] dark:bg-[#18181b] text-[#404040]/60 dark:text-[#71717a] font-semibold uppercase tracking-wider text-xs">
-                <th className="py-3 px-4">Mã lớp / Khóa</th>
+                <th className="py-3 px-4">
+                  <button type="button" onClick={() => toggleClassSort('className')} className="flex items-center gap-1 hover:text-[#db0829] transition-colors">
+                    Mã lớp / Khóa {renderSortIcon('className')}
+                  </button>
+                </th>
                 <th className="py-3 px-4">Giáo viên chủ nhiệm</th>
-                <th className="py-3 px-4 text-center">Sĩ số (Active)</th>
-                <th className="py-3 px-4 text-center">Điểm danh / BTVN</th>
+                <th className="py-3 px-4 text-center">
+                  <button type="button" onClick={() => toggleClassSort('active')} className="flex items-center gap-1 mx-auto hover:text-[#db0829] transition-colors">
+                    Sĩ số (Active) {renderSortIcon('active')}
+                  </button>
+                </th>
+                <th className="py-3 px-4 text-center">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button type="button" onClick={() => toggleClassSort('attendance')} className="flex items-center gap-0.5 hover:text-[#db0829] transition-colors">
+                      ĐH {renderSortIcon('attendance')}
+                    </button>
+                    <span>/</span>
+                    <button type="button" onClick={() => toggleClassSort('homework')} className="flex items-center gap-0.5 hover:text-[#db0829] transition-colors">
+                      BTVN {renderSortIcon('homework')}
+                    </button>
+                  </div>
+                </th>
                 <th className="py-3 px-4 text-center">Tiến độ</th>
                 <th className="py-3 px-4 text-center">Trạng thái Cảnh báo</th>
-                <th className="py-3 px-4 text-center" title="Số HV cần cảnh báo đã được liên hệ trên tổng số HV cần cảnh báo, tại mốc test hiện tại của lớp">Độ phủ liên hệ</th>
-                <th className="py-3 px-4 text-center" title="Hai tỷ lệ dùng chung mẫu số HV đã thi; tử số Pass chuẩn và Pass mềm không trùng nhau">Tỷ lệ Pass</th>
+                <th className="py-3 px-4 text-center" title="Số HV cần cảnh báo đã được liên hệ trên tổng số HV cần cảnh báo, tại mốc test hiện tại của lớp">
+                  <button type="button" onClick={() => toggleClassSort('coverage')} className="flex items-center gap-1 mx-auto hover:text-[#db0829] transition-colors">
+                    Độ phủ liên hệ {renderSortIcon('coverage')}
+                  </button>
+                </th>
+                <th className="py-3 px-4 text-center" title="Hai tỷ lệ dùng chung mẫu số HV đã thi; tử số Pass chuẩn và Pass mềm không trùng nhau">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>Tỷ lệ Pass:</span>
+                    <button type="button" onClick={() => toggleClassSort('passChuan')} className="flex items-center gap-0.5 hover:text-[#db0829] transition-colors">
+                      Chuẩn {renderSortIcon('passChuan')}
+                    </button>
+                    <span>/</span>
+                    <button type="button" onClick={() => toggleClassSort('passMem')} className="flex items-center gap-0.5 hover:text-[#db0829] transition-colors">
+                      Mềm {renderSortIcon('passMem')}
+                    </button>
+                  </div>
+                </th>
                 <th className="py-3 px-4 text-right">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f3f4f6] dark:divide-[#3f3f46]">
-              {filteredClasses.length === 0 ? (
+              {sortedClasses.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-[#404040]/50 dark:text-[#71717a] text-xs">
-                    Không tìm thấy lớp nào khớp với từ khóa tìm kiếm.
+                    Không tìm thấy lớp nào khớp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
-                filteredClasses.map((c) => {
+                sortedClasses.map((c) => {
                   const warning = getWarningStatus(c);
                   const contract = contractClassById.get(c.classId);
                   const coverage = contract?.contactCoverage ?? { done: 0, total: 0, pct: null };
