@@ -6,7 +6,7 @@
 >
 > **Lưu ý riêng, cùng ngày:** `database/migrations/007_stage_based_test_snapshots.sql` cũng xuất hiện trong working tree (chưa commit git, `git status` báo `??`) nhưng **chưa được áp dụng lên Postgres prod** — không thấy `snapshot_stage`/`test_7`/`test_8` khi introspect `student_daily_records` ở §3 dưới, và không có code backend/frontend nào (kể cả module `dashboards` mới, xem `ARCHITECTURE.md` §3) tham chiếu tới các cột này hay hàm `izone.refresh_student_stage_snapshot` mà nó định nghĩa. Coi đây là nháp chưa dùng, không phải hiện trạng DB thật.
 
-File này **chỉ nói về cấu trúc DB** (bảng, quan hệ, ràng buộc, mục đích từng bảng). Quy tắc nghiệp vụ (ngưỡng gán nhãn, pass chuẩn/pass mềm...) đã có sẵn và đầy đủ hơn ở `Izone-label-dashboard/ARCHITECTURE.md` §2 — không lặp lại ở đây, chỉ trỏ tới khi liên quan.
+File này **chỉ nói về cấu trúc DB** (bảng, quan hệ, ràng buộc, mục đích từng bảng). Quy tắc nghiệp vụ (ngưỡng gán nhãn, pass chuẩn/pass mềm...) đã có sẵn và đầy đủ hơn ở [`ARCHITECTURE.md` §2](../../ARCHITECTURE.md#2-quy-tắc-nghiệp-vụ-không-đổi-chỉ-đổi-nguồn--vẫn-đã-verify-trên-dữ-liệu-cũ) — không lặp lại ở đây, chỉ trỏ tới khi liên quan.
 
 ## 0. Kết nối
 
