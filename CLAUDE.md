@@ -50,21 +50,9 @@ UI copy is Vietnamese; code identifiers are English. Keep that split.
 
 ## Architecture
 
-**No longer a frontend-only mock prototype.** `dashboard/` now calls a real backend (`backend/`, NestJS + Prisma + Postgres) over axios. `dashboard/src/data/mockData.ts` and its whole generator subsystem (`data/generator/*`, `data/contactStore.ts`) were deleted outright in the backend-integration pass — there is no offline/demo fallback anymore. See `ARCHITECTURE.md` §0/§4 for the full current-vs-target picture; the short version is: the backend and schema are real, but there is still no real data-ingestion pipeline behind them (everything in Postgres today is synthetic seed data), and the frontend's API mapper (`dashboard/src/api/client.ts`) currently hardcodes several "smart" fields (`riskScore`, `healthScore`, `isAlarmTriggered`, pass-mềm status, cheating flags) to `0`/`false` even where the backend already returns real values for some of them — check that table in `ARCHITECTURE.md` §4 before assuming a field on `StudentDetail`/`ClassSummary` reflects live data.
-
-- `dashboard/src/App.tsx` is still the single stateful component, now larger: on top of the original `selectedClass`, `activeTab`, `tableFilter`, `isDarkMode`, and modal flags, it owns `currentUser`, `isLoading`, `classes`, `students`, `labelEvents`, `contactLogs` — all fetched via API effects. Still no context, no store, no router (despite `zustand`/`@tanstack/react-query` sitting in `package.json` unused — see below). A login gate (`currentUser` truthy) now sits in front of the same tab-state dashboard shell; there is no router, just a boolean check in `App.tsx`.
-- `dashboard/src/data/types.ts` is the **schema contract** now (mockData.ts is gone, but it re-exported these same interfaces before deletion, so the contract didn't change shape). Treat these types as the integration contract with the backend.
-
-  **Read `ARCHITECTURE.md` before touching these types, `dashboard/src/api/client.ts`'s mappers, or any business threshold.** It documents the real Postgres schema (`backend/prisma/schema.prisma`), the verified labeling / pass-chuẩn / pass-mềm rules and where their thresholds live (`system_configs` table), field-by-field mapping from DB columns to these TS interfaces, and — critically — the full list of fields the API client currently fakes instead of reading from the response.
+**Read `ARCHITECTURE.md` before touching these types, `dashboard/src/api/client.ts`'s mappers, or any business threshold.** It documents the real Postgres schema (`backend/prisma/schema.prisma`), the verified labeling / pass-chuẩn / pass-mềm rules and where their thresholds live (`system_configs` table), field-by-field mapping from DB columns to these TS interfaces, and — critically — the full list of fields the API client currently fakes instead of reading from the response.
 - Components are presentational and take data + callbacks. `common/Header.tsx`, `dashboard/TopRibbon.tsx`, `dashboard/StudentTable.tsx`, `dashboard/LeadDashboard.tsx`, `modals/ZaloRemindModal.tsx`, `auth/Login.tsx` (new).
 - Charts are **recharts** (sparklines in `StudentTable`, stacked bar + timeline in `LeadDashboard`).
-
-### Known dead code — don't assume it's wired up
-
-- `modals/CallParentModal.tsx` and `review/ReviewCenter.tsx` are **fully deleted**, not just unmounted (commits `319bc24`, `3ac769b`). If asked to bring either back, it's a rewrite, not a remount — same for the now-orphaned `PendingReviewEnriched` type in `data/types.ts`, which has no consumer left.
-- `dashboard/src/App.css` (184 lines) is **still never imported**. Only `src/index.css` is, via `main.tsx`.
-- These dependencies are installed but **completely unused**: `@tanstack/react-query`, `@tanstack/react-table`, `zustand`, `clsx`, `tailwind-merge`. Their presence is not evidence of a pattern to follow — `StudentTable` is a hand-rolled table, not a TanStack Table, and API state is plain `useState` in `App.tsx`, not react-query.
-- `@/*` → `./src/*` alias is configured in `vite.config.ts`, but **still no file uses it**; all imports remain relative.
 
 ### Business rules that are duplicated (edit all sites together)
 
