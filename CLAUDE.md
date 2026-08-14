@@ -68,19 +68,7 @@ UI copy is Vietnamese; code identifiers are English. Keep that split.
 
 ### Business rules that are duplicated (edit all sites together)
 
-The old "urgent student" predicate (`suggestedAction === 'call_parent' || currentLabel === 'red' || attendance < 80`) is **gone, deliberately** — not merely deduplicated. It's been redesigned into three non-overlapping, single-criterion predicates in `dashboard/src/data/selectors/studentFilters.ts` (`isHabitReminderStudent`, `isRedFollowUpStudent`, `isRelearnAdviceStudent`), with extensive doc-comments explaining why a red label is no longer treated as "urgent." See `ARCHITECTURE.md` §5/§6 before changing these — they're referenced by section number from the code comments themselves.
-
-The "pass" filter (`passChuanStatus === 'Có khả năng pass' || passMemStatus === 'Đạt pass mềm'`) is still duplicated — now **three times within `StudentTable.tsx` alone** (a filter predicate, a count badge, and a slightly different badge-rendering check that also matches `'Đạt tiêu chuẩn'`). There is no shared selectors module for this one — if you touch one site, grep for the other two.
-
-Threshold coloring (`>= 80` emerald / `>= 70` amber / else brand red) is likewise inlined per metric in `App.tsx`'s sidebar.
-
-**Lead Dashboard aggregate filters (backend, `backend/src/dashboards/dashboards.service.ts`) are three non-negotiable conditions, repeated across the three raw SQL queries in `getLeadDashboard` that actually read `student_daily_records`: `studentMetricRows`, `transitionRows`, `coverageStudentRows`** — `snapshot_stage IS NULL`, `s.registration_status = 'on_going'`, and (implicitly, via `COUNT`/`AVG` semantics) excluding `NULL` attendance/homework rows from denominators while keeping `0%`. Drop any one of them from these three and the Lead KPIs silently go wrong again — see `ARCHITECTURE.md` §1 "Hai hạt trộn trong `student_daily_records`" for why. The full explanatory comment for these two conditions lives in exactly one place, above the `GROUP BY` in `studentMetricRows`; `transitionRows` and `coverageStudentRows` repeat the two conditions without repeating the comment, so read `studentMetricRows`'s comment first if either of the other two looks unmotivated. `getLeadDashboard` has **five other** `$queryRaw` calls (`classRows`, `snapshotRows`, `configRows`, `coverageTestRows`, `contactLogRows`) that correctly do **not** carry these filters — don't "helpfully" add them: `classRows`/`snapshotRows` read `classes`/`class_daily_snapshots`, which have neither a `snapshot_stage` column nor a per-student `registration_status`; `configRows` reads `system_configs`; `coverageTestRows` reads confirmed `test_scores` to establish the class-level checkpoint and recompute test averages; `contactLogRows` reads `contact_logs` joined only to `classes`/`teachers`. The `registration_status = 'on_going'` condition is itself a duplicate of a rule that already exists as `effectiveRegistrationStatus()` (`dashboards.service.ts`) — "a `queuing` student in an `on_going` class counts as dropped" — but that helper is only wired into the Teacher dashboard query path; the Lead query path re-implements the simpler `= 'on_going'` check directly in SQL instead of calling it. If the two ever need to agree on edge cases (e.g. `on_hold`, `transferred`), update both.
-
-`contactCoverageByClass` (`backend/src/dashboards/contact-coverage.ts`) deliberately does **not** port the frontend's `COVERED_BY` cross-trigger "đóng hộ" rule (`dashboard/src/data/selectors/contactLog.ts`) — it counts one episode per student because `classifyStudent` (`labeling-engine.ts`) already puts each student in exactly one `interventionLevel`, so the three trigger groups are mutually exclusive today. If the business ever allows a student to open multiple simultaneous triggers, `COVERED_BY` MUST be ported into `contact-coverage.ts` or the Lead's contact-coverage numbers will silently diverge from what the Teacher dashboard shows for the same students.
-
-Teacher and Lead contact state MUST use the same class-level checkpoint: the highest confirmed `test_order` in the class, with `Chưa có test` as the only fallback. Do not derive it per student from `last_checkpoint` or from that student's latest score; doing so makes a Teacher tick write one episode key while Lead counts another. Lead's coverage roster must also require `students.class_id = student_daily_records.class_id`, otherwise records from a student's former class inflate Lead while Teacher correctly follows the student's current class. Attendance/homework classification in both paths must likewise go through `resolveCountMetric()` so the stored percentage cannot override the count evidence.
-
-Student academic labels are Test-only: no confirmed score => `no_data`, `<45` => `grey`, `45..<60` => `red`, `>=60` => `yellow`. Do not reintroduce `green`, and do not require attendance/homework completeness before assigning the Test label. Habit metrics only affect issues and intervention; missing denominators are data-quality warnings, while real below-threshold percentages may open level 1. Both habit cards use one cumulative `recordDate`; never fall back one metric to an older row. The inactive n8n drafts implementing this grain are `AbBatX2eptllUAET` (live) and `SLZH4ZwyQsx8b4CS` (historical); changing or running the production repair still requires explicit approval.
+Several rules (urgent-student predicates in `studentFilters.ts`, the "pass" filter tripled in `StudentTable.tsx`, threshold coloring in `App.tsx`, the three-condition Lead SQL filter repeated across `studentMetricRows`/`transitionRows`/`coverageStudentRows`, contact-coverage checkpoint logic, and Test-only label thresholds) exist in multiple places and must be edited together. Full detail — file-by-file, with the reasoning for each — is kept in the assistant's project memory (`izone-duplicated-business-rules`) rather than here; ask Claude to recall it, or see `ARCHITECTURE.md` §1/§2/§5/§6 for the underlying business rules.
 
 ## Domain glossary
 
@@ -102,24 +90,56 @@ Needed to read the code at all:
 
 ## Styling conventions
 
-Tailwind **v4** via the `@tailwindcss/vite` plugin. There is **no `tailwind.config.js`** — all configuration lives in `dashboard/src/index.css`:
+See [`Design.md`](Design.md) before touching any component's classes or restyling anything — Tailwind v4 setup, the hardcoded color palette (light/dark), radii, and visual-weight conventions all live there.
 
-- `@theme { ... }` defines tokens (`--color-primary: #db0829`, label colors, `--font-heading: 'Geologica'` loaded from Google Fonts in `index.html`).
-- `@custom-variant dark (&:where(.dark, .dark *))` enables **class-based** dark mode. `App.tsx` toggles `.dark` on `document.documentElement` in a `useEffect` (needed for `body`/global rules) *and* applies it on the root `<div>`. Both are load-bearing; removing the `useEffect` breaks global dark styles.
+## Skills
 
-**Components do not use the `@theme` tokens.** They hardcode hex literals with explicit `dark:` pairs. Match the existing palette exactly rather than introducing new colors or switching to token classes mid-file:
+This repo has task-specific skills under `.claude/skills/` that wrap the code-review-graph MCP tools below into a repo-aware workflow — prefer invoking one of these over hand-rolling the same graph-tool sequence when the task matches:
 
-| Role | Light | Dark |
-|---|---|---|
-| Brand (IZONE red) | `#DB0829` | same |
-| Page background | `#f3f4f6` | `#18181b` |
-| Surface / card | `white` | `#27272a` |
-| Border | `#f3f4f6` | `#3f3f46` |
-| Text primary | `#404040` | `#e4e4e7` |
-| Text muted | `#404040/60–70` | `#a1a1aa` |
+| Skill | Use for |
+|---|---|
+| `debug-issue` | Investigating a bug, a wrong-looking KPI/label/count, a field that's suspiciously always `0`/`false`/empty, a Lead-vs-Teacher mismatch, or a failing `tsc`/`lint`/`test`/`build` gate. Encodes this repo's actual known hazards as a symptom→hotspot table — the `client.ts` hardcoded-fields table, the three-condition Lead SQL filter repeated across `studentMetricRows`/`transitionRows`/`coverageStudentRows`, the triple-duplicated pass filter in `StudentTable.tsx` — so read it before concluding something is a new bug. |
+| `explore-codebase` | Getting oriented in an unfamiliar part of the repo before changing it — architecture overview, module boundaries, execution flows. |
+| `refactor-safely` | Planning a rename, dead-code removal, or restructure — previews blast radius via the graph before files are touched. |
+| `review-changes` | Structured review of a diff using change detection + impact radius instead of re-reading whole files. |
+| `sync-docs` (`.claude/skills/sync-docs/SKILL.md`) | `CLAUDE.md`/`ARCHITECTURE.md` may have drifted from the codebase since they were last synced (new/removed modules, dead code that came back, newly-duplicated business logic). Finds and closes that gap with structural graph analysis, edits narrowly, and logs the run under `.claude/memory/`. It's a periodic sync, not a substitute for updating docs as part of a PR that already knows what it changed. |
+| `deploy-vps` (`.claude/skills/deploy-vps/SKILL.md`) | Deploying the latest `backend`/`dashboard` code to the production VPS (`izone_vps`, Docker Compose). Confirms `origin/main` actually has what's meant to ship, rereads `.claude/agents/memory/debug/` for known deploy pitfalls (wrong compose project directory, `depends_on: postgres` cascade, `nest build` output-path drift, SPA-fallback masking a broken asset path), deploys, then logs anything new that broke. |
 
-Radii are literal (`rounded-[8px]`, `rounded-[12px]`, `rounded-[16px]`), not the Tailwind scale. Semantic status colors use Tailwind's `emerald` / `amber` / `red` scales.
+<!-- code-review-graph MCP tools -->
+## MCP Tools: code-review-graph
 
-Recent history (`e84c649` "Giảm nhiệt thị giác", `34a65ac`, `9cb0240`) is a deliberate push toward *lower visual heat*: flat surfaces, thin 1px borders, minimal shadows, no gradients. Don't reintroduce heavy shadows or saturated fills.
+**IMPORTANT: This project has a knowledge graph. ALWAYS use the
+code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
+the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+you structural context (callers, dependents, test coverage) that file
+scanning cannot.
 
-The layout is a fixed sidebar + scrollable main; the sidebar becomes an off-canvas drawer below the `xl` breakpoint (`isMobileMenuOpen`).
+### When to use graph tools FIRST
+
+- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
+- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
+- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
+- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
+- **Architecture questions**: `get_architecture_overview` + `list_communities`
+
+Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+
+### Key Tools
+
+| Tool | Use when |
+|------|----------|
+| `detect_changes` | Reviewing code changes — gives risk-scored analysis |
+| `get_review_context` | Need source snippets for review — token-efficient |
+| `get_impact_radius` | Understanding blast radius of a change |
+| `get_affected_flows` | Finding which execution paths are impacted |
+| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
+| `semantic_search_nodes` | Finding functions/classes by name or keyword |
+| `get_architecture_overview` | Understanding high-level codebase structure |
+| `refactor_tool` | Planning renames, finding dead code |
+
+### Workflow
+
+1. The graph auto-updates on file changes (via hooks).
+2. Use `detect_changes` for code review.
+3. Use `get_affected_flows` to understand impact.
+4. Use `query_graph` pattern="tests_for" to check coverage.
