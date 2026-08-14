@@ -4,8 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/Izone-label-dashboard/',
+export default defineConfig(({ mode }) => ({
+  // GitHub Pages serves this app from a /Izone-label-dashboard/ subpath, but the
+  // Docker/nginx deployment serves it from the domain root — using the Pages
+  // base there makes nginx's SPA fallback return index.html for every asset
+  // request instead of the real JS/CSS file.
+  base: mode === 'docker' ? '/' : '/Izone-label-dashboard/',
   plugins: [
     react(),
     tailwindcss(),
@@ -24,4 +28,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
