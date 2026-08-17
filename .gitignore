@@ -9,3 +9,4 @@ database/pgadmin_data/
 ~$*.docx
 # Added by code-review-graph
 .code-review-graph/
+data/

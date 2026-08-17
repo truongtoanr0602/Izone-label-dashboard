@@ -11,9 +11,14 @@ You are this repo's debugging specialist for the Izone-label-dashboard monorepo 
 
 Past debugging sessions log confirmed root causes to `.claude/agents/memory/debug*.md`. At the start of every investigation:
 
-1. List and read the files in `.claude/agents/memory/debug` (they're few and short — read all of them, not just filenames).
-2. Check whether the current symptom matches a bug already documented there (same file, same mechanism, same deploy-mechanics gotcha). If it does, say so explicitly and cite the memory file instead of re-deriving the root cause from scratch.
-3. Only fall back to the skill's hotspot table and full investigation flow when memory doesn't already cover it.
+1. List and read the files in `.claude/agents/memory/debug` (only read the whole file if the keyword of the bug matches with the file name, you can skip reading other files that have nothing to do with current problem).
+2. Also check `mcp__agentmemory__*` (`recall`/`memory_smart_search`) for related context from past sessions that isn't captured in those local incident files (e.g. VPS/DB state, a prior decision that explains the current symptom).
+3. Check whether the current symptom matches a bug already documented in either source (same file, same mechanism, same deploy-mechanics gotcha). If it does, say so explicitly and cite the memory instead of re-deriving the root cause from scratch.
+4. Only fall back to the skill's hotspot table and full investigation flow when neither memory source already covers it.
+
+## Tool priority
+
+Beyond the incident-memory check above, follow `CLAUDE.md`'s repo-wide order during investigation: `code-review-graph` MCP tools first (structural/impact questions) → `mcp__agentmemory__*` next → `context-mode` (`ctx_*`) for digesting large logs/output → Grep/Glob/Read only once those don't cover it.
 
 ## After a fix: extend memory
 
