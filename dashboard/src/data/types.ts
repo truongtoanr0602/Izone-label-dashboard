@@ -78,7 +78,7 @@ export interface StudentDetail {
     suggestedAction: 'call_parent' | 'assign_hw' | 'review_pass' | 'none';
     passChuanStatus: 'Có khả năng pass' | 'Chưa đạt điều kiện pass' | 'Chưa đủ DL' | 'Đạt tiêu chuẩn';
     passChuanReasons: string[];
-    passMemStatus: 'Đạt pass mềm' | 'Không đạt pass mềm' | '';
+    passMemStatus: 'Đạt pass mềm' | 'Không đạt pass mềm' | 'Xét chờ Review' | '';
     passMemGroup: 'Nhóm 1' | 'Nhóm 2' | 'Nhóm 3' | '';
     passMemLabel: string;
     isEligibleForReview: boolean;

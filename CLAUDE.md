@@ -86,6 +86,7 @@ This repo has task-specific skills under `.claude/skills/` that wrap the code-re
 
 | Skill | Use for |
 |---|---|
+| `code` | Building a new feature, component, endpoint, or function — the from-scratch counterpart to `debug-issue`. Walks orient (graph tools, `ARCHITECTURE.md` §4 hardcoded-fields, duplicated-rule sites) → plan → implement → the four gates → a bounded fix loop, tuned to this repo's no-workspace-tooling layout and DOM-less vitest setup. |
 | `debug-issue` | Investigating a bug, a wrong-looking KPI/label/count, a field that's suspiciously always `0`/`false`/empty, a Lead-vs-Teacher mismatch, or a failing `tsc`/`lint`/`test`/`build` gate. Encodes this repo's actual known hazards as a symptom→hotspot table — the `client.ts` hardcoded-fields table, the three-condition Lead SQL filter repeated across `studentMetricRows`/`transitionRows`/`coverageStudentRows`, the triple-duplicated pass filter in `StudentTable.tsx` — so read it before concluding something is a new bug. |
 | `explore-codebase` | Getting oriented in an unfamiliar part of the repo before changing it — architecture overview, module boundaries, execution flows. |
 | `refactor-safely` | Planning a rename, dead-code removal, or restructure — previews blast radius via the graph before files are touched. |
@@ -94,6 +95,15 @@ This repo has task-specific skills under `.claude/skills/` that wrap the code-re
 | `deploy-vps` (`.claude/skills/deploy-vps/SKILL.md`) | Deploying the latest `backend`/`dashboard` code to the production VPS (`izone_vps`, Docker Compose). Confirms `origin/main` actually has what's meant to ship, rereads `.claude/agents/memory/debug/` for known deploy pitfalls (wrong compose project directory, `depends_on: postgres` cascade, `nest build` output-path drift, SPA-fallback masking a broken asset path), deploys, then logs anything new that broke. |
 
 <!-- code-review-graph MCP tools -->
+## Tool priority order
+
+When exploring or reasoning about this codebase, work through these in order and only fall through to the next one when the current tier doesn't cover what you need:
+
+1. **code-review-graph MCP tools** — structural code questions (callers, dependents, impact radius, test coverage, architecture). See below.
+2. **agentmemory** (`recall` / `memory_smart_search` / other `mcp__agentmemory__*` tools) — prior decisions, business-rule rationale, VPS/DB state, and other non-derivable context from past sessions (e.g. the duplicated-business-rules writeup, VPS credentials, DB schema ERD, ingestion decisions). Prefer this over re-deriving something from git history or asking the user again.
+3. **context-mode** (`ctx_batch_execute` / `ctx_search` / `ctx_execute*`) — processing/searching large command output, file contents, or fetched docs without pulling raw bytes into the conversation.
+4. **Grep/Glob/Read built-ins** — last resort, when none of the above cover it (e.g. a one-off file that isn't in the graph or memory, or you need exact bytes to hand to `Edit`).
+
 ## MCP Tools: code-review-graph
 
 **IMPORTANT: This project has a knowledge graph. ALWAYS use the
@@ -110,7 +120,7 @@ scanning cannot.
 - **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
 - **Architecture questions**: `get_architecture_overview` + `list_communities`
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+If the graph doesn't cover it, check **agentmemory** (`recall`/`memory_smart_search`) next, then **context-mode**, and only fall back to Grep/Glob/Read when none of those cover what you need — see "Tool priority order" above.
 
 ### Key Tools
 

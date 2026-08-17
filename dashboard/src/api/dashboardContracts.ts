@@ -267,6 +267,25 @@ export function adaptTeacherStudent(
   classId: number,
   className: string,
 ): StudentDetail {
+  let standardStatus = mapStandardStatus(student.passEvaluation.standardStatus);
+  let softPassStatus = student.passEvaluation.softPassStatus as StudentDetail['evaluation']['passMemStatus'];
+  let softPassGroup = (student.passEvaluation.softPassGroup ?? '') as StudentDetail['evaluation']['passMemGroup'];
+
+  const testAvg = student.tests.average;
+
+  if (testAvg !== null && testAvg >= 60) {
+    standardStatus = 'Đạt tiêu chuẩn';
+    softPassStatus = '';
+    softPassGroup = '';
+  } else if (softPassGroup === 'Nhóm 1' || softPassGroup === 'Nhóm 2') {
+    standardStatus = 'Chưa đạt điều kiện pass';
+    softPassStatus = 'Xét chờ Review' as any;
+    softPassGroup = '';
+  } else {
+    softPassStatus = '';
+    softPassGroup = '';
+  }
+
   return {
     studentId: student.studentId,
     fullName: student.fullName,
@@ -317,10 +336,10 @@ export function adaptTeacherStudent(
           : student.recommendedAction.code === 'REVIEW_LEARNING_PATH'
             ? 'call_parent'
             : 'none',
-      passChuanStatus: mapStandardStatus(student.passEvaluation.standardStatus),
+      passChuanStatus: standardStatus,
       passChuanReasons: student.passEvaluation.standardReasons,
-      passMemStatus: student.passEvaluation.softPassStatus as StudentDetail['evaluation']['passMemStatus'],
-      passMemGroup: (student.passEvaluation.softPassGroup ?? '') as StudentDetail['evaluation']['passMemGroup'],
+      passMemStatus: softPassStatus,
+      passMemGroup: softPassGroup,
       passMemLabel: '',
       isEligibleForReview: student.passEvaluation.reviewStatus !== null,
       reviewStatus: (student.passEvaluation.reviewStatus ?? '') as StudentDetail['evaluation']['reviewStatus'],

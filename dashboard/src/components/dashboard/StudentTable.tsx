@@ -205,7 +205,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               
               {isGridView ? (
                 <>
-                  <th className="py-3 px-2 text-center" colSpan={6}>T1 - T6</th>
+                  <th className="py-3 px-2 text-center">T1</th>
+                  <th className="py-3 px-2 text-center">T2</th>
+                  <th className="py-3 px-2 text-center">T3</th>
+                  <th className="py-3 px-2 text-center">T4</th>
+                  <th className="py-3 px-2 text-center">T5</th>
+                  <th className="py-3 px-2 text-center">T6</th>
                   <th className="py-3 px-3 text-center">TB</th>
                 </>
               ) : (
@@ -352,21 +357,24 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
                     {isGridView ? (
                       <>
-                        {s.testPerformance.scores.map((t) => (
-                          <td key={t.testOrder} className="py-3.5 px-2 text-center font-mono">
-                            {t.finalScore !== null ? (
-                              <span className={`text-sm font-bold ${
-                                t.finalScore < 45 ? 'text-[#404040]/50 dark:text-[#71717a]' :
-                                t.finalScore < 60 ? 'text-red-500' : 'text-amber-500'
-                              }`} title={t.isMakeup ? `Thi bù (Lần 1: ${t.rawScore}, Lần 2: ${t.makeupScore})` : ''}>
-                                {t.finalScore}
-                                {t.isMakeup && '⚡'}
-                              </span>
-                            ) : (
-                              <span className="text-[#404040]/30 dark:text-[#52525b]">--</span>
-                            )}
-                          </td>
-                        ))}
+                        {[1, 2, 3, 4, 5, 6].map((testOrder) => {
+                          const t = s.testPerformance.scores.find((score) => score.testOrder === testOrder);
+                          return (
+                            <td key={testOrder} className="py-3.5 px-2 text-center font-mono">
+                              {t && t.finalScore !== null ? (
+                                <span className={`text-sm font-bold ${
+                                  t.finalScore < 45 ? 'text-[#404040]/50 dark:text-[#71717a]' :
+                                  t.finalScore < 60 ? 'text-red-500' : 'text-amber-500'
+                                }`} title={t.isMakeup ? `Thi bù (Lần 1: ${t.rawScore}, Lần 2: ${t.makeupScore})` : ''}>
+                                  {t.finalScore}
+                                  {t.isMakeup && '⚡'}
+                                </span>
+                              ) : (
+                                <span className="text-[#404040]/30 dark:text-[#52525b]">--</span>
+                              )}
+                            </td>
+                          );
+                        })}
                         <td className="py-3.5 px-3 text-center font-mono">
                           {s.testPerformance.averageScore !== null ? (
                             <span className={`text-sm font-extrabold ${
@@ -409,14 +417,14 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     <td className="py-3.5 px-4">
                       {s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passChuanStatus === 'Đạt tiêu chuẩn' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-[8px] border border-emerald-500/20">
-                          <CheckCircle className="w-3.5 h-3.5" /> Pass Chuẩn
+                          <CheckCircle className="w-3.5 h-3.5" /> Pass
                         </span>
-                      ) : s.evaluation.passMemStatus === 'Đạt pass mềm' ? (
+                      ) : s.evaluation.passMemStatus === 'Xét chờ Review' ? (
                         <div>
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-[8px] border border-amber-500/20">
-                            <Star className="w-3 h-3" /> Pass Mềm ({s.evaluation.passMemGroup})
+                            <Star className="w-3 h-3" /> Xét chờ Review
                           </span>
-                          <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-0.5 font-mono">{s.evaluation.reviewStatus || 'Đạt tiêu chuẩn'}</p>
+                          <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-0.5 font-mono">{s.evaluation.reviewStatus || 'Cần duyệt'}</p>
                         </div>
                       ) : (
                         <div className="text-[#404040]/60 dark:text-[#a1a1aa] text-[11px] max-w-xs leading-tight">
