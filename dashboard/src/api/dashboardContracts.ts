@@ -261,6 +261,16 @@ function mapStandardStatus(value: string): StudentDetail['evaluation']['passChua
   return 'Chưa đạt điều kiện pass';
 }
 
+function mapReviewStatus(
+  value: string | null,
+): StudentDetail['evaluation']['reviewStatus'] {
+  if (value === 'pending_teacher') return 'Chờ GV';
+  if (value === 'approved_teacher') return 'GV Đồng ý';
+  if (value === 'rejected_teacher') return 'GV Từ chối';
+  if (value === 'escalated_lead') return 'Quá hạn → Lead';
+  return '';
+}
+
 export function adaptTeacherStudent(
   student: TeacherDashboardStudent,
   classId: number,
@@ -276,6 +286,8 @@ export function adaptTeacherStudent(
     standardStatus = 'Đạt tiêu chuẩn';
     softPassStatus = '';
     softPassGroup = '';
+  } else if (softPassStatus === 'Đạt pass mềm') {
+    // A confirmed soft pass is authoritative and must remain filterable.
   } else if (softPassGroup === 'Nhóm 1' || softPassGroup === 'Nhóm 2') {
     standardStatus = 'Chưa đạt điều kiện pass';
     softPassStatus = 'Xét chờ Review' as any;
@@ -340,8 +352,8 @@ export function adaptTeacherStudent(
       passMemStatus: softPassStatus,
       passMemGroup: softPassGroup,
       passMemLabel: '',
-      isEligibleForReview: student.passEvaluation.reviewStatus !== null,
-      reviewStatus: (student.passEvaluation.reviewStatus ?? '') as StudentDetail['evaluation']['reviewStatus'],
+      isEligibleForReview: student.passEvaluation.reviewStatus === 'pending_teacher',
+      reviewStatus: mapReviewStatus(student.passEvaluation.reviewStatus),
     },
     portalEvidence: {
       teacherFeedbackBtvn: student.teacherEvidence.homeworkFeedback,

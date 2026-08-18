@@ -18,6 +18,9 @@ export {
   isDroppedStudent,
   matchesStudentTableFilter,
   sortStudentsForTable,
+  type StudentSort,
+  type StudentSortDirection,
+  type StudentSortKey,
   type StudentTableFilter,
 } from './studentTable';
 export {

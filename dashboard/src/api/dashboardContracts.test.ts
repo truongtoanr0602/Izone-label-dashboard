@@ -8,12 +8,75 @@ import {
   type TeacherDashboardStudent,
 } from './dashboardContracts';
 
+function teacherStudent(
+  passEvaluation: TeacherDashboardStudent['passEvaluation'],
+): TeacherDashboardStudent {
+  return {
+    studentId: 99,
+    fullName: 'Học viên kiểm thử',
+    phone: null,
+    email: null,
+    registrationStatus: 'on_going',
+    recordDate: '2026-08-12',
+    attendance: { percentage: 90, present: 9, total: 10, isDropping: false },
+    homework: { percentage: 90, completed: 9, total: 10, isDropping: false },
+    tests: { taken: 1, average: 55, latestScore: 55, trend: 'stable', scores: [] },
+    label: 'red',
+    previousLabel: null,
+    interventionLevel: 'none',
+    issues: [],
+    recommendedAction: { code: 'NONE', title: '', priority: 0, messageTemplateKey: null },
+    actionState: { status: 'not_applicable', checkpoint: 'Test 1', lastContactedAt: null },
+    passEvaluation,
+    teacherEvidence: { homeworkFeedback: '', orientationFeedback: '', note: '' },
+    dataQuality: { status: 'complete', warnings: [] },
+    updatedAt: null,
+  };
+}
+
 describe('dashboard screen-contract adapters', () => {
   it('declares period availability and independent pass numerators', () => {
     expectTypeOf<LeadDashboardResponse['meta']['hasDataForPeriod']>()
       .toEqualTypeOf<boolean>();
     expectTypeOf<LeadDashboardResponse['kpis']['softPassRate']['qualifiedStudents']>()
       .toEqualTypeOf<number | undefined>();
+  });
+
+  it('normalizes pending_teacher as the only teacher-waiting review state', () => {
+    const pending = adaptTeacherStudent(teacherStudent({
+      standardStatus: 'not_met',
+      standardReasons: [],
+      softPassStatus: 'Xét chờ Review',
+      softPassGroup: 'Nhóm 1',
+      reviewStatus: 'pending_teacher',
+      reviewDeadline: null,
+    }), 1104, 'IC2119');
+    const escalated = adaptTeacherStudent(teacherStudent({
+      standardStatus: 'not_met',
+      standardReasons: [],
+      softPassStatus: 'Xét chờ Review',
+      softPassGroup: 'Nhóm 1',
+      reviewStatus: 'escalated_lead',
+      reviewDeadline: null,
+    }), 1104, 'IC2119');
+
+    expect(pending.evaluation.reviewStatus).toBe('Chờ GV');
+    expect(pending.evaluation.isEligibleForReview).toBe(true);
+    expect(escalated.evaluation.reviewStatus).toBe('Quá hạn → Lead');
+    expect(escalated.evaluation.isEligibleForReview).toBe(false);
+  });
+
+  it('preserves a confirmed soft-pass status from the backend', () => {
+    const adapted = adaptTeacherStudent(teacherStudent({
+      standardStatus: 'not_met',
+      standardReasons: [],
+      softPassStatus: 'Đạt pass mềm',
+      softPassGroup: 'Nhóm 3',
+      reviewStatus: null,
+      reviewDeadline: null,
+    }), 1104, 'IC2119');
+
+    expect(adapted.evaluation.passMemStatus).toBe('Đạt pass mềm');
   });
 
   it('keeps missing Lead measurements null for Recharts gaps', () => {

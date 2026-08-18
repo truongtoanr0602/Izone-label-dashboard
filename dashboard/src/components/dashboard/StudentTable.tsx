@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Search, TrendingDown, TrendingUp, AlertTriangle, Compass, CheckCircle2,
-  MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
+  Search, TrendingDown, AlertTriangle, Compass, CheckCircle2,
+  MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star,
+  ArrowDown, ArrowUp, ArrowUpDown,
 } from 'lucide-react';
 import type { ContactLog, ContactTrigger, LabelCode, StudentDetail, LabelChangeLog } from '../../data/types';
 import {
@@ -10,6 +11,8 @@ import {
   matchesStudentTableFilter,
   primaryTrigger,
   sortStudentsForTable,
+  type StudentSort,
+  type StudentSortKey,
   type StudentTableFilter,
 } from '../../data/selectors';
 import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
@@ -19,32 +22,11 @@ import { currentHabitMetrics } from './studentMetricModel';
 
 export type TableFilter = StudentTableFilter;
 
-const TRIGGER_TAB_CLASS: Record<ContactTrigger, { on: string; off: string }> = {
-  habit_reminder: {
-    on: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-800/50',
-    off: 'font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40',
-  },
-  red_followup: {
-    on: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium border border-red-200 dark:border-red-800/50',
-    off: 'font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40',
-  },
-  relearn_advice: {
-    on: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium border border-slate-300 dark:border-slate-700',
-    off: 'font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40',
-  },
-};
-
 const TRIGGER_ACTION_CLASS: Record<ContactTrigger, string> = {
   habit_reminder: 'text-amber-600 dark:text-amber-400 border-amber-500 hover:bg-amber-600 hover:text-white',
   red_followup: 'text-red-600 dark:text-red-400 border-red-600 dark:border-red-500 hover:bg-red-600 hover:text-white',
   relearn_advice: 'text-slate-700 dark:text-slate-300 border-slate-400 dark:border-slate-500 hover:bg-slate-600 hover:text-white hover:border-slate-600',
 };
-
-const TRIGGER_TABS: { trigger: ContactTrigger; icon: React.ReactNode }[] = [
-  { trigger: 'habit_reminder', icon: <MessageSquare className="w-3.5 h-3.5" /> },
-  { trigger: 'red_followup', icon: <TrendingUp className="w-3.5 h-3.5" /> },
-  { trigger: 'relearn_advice', icon: <Compass className="w-3.5 h-3.5" /> },
-];
 
 export function labelFromAverage(avg: number): LabelCode {
   if (avg >= 60) return 'yellow';
@@ -76,6 +58,48 @@ interface StudentTableProps {
   labelEvents: LabelChangeLog[];
 }
 
+interface SortableHeaderProps {
+  label: string;
+  sortKey: StudentSortKey;
+  sort: StudentSort | null;
+  onSort: (key: StudentSortKey) => void;
+  align?: 'left' | 'center';
+  className?: string;
+  colSpan?: number;
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = 'center',
+  className = 'py-3 px-4',
+  colSpan,
+}: SortableHeaderProps) {
+  const isActive = sort?.key === sortKey;
+  const Icon = !isActive ? ArrowUpDown : sort.direction === 'asc' ? ArrowUp : ArrowDown;
+
+  return (
+    <th
+      className={`${className} ${align === 'left' ? 'text-left' : 'text-center'}`}
+      colSpan={colSpan}
+      aria-sort={!isActive ? 'none' : sort.direction === 'asc' ? 'ascending' : 'descending'}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex w-full items-center gap-1.5 rounded-[8px] py-1 transition-colors hover:text-[#404040] dark:hover:text-[#e4e4e7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DB0829]/30 ${
+          align === 'left' ? 'justify-start' : 'justify-center'
+        } ${isActive ? 'text-[#404040] dark:text-[#e4e4e7]' : ''}`}
+      >
+        <span>{label}</span>
+        <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-[#DB0829]' : 'opacity-35'}`} />
+      </button>
+    </th>
+  );
+}
+
 export const StudentTable: React.FC<StudentTableProps> = ({
   students,
   onOpenTrigger,
@@ -88,6 +112,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isGridView, setIsGridView] = useState(false);
   const [expandedStudentId, setExpandedStudentId] = useState<number | null>(null);
+  const [sort, setSort] = useState<StudentSort | null>(null);
 
   const filteredStudents = students.filter((s) => {
     const matchesSearch =
@@ -100,7 +125,14 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     return matchesStudentTableFilter(s, activeFilter);
   });
 
-  const sortedStudents = sortStudentsForTable(filteredStudents);
+  const sortedStudents = sortStudentsForTable(filteredStudents, sort ?? undefined);
+
+  const handleSort = (key: StudentSortKey) => {
+    setSort((current) => ({
+      key,
+      direction: current?.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
 
   const counts = {
     all: students.length,
@@ -123,20 +155,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             <Users className="w-3.5 h-3.5" /> Tất cả học viên
             <span className="font-mono text-[11px] opacity-60">({counts.all})</span>
           </button>
-          {TRIGGER_TABS.map(({ trigger, icon }) => (
-            <button
-              key={trigger}
-              onClick={() => onChangeFilter(trigger)}
-              className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
-                activeFilter === trigger ? TRIGGER_TAB_CLASS[trigger].on : TRIGGER_TAB_CLASS[trigger].off
-              }`}
-            >
-              {icon} {TRIGGER_SHORT_TITLE[trigger]}
-              <span className="font-mono text-[11px] opacity-70">
-                ({students.filter((s) => matchesStudentTableFilter(s, trigger)).length})
-              </span>
-            </button>
-          ))}
           <button
             onClick={() => onChangeFilter('pass')}
             className={`px-3 py-1.5 rounded-[8px] text-xs transition-all flex items-center gap-1.5 ${
@@ -197,28 +215,25 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead className="bg-[#f3f4f6] dark:bg-[#18181b] border-b border-[#f3f4f6] dark:border-[#3f3f46]">
             <tr className="text-[#404040]/60 dark:text-[#71717a] font-semibold text-xs uppercase tracking-wider">
-              <th className="py-3 px-4 text-left" colSpan={2}>Họ và Tên</th>
-              <th className="py-3 px-4 text-center">Chuyên cần</th>
-              <th className="py-3 px-4 text-center">BTVN</th>
+              <SortableHeader label="Họ và Tên" sortKey="name" sort={sort} onSort={handleSort} align="left" colSpan={2} />
+              <SortableHeader label="Chuyên cần" sortKey="attendance" sort={sort} onSort={handleSort} />
+              <SortableHeader label="BTVN" sortKey="homework" sort={sort} onSort={handleSort} />
               
               {isGridView ? (
                 <>
-                  <th className="py-3 px-2 text-center">T1</th>
-                  <th className="py-3 px-2 text-center">T2</th>
-                  <th className="py-3 px-2 text-center">T3</th>
-                  <th className="py-3 px-2 text-center">T4</th>
-                  <th className="py-3 px-2 text-center">T5</th>
-                  <th className="py-3 px-2 text-center">T6</th>
-                  <th className="py-3 px-3 text-center">TB</th>
+                  {([1, 2, 3, 4, 5, 6] as const).map((testOrder) => (
+                    <SortableHeader key={testOrder} label={`T${testOrder}`} sortKey={`test${testOrder}`} sort={sort} onSort={handleSort} className="py-3 px-2" />
+                  ))}
+                  <SortableHeader label="TB" sortKey="testAverage" sort={sort} onSort={handleSort} className="py-3 px-3" />
                 </>
               ) : (
                 <>
-                  <th className="py-3 px-4 text-center">Điểm Test</th>
+                  <SortableHeader label="Điểm Test" sortKey="testAverage" sort={sort} onSort={handleSort} />
                 </>
               )}
 
-              <th className="py-3 px-4 text-center">Nhãn</th>
-              <th className="py-3 px-4 text-left">Trạng thái</th>
+              <SortableHeader label="Nhãn" sortKey="label" sort={sort} onSort={handleSort} />
+              <SortableHeader label="Trạng thái" sortKey="status" sort={sort} onSort={handleSort} align="left" />
               <th className="py-3 px-4 text-right" colSpan={2}>Hành động</th>
             </tr>
           </thead>

@@ -357,7 +357,7 @@ export default function App() {
         </div>
 
         {/* Lớp Overview Widget */}
-        {selectedClass && (
+        {selectedClass && activeTab === 'teacher' && (
           <div className="space-y-4 pt-2">
             <h3 className="text-xs font-bold text-[#404040]/50 dark:text-[#a1a1aa] uppercase border-b border-[#f3f4f6] dark:border-[#3f3f46] pb-2">
               Tổng quan lớp
