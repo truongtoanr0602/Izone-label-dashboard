@@ -175,6 +175,33 @@ describe('resolveClassObservation', () => {
     });
   });
 
+  it('resolves repaired class 1104 to 100 percent at the end of July', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      classId: 1104,
+      className: 'IC2119',
+      classTotalSessions: 27,
+      snapshots: [
+        {
+          ...base.snapshots[0],
+          date: '2026-07-16',
+          completedSessions: 27,
+          totalSessions: 27,
+        },
+      ],
+      studentMetrics: [],
+    };
+
+    const result = resolveClassObservation(input, '2026-07-31');
+
+    expect(result.progress).toMatchObject({
+      completedSessions: 27,
+      totalSessions: 27,
+      percentage: 100,
+      dataAsOf: '2026-07-16',
+    });
+  });
+
   it('returns insufficient instead of synthetic zero without metric evidence', () => {
     const result = resolveClassObservation(
       { ...base, studentMetrics: [] },

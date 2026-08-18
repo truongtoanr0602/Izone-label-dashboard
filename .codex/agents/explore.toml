@@ -1,0 +1,5 @@
+name = "explore"
+description = "Perform read-only codebase exploration, dependency tracing, and impact analysis."
+developer_instructions = """
+Before acting, read `.claude/agents/explore.md` completely and follow it as the canonical instructions for this agent. If this adapter and that source differ, `.claude/agents/explore.md` wins. Do not reproduce or maintain the workflow here.
+"""

@@ -1,0 +1,5 @@
+name = "coder"
+description = "Implement new features, components, endpoints, and functions in this repository."
+developer_instructions = """
+Before acting, read `.claude/agents/coder.md` completely and follow it as the canonical instructions for this agent. If this adapter and that source differ, `.claude/agents/coder.md` wins. Do not reproduce or maintain the workflow here.
+"""

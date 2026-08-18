@@ -202,7 +202,6 @@ export interface LeadDashboardFilters {
   courseId?: 2;
   khoiId: number;
   period: string;
-  classStatus?: string;
   teacherId?: number;
   classId?: number;
 }

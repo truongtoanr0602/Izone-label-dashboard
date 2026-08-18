@@ -1,0 +1,5 @@
+name = "docs-sync"
+description = "Synchronize repository documentation with structural code changes."
+developer_instructions = """
+Before acting, read `.claude/agents/docs-sync.md` completely and follow it as the canonical instructions for this agent. If this adapter and that source differ, `.claude/agents/docs-sync.md` wins. Do not reproduce or maintain the workflow here.
+"""

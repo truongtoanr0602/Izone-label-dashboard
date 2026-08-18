@@ -28,6 +28,8 @@ describe('lead aggregation', () => {
   it('derives current, previous, and 90-day boundaries from a calendar month', () => {
     expect(parseReportPeriod('2026-08', '2026-08-12')).toEqual({
       period: '2026-08',
+      periodStart: '2026-08-01',
+      periodEnd: '2026-08-31',
       reportAsOf: '2026-08-12',
       previousAsOf: '2026-07-31',
       trendFrom: '2026-05-15',
@@ -35,6 +37,8 @@ describe('lead aggregation', () => {
     });
     expect(parseReportPeriod('2026-07', '2026-08-12')).toEqual({
       period: '2026-07',
+      periodStart: '2026-07-01',
+      periodEnd: '2026-07-31',
       reportAsOf: '2026-07-31',
       previousAsOf: '2026-06-30',
       trendFrom: '2026-05-03',

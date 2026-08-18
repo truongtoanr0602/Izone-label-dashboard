@@ -4,7 +4,6 @@ export interface LeadDashboardQuery {
   khoiId?: string;
   from?: string;
   to?: string;
-  classStatus?: string;
   teacherId?: string;
   classId?: string;
 }

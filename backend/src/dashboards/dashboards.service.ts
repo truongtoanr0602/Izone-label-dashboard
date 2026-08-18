@@ -82,7 +82,6 @@ export class DashboardsService {
     const khoiId = user.role === 'lead' ? user.khoiId : requestedKhoiId;
     if (!khoiId) throw new ForbiddenException('User is not assigned to a khoi');
 
-    const classStatus = query.classStatus ?? 'on_going';
     const teacherId = this.parseNullableInteger(query.teacherId, 'teacherId');
     const classId = this.parseNullableInteger(query.classId, 'classId');
     let calendar: ReturnType<typeof parseReportPeriod>;
@@ -100,6 +99,8 @@ export class DashboardsService {
       calendar.previousAsOf.slice(0, 7),
       calendar.currentAsOf,
     );
+    const periodStart = new Date(`${calendar.periodStart}T00:00:00Z`);
+    const periodEnd = new Date(`${calendar.periodEnd}T00:00:00Z`);
 
     const classRows = await this.prisma.$queryRaw<any[]>`
       SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
@@ -109,7 +110,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
       ORDER BY c.class_name ASC
@@ -125,7 +132,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND s.snapshot_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
@@ -171,7 +184,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
         AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
@@ -206,7 +225,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
         AND r.record_date BETWEEN ${new Date(`${previousCalendar.previousAsOf.slice(0, 7)}-01T00:00:00Z`)}
@@ -248,7 +273,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
         AND s.class_id = r.class_id
@@ -266,7 +297,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND ts.grade_status = 'confirmed'
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
@@ -280,7 +317,13 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
-        AND c.status = ${classStatus}
+        AND c.status IN ('on_going', 'completed')
+        AND EXISTS (
+          SELECT 1
+          FROM izone.class_daily_snapshots period_snapshot
+          WHERE period_snapshot.class_id = c.class_id
+            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        )
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
     `;

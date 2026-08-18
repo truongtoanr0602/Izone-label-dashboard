@@ -60,6 +60,31 @@ function metricRow(
 }
 
 describe('DashboardsService', () => {
+  it('uses snapshot-evidenced period classes consistently across Lead queries', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    await service.getLeadDashboard(
+      { courseId: '2', khoiId: '34', period: '2026-08' },
+      leadUser,
+    );
+
+    const statements = queryRaw.mock.calls.map(([query]) =>
+      Array.isArray(query?.strings) ? query.strings.join('?') : String(query),
+    );
+    const classQueries = statements.filter((sql) => sql.includes('izone.classes c'));
+    const configQuery = statements.find((sql) => sql.includes('izone.system_configs'));
+
+    expect(classQueries).toHaveLength(7);
+    for (const sql of classQueries) {
+      expect(sql).toContain("c.status IN ('on_going', 'completed')");
+      expect(sql).toContain('EXISTS');
+      expect(sql).toContain('FROM izone.class_daily_snapshots period_snapshot');
+      expect(sql).toContain('period_snapshot.snapshot_date BETWEEN');
+    }
+    expect(configQuery).not.toContain('period_snapshot');
+  });
+
   it('rejects a Lead trend window longer than 90 inclusive days', async () => {
     const service = new DashboardsService({ $queryRaw: jest.fn() } as never);
 

@@ -10,3 +10,6 @@ database/pgadmin_data/
 # Added by code-review-graph
 .code-review-graph/
 data/
+
+# Generated Codex skill junctions; canonical content lives in .claude/skills/.
+.agents/skills/

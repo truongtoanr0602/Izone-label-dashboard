@@ -68,7 +68,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         const response = await dashboardService.getLeadDashboard({
           khoiId,
           period: selectedPeriod,
-          classStatus: 'on_going',
         });
         setDashboard(response);
       } catch (e) {

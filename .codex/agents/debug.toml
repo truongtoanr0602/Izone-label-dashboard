@@ -1,0 +1,5 @@
+name = "debug"
+description = "Investigate bugs, incorrect metrics, failing quality gates, and production deployment failures."
+developer_instructions = """
+Before acting, read `.claude/agents/debug.md` completely and follow it as the canonical instructions for this agent. If this adapter and that source differ, `.claude/agents/debug.md` wins. Do not reproduce or maintain the workflow here.
+"""

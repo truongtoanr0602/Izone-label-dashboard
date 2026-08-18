@@ -1,0 +1,5 @@
+name = "designer"
+description = "Handle visual design, layout, hierarchy, charts, and presentation work in the dashboard."
+developer_instructions = """
+Before acting, read `.claude/agents/designer.md` completely and follow it as the canonical instructions for this agent. If this adapter and that source differ, `.claude/agents/designer.md` wins. Do not reproduce or maintain the workflow here.
+"""

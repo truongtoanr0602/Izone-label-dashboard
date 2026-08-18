@@ -15,6 +15,12 @@ export {
   isRelearnAdviceStudent,
 } from './studentFilters';
 export {
+  isDroppedStudent,
+  matchesStudentTableFilter,
+  sortStudentsForTable,
+  type StudentTableFilter,
+} from './studentTable';
+export {
   NO_CHECKPOINT,
   closingContact,
   matchesTrigger,

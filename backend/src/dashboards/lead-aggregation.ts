@@ -39,6 +39,8 @@ const DAY_MS = 86_400_000;
 
 export interface ReportCalendar {
   period: string;
+  periodStart: string;
+  periodEnd: string;
   reportAsOf: string;
   previousAsOf: string;
   trendFrom: string;
@@ -120,6 +122,8 @@ export function parseReportPeriod(
   trendStart.setUTCDate(trendStart.getUTCDate() - 89);
   return {
     period: normalized,
+    periodStart: `${normalized}-01`,
+    periodEnd: monthEnd(normalized),
     reportAsOf,
     previousAsOf: monthEnd(previousMonth(normalized)),
     trendFrom: iso(trendStart),

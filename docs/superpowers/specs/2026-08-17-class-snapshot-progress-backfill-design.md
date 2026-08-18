@@ -15,7 +15,7 @@ instead of 100%.
 ## Goals
 
 - Repair every class snapshot whose completed-session value disagrees with
-  available student evidence for the same class and date.
+  cumulative student evidence available through that snapshot date.
 - Prevent the repository-owned snapshot/backfill path from recreating the bad
   values.
 - Preserve snapshots that cannot be supported by student evidence.
@@ -31,23 +31,25 @@ instead of 100%.
 
 ## Source of truth
 
-For each `(class_id, snapshot_date)`, derive completed sessions from matching
-student records as:
+For each `(class_id, snapshot_date)`, derive completed sessions from all student
+records for that class through the snapshot date as:
 
 ```text
 derived_completed_sessions = LEAST(
   classes.total_sessions,
   GREATEST(
-    MAX(student_daily_records.attendance_total),
-    MAX(student_daily_records.homework_total),
+    MAX(student_daily_records.attendance_total WHERE record_date <= snapshot_date),
+    MAX(student_daily_records.homework_total WHERE record_date <= snapshot_date),
     0
   )
 )
 ```
 
 Null totals are treated as zero. The value is updated only when at least one
-student record exists for the same class and date and the derived value differs
-from the snapshot value. This keeps the repair evidence-based and idempotent.
+student record exists for the class on or before the snapshot date and the
+derived value differs from the snapshot value. Using cumulative evidence keeps
+progress monotonic when attendance/homework totals reset to zero on test or
+checkpoint days. This keeps the repair evidence-based and idempotent.
 
 `progress_pct` is a generated database column and must not be written directly;
 PostgreSQL recalculates it after `completed_sessions` changes.
@@ -61,7 +63,7 @@ Add a repository-owned SQL migration/backfill file with two explicit sections:
 2. A transaction-scoped update using the identical derivation CTE and returning
    every changed row for audit.
 
-The update must only target rows backed by same-day student evidence. Rows
+The update must only target rows backed by cumulative student evidence. Rows
 without evidence remain unchanged and are reported separately. Running the
 update twice must produce zero changes on the second run.
 

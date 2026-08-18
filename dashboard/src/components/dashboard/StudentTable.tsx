@@ -4,13 +4,20 @@ import {
   MessageSquare, Award, CheckCircle, Clock, LayoutGrid, List, History, ChevronRight, Users, Target, Star
 } from 'lucide-react';
 import type { ContactLog, ContactTrigger, LabelCode, StudentDetail, LabelChangeLog } from '../../data/types';
-import { isContacted, matchesTrigger, primaryTrigger } from '../../data/selectors';
+import {
+  isContacted,
+  isDroppedStudent,
+  matchesStudentTableFilter,
+  primaryTrigger,
+  sortStudentsForTable,
+  type StudentTableFilter,
+} from '../../data/selectors';
 import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
 import { currentHabitMetrics } from './studentMetricModel';
 
-export type TableFilter = 'all' | ContactTrigger | 'pass' | 'review';
+export type TableFilter = StudentTableFilter;
 
 const TRIGGER_TAB_CLASS: Record<ContactTrigger, { on: string; off: string }> = {
   habit_reminder: {
@@ -90,24 +97,15 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
     if (!matchesSearch) return false;
 
-    if (activeFilter === 'habit_reminder' || activeFilter === 'red_followup' || activeFilter === 'relearn_advice') {
-      return matchesTrigger(s, activeFilter);
-    }
-    if (activeFilter === 'pass') {
-      return s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm';
-    }
-    if (activeFilter === 'review') {
-      return s.evaluation.isEligibleForReview;
-    }
-    return true;
+    return matchesStudentTableFilter(s, activeFilter);
   });
 
-  const sortedStudents = [...filteredStudents].sort((a, b) => b.evaluation.riskScore - a.evaluation.riskScore);
+  const sortedStudents = sortStudentsForTable(filteredStudents);
 
   const counts = {
     all: students.length,
-    pass: students.filter((s) => s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passMemStatus === 'Đạt pass mềm').length,
-    review: students.filter((s) => s.evaluation.isEligibleForReview).length,
+    pass: students.filter((s) => matchesStudentTableFilter(s, 'pass')).length,
+    review: students.filter((s) => matchesStudentTableFilter(s, 'review')).length,
   };
 
   return (
@@ -135,7 +133,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             >
               {icon} {TRIGGER_SHORT_TITLE[trigger]}
               <span className="font-mono text-[11px] opacity-70">
-                ({students.filter((s) => matchesTrigger(s, trigger)).length})
+                ({students.filter((s) => matchesStudentTableFilter(s, trigger)).length})
               </span>
             </button>
           ))}
@@ -220,7 +218,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               )}
 
               <th className="py-3 px-4 text-center">Nhãn</th>
-              <th className="py-3 px-4 text-right" colSpan={3}>Trạng thái / Hành động</th>
+              <th className="py-3 px-4 text-left">Trạng thái</th>
+              <th className="py-3 px-4 text-right" colSpan={2}>Hành động</th>
             </tr>
           </thead>
 
@@ -233,6 +232,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               </tr>
             ) : (
               sortedStudents.map((s, idx) => {
+                const isDropped = isDroppedStudent(s);
                 const attendancePct = s.attendance.percentage;
                 const homeworkPct = s.homework.percentage;
                 const sparkData = s.testPerformance.scores
@@ -252,12 +252,14 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                 return (
                   <React.Fragment key={s.studentId}>
                     <tr
-                      className={`transition-colors hover:bg-[#f3f4f6]/50 dark:hover:bg-[#3f3f46]/30 ${
-                        s.labeling.currentLabel === 'red' || s.evaluation.suggestedAction === 'call_parent'
+                      className={`transition-colors ${
+                        isDropped
+                          ? 'bg-slate-50/80 dark:bg-slate-900/20 hover:bg-slate-100/80 dark:hover:bg-slate-800/25'
+                          : s.labeling.currentLabel === 'red' || s.evaluation.suggestedAction === 'call_parent'
                           ? 'bg-red-50 dark:bg-red-950/15'
                           : s.labeling.currentLabel === 'grey'
                           ? 'bg-slate-100/70 dark:bg-slate-800/20'
-                          : expandedStudentId === s.studentId ? 'bg-[#f3f4f6] dark:bg-[#18181b]' : ''
+                          : expandedStudentId === s.studentId ? 'bg-[#f3f4f6] dark:bg-[#18181b]' : 'hover:bg-[#f3f4f6]/50 dark:hover:bg-[#3f3f46]/30'
                       }`}
                     >
                       <td className="py-3.5 px-4 text-center font-mono text-[#404040]/50 dark:text-[#71717a]">{idx + 1}</td>
@@ -267,6 +269,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <div className={`w-8 h-8 rounded-[8px] flex items-center justify-center font-bold text-xs font-mono shrink-0 ${
+                              isDropped ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700' :
                               s.labeling.currentLabel === 'red' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
                               s.labeling.currentLabel === 'yellow' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                               'bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/70 dark:text-[#a1a1aa]'
@@ -276,6 +279,11 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                             <div>
                               <p className="font-bold text-[#404040] dark:text-[#e4e4e7] text-sm flex items-center gap-1.5 flex-wrap">
                                 {s.fullName}
+                                {isDropped && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-[8px] border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold uppercase tracking-wide">
+                                    Đã nghỉ
+                                  </span>
+                                )}
                                 {s.labeling.hasChangedRecently && (
                                   <span className="px-1.5 py-0.2 text-[9px] rounded font-bold uppercase bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/70 dark:text-[#a1a1aa] border border-[#f3f4f6] dark:border-[#3f3f46] font-mono" title={`Vừa đổi từ ${s.labeling.previousLabel} lên ${s.labeling.currentLabel}`}>
                                     {s.labeling.previousLabel}→{s.labeling.currentLabel}
@@ -304,6 +312,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
+                          isDropped ? 'text-slate-500 dark:text-slate-400' :
                           attendancePct === null ? 'text-[#404040]/40 dark:text-[#71717a]' :
                           attendancePct < 80 ? 'text-red-500' :
                           attendancePct < 90 ? 'text-amber-500' : 'text-emerald-500'
@@ -313,6 +322,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <div className="w-14 h-1.5 rounded-full bg-[#f3f4f6] dark:bg-[#3f3f46] overflow-hidden mt-1">
                           <div
                             className={`h-full rounded-full ${
+                              isDropped ? 'bg-slate-400 dark:bg-slate-500' :
                               attendancePct === null ? 'bg-transparent' :
                               attendancePct < 80 ? 'bg-red-500' :
                               attendancePct < 90 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -331,6 +341,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span className={`font-bold font-mono text-sm ${
+                          isDropped ? 'text-slate-500 dark:text-slate-400' :
                           homeworkPct === null ? 'text-[#404040]/40 dark:text-[#71717a]' :
                           homeworkPct < 80 ? 'text-red-500' :
                           homeworkPct < 90 ? 'text-amber-500' : 'text-emerald-500'
@@ -340,6 +351,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <div className="w-14 h-1.5 rounded-full bg-[#f3f4f6] dark:bg-[#3f3f46] overflow-hidden mt-1">
                           <div
                             className={`h-full rounded-full ${
+                              isDropped ? 'bg-slate-400 dark:bg-slate-500' :
                               homeworkPct === null ? 'bg-transparent' :
                               homeworkPct < 80 ? 'bg-red-500' :
                               homeworkPct < 90 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -363,6 +375,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                             <td key={testOrder} className="py-3.5 px-2 text-center font-mono">
                               {t && t.finalScore !== null ? (
                                 <span className={`text-sm font-bold ${
+                                  isDropped ? 'text-slate-500 dark:text-slate-400' :
                                   t.finalScore < 45 ? 'text-[#404040]/50 dark:text-[#71717a]' :
                                   t.finalScore < 60 ? 'text-red-500' : 'text-amber-500'
                                 }`} title={t.isMakeup ? `Thi bù (Lần 1: ${t.rawScore}, Lần 2: ${t.makeupScore})` : ''}>
@@ -378,6 +391,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <td className="py-3.5 px-3 text-center font-mono">
                           {s.testPerformance.averageScore !== null ? (
                             <span className={`text-sm font-extrabold ${
+                              isDropped ? 'text-slate-500 dark:text-slate-400' :
                               s.testPerformance.averageScore < 45 ? 'text-[#404040]/70 dark:text-[#a1a1aa]' :
                               s.testPerformance.averageScore < 60 ? 'text-red-500' : 'text-amber-500'
                             }`}>
@@ -393,6 +407,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <td className="py-3.5 px-4 text-center">
                           {s.testPerformance.averageScore !== null ? (
                             <span className={`text-sm font-extrabold font-mono ${
+                              isDropped ? 'text-slate-500 dark:text-slate-400' :
                               s.testPerformance.averageScore < 45 ? 'text-[#404040]/70 dark:text-[#a1a1aa]' :
                               s.testPerformance.averageScore < 60 ? 'text-red-500' : 'text-amber-500'
                             }`}>
@@ -415,7 +430,11 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passChuanStatus === 'Đạt tiêu chuẩn' ? (
+                      {isDropped ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold">
+                          Đã nghỉ
+                        </span>
+                      ) : s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passChuanStatus === 'Đạt tiêu chuẩn' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-[8px] border border-emerald-500/20">
                           <CheckCircle className="w-3.5 h-3.5" /> Pass
                         </span>
@@ -427,14 +446,23 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-0.5 font-mono">{s.evaluation.reviewStatus || 'Cần duyệt'}</p>
                         </div>
                       ) : (
-                        <div className="text-[#404040]/60 dark:text-[#a1a1aa] text-[11px] max-w-xs leading-tight">
-                          <span className="text-red-500 font-semibold">Chưa đạt: </span>
-                          {s.evaluation.passChuanReasons.join(', ') || 'Điểm test dưới ngưỡng'}
+                        <div className="max-w-xs">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-2.5 py-1 rounded-[8px] border border-red-500/20">
+                            <AlertTriangle className="w-3.5 h-3.5" /> Chưa đạt
+                          </span>
+                          <p className="mt-1 text-[10px] leading-tight text-[#404040]/60 dark:text-[#a1a1aa] whitespace-normal">
+                            {s.evaluation.passChuanReasons.join(', ') || 'Điểm test dưới ngưỡng'}
+                          </p>
                         </div>
                       )}
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
+                      {isDropped ? (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-normal">
+                          Không cần can thiệp
+                        </span>
+                      ) : (
                       <div className="inline-flex items-center gap-2">
                         {contacted && (
                           <span
@@ -464,6 +492,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                           <span className="text-[#404040]/40 dark:text-[#52525b] text-xs font-mono">--</span>
                         )}
                       </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
                         <button

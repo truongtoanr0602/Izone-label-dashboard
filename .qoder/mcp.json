@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "C:\\Users\\OS\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "D:\\TruongQuocToan\\IZONE\\CongViec\\G\u00e1n nh\u00e3n h\u1ecdc vi\u00ean",
+      "type": "stdio"
+    }
+  }
+}
