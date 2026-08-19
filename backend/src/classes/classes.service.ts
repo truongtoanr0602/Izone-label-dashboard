@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.service';
 import { Prisma } from '@prisma/client';
@@ -7,15 +7,30 @@ import { Prisma } from '@prisma/client';
 export class ClassesService {
   constructor(private prisma: PrismaService) {}
 
-  async getLatestClasses(user: AuthUser) {
+  async getLatestClasses(user: AuthUser, period?: string) {
     let classes = [];
     if (user.role === 'lead' && user.khoiId) {
+      const selectedPeriod = period ?? new Date().toISOString().slice(0, 7);
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(selectedPeriod)) {
+        throw new BadRequestException('Tháng lọc không hợp lệ');
+      }
+      const [year, month] = selectedPeriod.split('-').map(Number);
+      const periodStart = new Date(Date.UTC(year, month - 1, 1));
+      const periodEnd = new Date(Date.UTC(year, month, 1) - 1);
       classes = await this.prisma.$queryRaw`
         SELECT v.*, t.teacher_phone 
         FROM izone.v_class_latest v
         JOIN izone.classes c ON v.class_id = c.class_id
         JOIN izone.teachers t ON c.teacher_id = t.teacher_id
         WHERE t.khoi_id = ${user.khoiId}
+          AND c.course_id = 2
+          AND c.status IN ('on_going', 'completed')
+          AND EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots period_snapshot
+            WHERE period_snapshot.class_id = c.class_id
+              AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+          )
         ORDER BY v.class_id DESC;
       `;
     } else if (user.role === 'teacher') {

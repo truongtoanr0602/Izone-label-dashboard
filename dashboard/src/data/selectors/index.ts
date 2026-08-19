@@ -18,6 +18,8 @@ export {
   isDroppedStudent,
   matchesStudentTableFilter,
   sortStudentsForTable,
+  studentPassState,
+  type StudentPassState,
   type StudentSort,
   type StudentSortDirection,
   type StudentSortKey,

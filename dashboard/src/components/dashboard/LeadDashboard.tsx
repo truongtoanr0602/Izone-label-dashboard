@@ -6,7 +6,6 @@ import type { ClassSummary } from '../../data/types';
 import {
   periodLabel,
 } from '../../data/selectors';
-import { useUrlParam } from '../../hooks/useUrlParam';
 import { ContextBar } from './ContextBar';
 import { KpiRow } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
@@ -24,6 +23,8 @@ interface LeadDashboardProps {
   onSelectClassAndDrillDown: (cls: ClassSummary) => void;
   isDarkMode: boolean;
   khoiId: number;
+  selectedPeriod: string;
+  onSelectPeriod: (period: string) => void;
 }
 
 const OPERATIONS_SERIES: TrendSeries[] = [
@@ -50,6 +51,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   onSelectClassAndDrillDown,
   isDarkMode,
   khoiId,
+  selectedPeriod,
+  onSelectPeriod,
 }) => {
   const [searchClass, setSearchClass] = useState('');
   const [statusFilter, setStatusFilter] = useState<WarningStatusFilter>('all');
@@ -57,10 +60,6 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
 
   const [dashboard, setDashboard] = useState<LeadDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const selectedPeriod = /^\d{4}-\d{2}$/.test(urlPeriod) ? urlPeriod : currentMonthKey;
-
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
@@ -77,7 +76,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       }
     }
     fetchData();
-  }, [currentMonthKey, khoiId, selectedPeriod]);
+  }, [khoiId, selectedPeriod]);
 
   const view = useMemo(() => {
     if (!dashboard) {
@@ -234,7 +233,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <ContextBar
         selectedKey={selectedPeriod}
         currentKey={dashboard.meta.currentAsOf.slice(0, 7)}
-        onSelectPeriod={setSelectedPeriod}
+        onSelectPeriod={onSelectPeriod}
         aggregate={view.aggregate}
         noDataStudents={view.noDataStudents}
         lastSyncedAt={dashboard.meta.dataFreshnessAt?.slice(0, 10) ?? dashboard.meta.currentAsOf}
@@ -279,7 +278,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         <SectionHeader
           icon={<Table2 className="w-4 h-4 text-[#db0829]" />}
           title="Bảng Quản Lý Toàn Bộ Lớp (Master Table)"
-          subtitle="Hiện trạng hôm nay của toàn bộ lớp — KHÔNG lọc theo kỳ báo cáo đã chọn ở trên."
+          subtitle={`Các lớp hoạt động trong ${periodLabel(selectedPeriod)} — gồm lớp đang học và đã hoàn thành trong kỳ.`}
           right={
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative">
@@ -457,7 +456,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         <SectionHeader
           icon={<BarChart3 className="w-4 h-4 text-[#db0829]" />}
           title="Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)"
-          subtitle="So sánh tỷ lệ học viên Vàng / Đỏ / Xám giữa các lớp trong Khối · Hiện trạng hôm nay, KHÔNG lọc theo kỳ báo cáo đã chọn ở trên."
+          subtitle={`So sánh phân bố học viên nhãn Vàng / Đỏ / Xám giữa các lớp trong ${periodLabel(selectedPeriod)}.`}
           right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
         />
         <div className="h-80 w-full p-5 pb-6">

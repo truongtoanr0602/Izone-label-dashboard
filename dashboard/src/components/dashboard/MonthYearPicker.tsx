@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { periodLabel } from '../../data/selectors';
 import { buildMonthGrid } from './monthYearPickerModel';
@@ -7,16 +7,21 @@ interface MonthYearPickerProps {
   selectedKey: string;
   currentKey: string;
   onSelect: (key: string) => void;
+  compact?: boolean;
+  align?: 'left' | 'right';
 }
 
 export const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
   selectedKey,
   currentKey,
   onSelect,
+  compact = false,
+  align = 'left',
 }) => {
   const selectedYear = Number(selectedKey.slice(0, 4));
   const currentYear = Number(currentKey.slice(0, 4));
   const [isOpen, setIsOpen] = useState(false);
+  const dialogId = useId();
   const [visibleYear, setVisibleYear] = useState(selectedYear);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -59,12 +64,12 @@ export const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        aria-controls="report-month-picker"
+        aria-controls={dialogId}
         onClick={() => {
           setVisibleYear(selectedYear);
           setIsOpen((open) => !open);
         }}
-        className="inline-flex min-w-36 items-center justify-between gap-2 rounded-[8px] border border-[#e5e7eb] bg-white px-3 py-2 text-sm font-semibold text-[#404040] outline-none transition-colors hover:bg-[#f9fafb] focus:ring-2 focus:ring-[#DB0829]/30 dark:border-[#3f3f46] dark:bg-[#27272a] dark:text-[#e4e4e7] dark:hover:bg-[#3f3f46]"
+        className={`inline-flex items-center justify-between gap-2 rounded-[8px] border border-[#e5e7eb] bg-white font-semibold text-[#404040] outline-none transition-colors hover:bg-[#f9fafb] focus:ring-2 focus:ring-[#DB0829]/30 dark:border-[#3f3f46] dark:bg-[#27272a] dark:text-[#e4e4e7] dark:hover:bg-[#3f3f46] ${compact ? 'min-w-32 px-2.5 py-1.5 text-xs' : 'min-w-36 px-3 py-2 text-sm'}`}
       >
         <span className="inline-flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-[#db0829]" />
@@ -75,10 +80,10 @@ export const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
 
       {isOpen && (
         <div
-          id="report-month-picker"
+          id={dialogId}
           role="dialog"
           aria-label="Chọn tháng và năm báo cáo"
-          className="absolute left-0 top-full z-50 mt-2 w-72 rounded-[16px] border border-[#e5e7eb] bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.18)] dark:border-[#3f3f46] dark:bg-[#27272a]"
+          className={`absolute top-full z-50 mt-2 w-72 rounded-[16px] border border-[#e5e7eb] bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.18)] dark:border-[#3f3f46] dark:bg-[#27272a] ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           <div className="mb-3 flex items-center justify-between">
             <button

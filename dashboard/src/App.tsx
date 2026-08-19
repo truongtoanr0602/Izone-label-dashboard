@@ -14,6 +14,7 @@ import IzoneLogo from './images/logo.png';
 import { api, setAuthHeader } from './api/client';
 import { dashboardService } from './api/dashboardService';
 import { adaptTeacherStudent } from './api/dashboardContracts';
+import { useUrlParam } from './hooks/useUrlParam';
 
 const QUICK_BUTTONS: { trigger: ContactTrigger; className: string }[] = [
   { trigger: 'habit_reminder', className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40' },
@@ -38,6 +39,9 @@ function metricBar(value: number | null) {
 const metricText = (value: number | null) => value === null ? '—' : `${value}%`;
 
 export default function App() {
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
+  const selectedPeriod = /^\d{4}-\d{2}$/.test(urlPeriod) ? urlPeriod : currentMonthKey;
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -77,13 +81,6 @@ export default function App() {
       // Force view mode based on role
       setActiveTab(user.role === 'lead' ? 'lead' : 'teacher');
 
-      const clsData = await api.getClasses();
-      setClasses(clsData);
-      if (clsData.length > 0) {
-        setSelectedClass(clsData[0]);
-      } else {
-        setSelectedClass(null);
-      }
     } catch (e: any) {
       console.error('Failed to init app', e);
       if (e?.response?.status === 401) {
@@ -118,6 +115,29 @@ export default function App() {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let isCurrentRequest = true;
+
+    async function fetchClassesForScope() {
+      const clsData = await api.getClasses(
+        currentUser.role === 'lead' ? selectedPeriod : undefined,
+      );
+      if (!isCurrentRequest) return;
+      setClasses(clsData);
+      setSelectedClass((current) =>
+        clsData.find((item) => item.classId === current?.classId) ?? clsData[0] ?? null,
+      );
+    }
+
+    fetchClassesForScope().catch((error) => {
+      console.error('Failed to load classes for selected period', error);
+    });
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [currentUser, selectedPeriod]);
 
   // When selected class changes, fetch its students, label events, and contact logs
   useEffect(() => {
@@ -408,6 +428,9 @@ export default function App() {
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={() => setIsSidebarCollapsed((v) => !v)}
+          reportPeriod={currentUser?.role === 'lead' ? selectedPeriod : undefined}
+          currentMonthKey={currentMonthKey}
+          onSelectReportPeriod={setSelectedPeriod}
         />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
           {activeTab === 'lead' && currentUser?.role === 'lead' && (
@@ -416,6 +439,8 @@ export default function App() {
               onSelectClassAndDrillDown={handleDrillDownToClass}
               isDarkMode={isDarkMode}
               khoiId={currentUser.khoiId}
+              selectedPeriod={selectedPeriod}
+              onSelectPeriod={setSelectedPeriod}
             />
           )}
 

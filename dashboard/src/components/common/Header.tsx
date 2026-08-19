@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ExternalLink, Download, Menu, Moon, Sun } from 'lucide-react';
 import type { ClassSummary } from '../../data/types';
 import { groupClassesByCourse } from './classGrouping';
+import { MonthYearPicker } from '../dashboard/MonthYearPicker';
 
 interface HeaderProps {
   classes: ClassSummary[];
@@ -12,6 +13,9 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   isSidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  reportPeriod?: string;
+  currentMonthKey: string;
+  onSelectReportPeriod: (period: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,7 +26,10 @@ export const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   onToggleDarkMode,
   isSidebarCollapsed,
-  onToggleSidebar
+  onToggleSidebar,
+  reportPeriod,
+  currentMonthKey,
+  onSelectReportPeriod,
 }) => {
   const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
   const classMenuRef = useRef<HTMLDivElement>(null);
@@ -100,12 +107,31 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Dropdown Menu */}
             {isClassMenuOpen && (
               <div
-                className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] rounded-[16px] shadow-[0px_3px_5px_0px_rgba(0,0,0,0.2)] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] rounded-[16px] shadow-[0px_3px_5px_0px_rgba(0,0,0,0.2)] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
               >
+                {reportPeriod && (
+                  <div className="mb-2 flex items-center justify-between gap-3 border-b border-[#f3f4f6] px-2 pb-2 dark:border-[#3f3f46]">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#404040]/50 dark:text-[#71717a]">
+                        Lọc lớp theo tháng
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[#404040]/60 dark:text-[#a1a1aa]">
+                        {classes.length} lớp có hoạt động
+                      </p>
+                    </div>
+                    <MonthYearPicker
+                      selectedKey={reportPeriod}
+                      currentKey={currentMonthKey}
+                      onSelect={onSelectReportPeriod}
+                      compact
+                      align="right"
+                    />
+                  </div>
+                )}
                 <div
                   role="listbox"
                   aria-label="Danh sách lớp theo khóa học"
-                  className="max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1"
+                  className="max-h-[min(52vh,22.5rem)] overflow-y-auto overscroll-contain pr-1"
                 >
                   {classGroups.map((group) => (
                     <div key={group.courseName} className="pb-2 last:pb-0">
@@ -148,6 +174,13 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                   ))}
+                  {classGroups.length === 0 && (
+                    <div className="px-3 py-8 text-center">
+                      <p className="text-xs font-semibold text-[#404040]/60 dark:text-[#a1a1aa]">
+                        Không có lớp hoạt động trong tháng này
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -10,8 +10,11 @@ export class ClassesController {
   constructor(private readonly classesService: ClassesService) {}
 
   @Get()
-  async getAllClasses(@CurrentUser() user: AuthUser) {
-    return this.classesService.getLatestClasses(user);
+  async getAllClasses(
+    @CurrentUser() user: AuthUser,
+    @Query('period') period?: string,
+  ) {
+    return this.classesService.getLatestClasses(user, period);
   }
 
   @Get(':id/trend')

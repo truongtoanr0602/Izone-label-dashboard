@@ -11,10 +11,12 @@ import {
   matchesStudentTableFilter,
   primaryTrigger,
   sortStudentsForTable,
+  studentPassState,
   type StudentSort,
   type StudentSortKey,
   type StudentTableFilter,
 } from '../../data/selectors';
+import { uniqueLogicalTestScores } from './studentTestScores';
 import { LABEL_BADGE_CLASS, LABEL_TEXT, TRIGGER_SHORT_TITLE } from '../../data/labels';
 import { round1 } from '../../data/number';
 import { LineChart, Line, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
@@ -35,9 +37,8 @@ export function labelFromAverage(avg: number): LabelCode {
 }
 
 function labelTimeline(s: StudentDetail, labelEvents: LabelChangeLog[]) {
-  const scores = [...s.testPerformance.scores]
-    .filter((t) => t.finalScore !== null)
-    .sort((a, b) => a.testOrder - b.testOrder);
+  const scores = uniqueLogicalTestScores(s.testPerformance.scores)
+    .filter((t) => t.finalScore !== null);
 
   return scores.map((t) => {
     const label = labelFromAverage(round1(t.finalScore as number));
@@ -248,9 +249,11 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             ) : (
               sortedStudents.map((s, idx) => {
                 const isDropped = isDroppedStudent(s);
+                const passState = studentPassState(s);
                 const attendancePct = s.attendance.percentage;
                 const homeworkPct = s.homework.percentage;
-                const sparkData = s.testPerformance.scores
+                const logicalTestScores = uniqueLogicalTestScores(s.testPerformance.scores);
+                const sparkData = logicalTestScores
                   .filter((t) => t.finalScore !== null)
                   .map((t) => ({ name: t.testName, score: t.finalScore }));
                 const habitMetrics = currentHabitMetrics({
@@ -385,7 +388,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     {isGridView ? (
                       <>
                         {[1, 2, 3, 4, 5, 6].map((testOrder) => {
-                          const t = s.testPerformance.scores.find((score) => score.testOrder === testOrder);
+                          const t = logicalTestScores.find((score) => score.testOrder === testOrder);
                           return (
                             <td key={testOrder} className="py-3.5 px-2 text-center font-mono">
                               {t && t.finalScore !== null ? (
@@ -445,15 +448,24 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {isDropped ? (
+                      {passState === 'dropped' ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold">
                           Đã nghỉ
                         </span>
-                      ) : s.evaluation.passChuanStatus === 'Có khả năng pass' || s.evaluation.passChuanStatus === 'Đạt tiêu chuẩn' ? (
+                      ) : passState === 'no_test' ? (
+                        <div>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-[8px] border border-slate-300 dark:border-slate-600">
+                            <Clock className="w-3.5 h-3.5" /> Chờ dữ liệu Test
+                          </span>
+                          <p className="mt-1 text-[10px] leading-tight text-[#404040]/50 dark:text-[#71717a]">
+                            Chưa có bài Test
+                          </p>
+                        </div>
+                      ) : passState === 'pass' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-[8px] border border-emerald-500/20">
                           <CheckCircle className="w-3.5 h-3.5" /> Pass
                         </span>
-                      ) : s.evaluation.passMemStatus === 'Xét chờ Review' ? (
+                      ) : passState === 'review' ? (
                         <div>
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-[8px] border border-amber-500/20">
                             <Star className="w-3 h-3" /> Xét chờ Review

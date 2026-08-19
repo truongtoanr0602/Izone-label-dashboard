@@ -27,8 +27,10 @@ export const api = {
     return response.data;
   },
 
-  getClasses: async (): Promise<ClassSummary[]> => {
-    const response = await apiClient.get('/classes');
+  getClasses: async (period?: string): Promise<ClassSummary[]> => {
+    const response = await apiClient.get('/classes', {
+      params: period ? { period } : undefined,
+    });
     // Map backend snake_case to frontend camelCase if needed,
     // though our backend serialized them. Wait, backend returns what DB has:
     // class_id, class_name, etc.

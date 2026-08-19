@@ -1,4 +1,0 @@
-﻿log_id,student_id,class_id,teacher_id,nhan_cu,nhan_moi,huong,ly_do,checkpoint,test_average_moi,dh_pct,btvn_pct,email_sent,email_sent_at,created_at
-9db2244e,19428,1159,305,Đỏ,Vàng,Lên,TB test tăng lên 70.1 (>=60) sau Test 4,Test 4,70.1,100,100,TRUE,2026-07-20 10:05:00,2026-07-20 10:00:00
-01345ab5,10162,1159,305,Xám,Đỏ,Lên,Thi lại Test 1+2 nâng TB lên 51.3 (>=45) sau Test 4,Test 4,51.3,100,100,TRUE,2026-07-20 10:05:00,2026-07-20 10:00:00
-998557d5,25822,1006,412,Đỏ,Vàng,Lên,TB test từ Test 1-6 đạt 61.3 (>=60),Test 6,61.3,90,95,TRUE,2026-07-15 10:05:00,2026-07-15 10:00:00
