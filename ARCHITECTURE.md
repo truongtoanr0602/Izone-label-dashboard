@@ -45,7 +45,7 @@ Provisioning: `database/docker-compose.yml` (Postgres 16-alpine + pgAdmin, port 
 
 ⚠️ Vài chuỗi mặc định tiếng Việt trong `schema.prisma` bị hỏng encoding khi introspect (`'Bình thường'` hiện ra `'B?nh th??ng'`, `'Chờ GV'` → `'Ch? GV'`, `'Chưa đạt'` → `'Ch?a ??t'`). Chưa xác nhận dữ liệu thật trong Postgres có bị hỏng theo hay chỉ là lỗi hiển thị lúc `prisma db pull` — kiểm tra trực tiếp trong DB trước khi tin vào các giá trị này.
 
-### Ánh xạ 9 sheet cũ → 10 bảng Postgres
+### Ánh xạ 9 sheet cũ → bảng Postgres và bảng hỗ trợ
 
 | Bảng Postgres | Sheet cũ tương ứng | Vai trò |
 |---|---|---|
@@ -60,6 +60,7 @@ Provisioning: `database/docker-compose.yml` (Postgres 16-alpine + pgAdmin, port 
 | `system_configs` | `06_CauHinh_HeThong` | Key-value threshold, **vẫn là nguồn duy nhất của mọi ngưỡng** — xem §2 |
 | `system_logs` | `07_Log_HeThong` | Log workflow. Comment trong `001_schema.sql:336` vẫn ghi *"Log hoạt động hệ thống n8n"* — bảng tồn tại nhưng **không ai ghi vào nó**, vì không có n8n nào chạy (xem §0) |
 | `contact_logs` | *(không có trong 9 sheet gốc)* | Nhật ký liên hệ Zalo — xem §5. Đã triển khai thật |
+| `message_templates` | *(không có trong 9 sheet gốc)* | Template tin nhắn Zalo riêng theo `teacher_id`, thuộc một `trigger_type`; mẫu hệ thống vẫn nằm trong frontend — xem §5. Migration `010_message_templates.sql` |
 
 Việc tách **định danh tĩnh** (`classes`, `students`) khỏi **snapshot hàng ngày** (`class_daily_snapshots`, `student_daily_records`) là khác biệt kiến trúc lớn nhất so với sheet cũ (sheet cũ ghi đè state mới nhất, không giữ lịch sử theo ngày). Bốn view SQL (`v_class_latest`, `v_student_latest`, `v_weekly_trend`, `v_monthly_trend`, định nghĩa cuối `001_schema.sql`) dùng `DISTINCT ON (...) ORDER BY date DESC` để dựng lại "trạng thái hiện tại" — đây chính là cơ chế cho các API `GET /classes`, `GET /students/by-class/:id` (xem §3). Các view này KHÔNG lọc `snapshot_stage` — chưa cần, vì `dashboards` là module duy nhất hiện đọc trực tiếp `student_daily_records` thay vì qua view (xem §3).
 
@@ -153,6 +154,7 @@ Config: `soft_g1_test_min/max = 50/55`, `soft_g1_dh_min = soft_g1_btvn_min = 100
 | `contact-logs` | `GET /api/contact-logs?classId=&khoiId=` | |
 | `contact-logs` | `POST /api/contact-logs` | Bắt lỗi unique-violation (Prisma `P2002`) → 409 |
 | `contact-logs` | `POST /api/contact-logs/undo` | GV chỉ được undo log do chính mình tạo (`teacher_id` không khớp → 409) |
+| `message-templates` | `GET/POST /api/message-templates`, `PATCH/DELETE /api/message-templates/:id` | Template Zalo riêng của user hiện tại. Backend lấy `teacherId` từ JWT, không nhận owner từ client; chỉ nhận `habit_reminder`/`red_followup`/`relearn_advice` và placeholder được hỗ trợ — xem §5 |
 | `dashboards` | `GET /api/v1/lead-dashboard` | Namespace `/api/v1/*` — khác mọi endpoint khác ở trên (`/api/...`, không version, xem §6 mục namespace không nhất quán). Query `period=YYYY-MM` (khuyến nghị) hoặc `from`/`to` (tối đa 90 ngày) — hai kiểu loại trừ lẫn nhau. Chỉ chấp nhận `courseId=2` (400 nếu khác); `role=teacher` bị chặn 403; `role=lead` bị ép `khoiId` theo JWT bất kể query param. Trả KPI/xu hướng tuần/nhãn đã tính sẵn — xem "Dashboards module" dưới đây |
 | `dashboards` | `GET /api/v1/classes/:classId/teacher-dashboard` | `role=teacher` chỉ xem lớp trong `classIds` của JWT (403 nếu không), `role=lead` giới hạn theo `khoi_id`, `admin` không giới hạn. Trả roster đầy đủ (kể cả HV chưa có `student_daily_records`) + nhãn/mức can thiệp đã phân loại sẵn qua `classifyStudent` (`labeling-engine.ts`) |
 
@@ -218,6 +220,10 @@ Chưa verify `TeacherDashboardResponse`/`adaptTeacherStudent` (`dashboardContrac
 
 Bảng Postgres thật (`contact_logs`, xem schema ở §1) + module NestJS thật (`backend/src/contact-logs/`) + được `dashboard/src/App.tsx` gọi thật qua `api.createContactLog`/`api.undoContactLog`.
 
+### Template tin nhắn Zalo (`message_templates`)
+
+Template là tài sản riêng theo `teacher_id`, không chia sẻ giữa GV và gắn đúng một `trigger_type`. Modal Zalo cho GV tạo, sửa, xoá và chọn nhiều mẫu; nếu chưa chọn mẫu riêng thì dùng script hệ thống trong `dashboard/src/data/messageScripts.ts`. `{{ten}}` luôn là họ tên đầy đủ; các biến hỗ trợ thêm là `{{lop}}`, `{{giao_vien}}`, `{{di_hoc}}`, `{{btvn}}`, `{{diem_tb}}`. Thiếu ĐH/BTVN chỉ cảnh báo, còn biến không hỗ trợ bị backend từ chối để không copy token chưa render. Việc copy template không ghi contact log — nút “Đã liên hệ” vẫn là thao tác ghi duy nhất.
+
 ### Khoá episode
 
 ```
@@ -276,7 +282,7 @@ Hai rủi ro hạ tầng từng nằm ở mục này (lỗ hổng trùng dòng l
 
 VPS `root@160.187.146.127` (thông tin đăng nhập trong memory riêng, không commit vào repo). Ba container theo `docker-compose.prod.yml`: `izone_postgres_prod`, `izone_backend_prod` (build từ `backend/Dockerfile`), `izone_dashboard_prod` (build từ `dashboard/Dockerfile` + `dashboard/nginx.conf`), expose port `3000`/`8088`. Cùng VPS còn chạy các workload khác không liên quan tới dự án này: `n8n` + Caddy (reverse proxy cổng 80/443), `proctoring_backend`/`proctoring-frontend`, `rabbitmq`, `minio_server`.
 
-Database `izone_dashboard`, schema `izone` (không phải `public` — chú ý khi query tay, `psql -c '\dt'` mặc định không thấy gì nếu không set `search_path` hoặc chỉ định schema). Đủ 12 bảng đúng như §1 (`students`, `classes`, `teachers`, `contact_logs`, `class_daily_snapshots`, `student_daily_records`, `pass_reviews`, `system_configs`, `system_logs`, `khoi`, `test_scores`, `label_change_logs`).
+Database `izone_dashboard`, schema `izone` (không phải `public` — chú ý khi query tay, `psql -c '\dt'` mặc định không thấy gì nếu không set `search_path` hoặc chỉ định schema). Đủ 13 bảng đúng như §1 (`students`, `classes`, `teachers`, `contact_logs`, `message_templates`, `class_daily_snapshots`, `student_daily_records`, `pass_reviews`, `system_configs`, `system_logs`, `khoi`, `test_scores`, `label_change_logs`). Migration `010_message_templates.sql` đã được áp dụng trên production ngày 2026-08-19; API/UI tương ứng chỉ hoạt động sau khi backend/dashboard mang commit chứa module này được deploy.
 
 ⚠️ **Trạng thái dữ liệu (`students`/`contact_logs` rỗng hay không, backend có route riêng qua Caddy hay chưa) cần re-verify qua SSH trước khi tin** — lần xác nhận gần nhất trong doc này đã cũ (xem `CHANGELOG.md` §2026-08-07 cho số liệu tại thời điểm đó và ghi chú về khả năng đã thay đổi sau đó theo memory phiên làm việc). Đừng coi số dòng trong `CHANGELOG.md` là hiện trạng — chạy lại truy vấn nếu cần số thật.
 
