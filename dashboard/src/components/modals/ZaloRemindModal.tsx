@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  X, Check, Copy, Send, MessageCircle, MessageSquare, TrendingUp, Compass,
+  X, Check, Copy, Send, MessageCircle, MessageSquare, TrendingUp, Compass, Settings, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import type { ContactLog, ContactTrigger, StudentDetail } from '../../data/types';
 import { closingContact, matchesTrigger } from '../../data/selectors';
 import { LABEL_TEXT, TRIGGER_DONE_TEXT } from '../../data/labels';
 import { buildZaloMessage } from '../../data/messageScripts';
+import {
+  getMetricPlaceholderWarning,
+  getUnsupportedPlaceholders,
+  renderMessageTemplate,
+  TEMPLATE_VARIABLES,
+  type MessageTemplate,
+  type MessageTemplateInput,
+} from '../../data/messageTemplates';
 import { ContactTickButton } from '../common/ContactTickButton';
 
 /**
@@ -62,6 +70,10 @@ interface ZaloRemindModalProps {
   checkpoint: string;
   onMarkContacted: (trigger: ContactTrigger, student: StudentDetail) => void;
   onUndoContacted: (trigger: ContactTrigger, student: StudentDetail) => void;
+  templates: MessageTemplate[];
+  onCreateTemplate: (input: MessageTemplateInput) => Promise<void>;
+  onUpdateTemplate: (templateId: number, input: Pick<MessageTemplateInput, 'name' | 'body'>) => Promise<void>;
+  onDeleteTemplate: (templateId: number) => Promise<void>;
 }
 
 export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
@@ -74,18 +86,102 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
   checkpoint,
   onMarkContacted,
   onUndoContacted,
+  templates,
+  onCreateTemplate,
+  onUpdateTemplate,
+  onDeleteTemplate,
 }) => {
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | 'system'>('system');
+  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [draftBody, setDraftBody] = useState('');
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  useEffect(() => {
+    setSelectedTemplateId('system');
+    setIsManagingTemplates(false);
+    setEditingTemplateId(null);
+    setTemplateError(null);
+  }, [trigger]);
 
   if (trigger === null) return null;
 
   const group = GROUP[trigger];
   const matched = students.filter((s) => matchesTrigger(s, trigger));
+  const triggerTemplates = templates.filter((template) => template.trigger === trigger);
+  const selectedTemplate = selectedTemplateId === 'system'
+    ? undefined
+    : triggerTemplates.find((template) => template.templateId === selectedTemplateId);
+
+  const messageFor = (student: StudentDetail) => selectedTemplate
+    ? renderMessageTemplate(selectedTemplate.body, {
+      studentName: student.fullName,
+      className,
+      teacherName,
+      attendance: student.attendance.percentage,
+      homework: student.homework.percentage,
+      averageScore: student.testPerformance.averageScore,
+    })
+    : buildZaloMessage(trigger, student, teacherName, className);
 
   const handleCopy = (s: StudentDetail) => {
-    navigator.clipboard.writeText(buildZaloMessage(trigger, s, teacherName, className));
+    navigator.clipboard.writeText(messageFor(s));
     setCopiedId(s.studentId);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const startNewTemplate = () => {
+    setEditingTemplateId(null);
+    setDraftName('');
+    setDraftBody('');
+    setTemplateError(null);
+  };
+
+  const startEditingTemplate = (template: MessageTemplate) => {
+    setEditingTemplateId(template.templateId);
+    setDraftName(template.name);
+    setDraftBody(template.body);
+    setTemplateError(null);
+  };
+
+  const saveTemplate = async () => {
+    const unknown = getUnsupportedPlaceholders(draftBody);
+    if (unknown.length > 0) {
+      setTemplateError(`Biến không được hỗ trợ: ${unknown.join(', ')}`);
+      return;
+    }
+    setIsSavingTemplate(true);
+    setTemplateError(null);
+    try {
+      if (editingTemplateId === null) {
+        await onCreateTemplate({ name: draftName, trigger, body: draftBody });
+      } else {
+        await onUpdateTemplate(editingTemplateId, { name: draftName, body: draftBody });
+      }
+      setEditingTemplateId(null);
+      setDraftName('');
+      setDraftBody('');
+    } catch (error) {
+      console.error('Failed to save message template', error);
+      setTemplateError('Không thể lưu mẫu lúc này. Vui lòng thử lại.');
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
+  const deleteTemplate = async (templateId: number) => {
+    if (!window.confirm('Xóa template này? Thao tác không thể hoàn tác.')) return;
+    try {
+      await onDeleteTemplate(templateId);
+      if (selectedTemplateId === templateId) setSelectedTemplateId('system');
+      if (editingTemplateId === templateId) startNewTemplate();
+    } catch (error) {
+      console.error('Failed to delete message template', error);
+      setTemplateError('Không thể xóa mẫu lúc này. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -117,6 +213,86 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
 
         {/* Body */}
         <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
+          <section className="p-4 rounded-[12px] bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[#404040] dark:text-[#e4e4e7]">Mẫu tin nhắn</p>
+                <p className="text-[11px] text-[#404040]/60 dark:text-[#a1a1aa]">Chọn mẫu trước khi copy cho học viên.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsManagingTemplates((current) => !current);
+                  if (!isManagingTemplates) startNewTemplate();
+                }}
+                className="px-3 py-2 rounded-[8px] border border-[#e5e7eb] dark:border-[#52525b] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#f3f4f6] dark:hover:bg-[#3f3f46]"
+              >
+                <Settings className="w-3.5 h-3.5" /> Quản lý mẫu
+              </button>
+            </div>
+            <select
+              value={selectedTemplateId}
+              onChange={(event) => setSelectedTemplateId(event.target.value === 'system' ? 'system' : Number(event.target.value))}
+              className="w-full px-3 py-2 rounded-[8px] border border-[#e5e7eb] dark:border-[#52525b] bg-white dark:bg-[#18181b] text-xs"
+            >
+              <option value="system">Mẫu hệ thống</option>
+              {triggerTemplates.map((template) => (
+                <option key={template.templateId} value={template.templateId}>{template.name}</option>
+              ))}
+            </select>
+
+            {isManagingTemplates && (
+              <div className="pt-3 border-t border-[#f3f4f6] dark:border-[#3f3f46] space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold">{editingTemplateId === null ? 'Tạo template mới' : 'Chỉnh sửa template'}</p>
+                  <button onClick={startNewTemplate} className="text-xs font-semibold text-blue-600 dark:text-blue-400 inline-flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Mẫu mới</button>
+                </div>
+                <input
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  placeholder="Tên mẫu, ví dụ: Nhắc BTVN thân thiện"
+                  maxLength={100}
+                  className="w-full px-3 py-2 rounded-[8px] border border-[#e5e7eb] dark:border-[#52525b] bg-white dark:bg-[#18181b] text-xs"
+                />
+                <textarea
+                  value={draftBody}
+                  onChange={(event) => setDraftBody(event.target.value)}
+                  placeholder="{{ten}} ơi, ..."
+                  maxLength={5000}
+                  rows={6}
+                  className="w-full px-3 py-2 rounded-[8px] border border-[#e5e7eb] dark:border-[#52525b] bg-white dark:bg-[#18181b] text-xs leading-relaxed resize-y"
+                />
+                <div className="text-[11px] text-[#404040]/60 dark:text-[#a1a1aa] flex flex-wrap gap-x-3 gap-y-1">
+                  {TEMPLATE_VARIABLES.map((variable) => <span key={variable.token}><b>{variable.token}</b> = {variable.label}</span>)}
+                </div>
+                {getMetricPlaceholderWarning(draftBody) && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">{getMetricPlaceholderWarning(draftBody)}</p>
+                )}
+                {templateError && <p className="text-[11px] text-red-600 dark:text-red-400">{templateError}</p>}
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveTemplate}
+                    disabled={isSavingTemplate}
+                    className="px-3 py-2 rounded-[8px] bg-[#DB0829] text-white text-xs font-semibold disabled:opacity-60"
+                  >
+                    {isSavingTemplate ? 'Đang lưu...' : 'Lưu template'}
+                  </button>
+                </div>
+                {triggerTemplates.length > 0 && (
+                  <div className="space-y-2">
+                    {triggerTemplates.map((template) => (
+                      <div key={template.templateId} className="flex items-center justify-between gap-3 p-2 rounded-[8px] bg-[#f3f4f6] dark:bg-[#18181b]">
+                        <span className="text-xs font-medium truncate">{template.name}</span>
+                        <span className="flex gap-2 shrink-0">
+                          <button onClick={() => startEditingTemplate(template)} title="Sửa template" className="text-blue-600 dark:text-blue-400"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteTemplate(template.templateId)} title="Xóa template" className="text-red-600 dark:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
           {matched.length === 0 ? (
             <div className="text-center py-8 text-[#404040]/50 dark:text-[#71717a]">
               <Check className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
@@ -191,7 +367,7 @@ export const ZaloRemindModal: React.FC<ZaloRemindModalProps> = ({
                     đúng thứ mình sắp gửi trước khi bấm, nhất là với nhóm Xám.
                   */}
                   <pre className="p-3 rounded-[8px] bg-white dark:bg-[#27272a] border border-[#f3f4f6] dark:border-[#3f3f46] text-[11px] leading-relaxed text-[#404040]/80 dark:text-[#a1a1aa] whitespace-pre-wrap font-sans border-l-2 border-l-blue-500">
-                    {buildZaloMessage(trigger, s, teacherName, className)}
+                    {messageFor(s)}
                   </pre>
 
                   <div className="flex items-center justify-end border-t border-[#f3f4f6] dark:border-[#3f3f46] pt-3">

@@ -253,9 +253,23 @@ model teachers {
   contact_logs      contact_logs[]
   label_change_logs label_change_logs[]
   pass_reviews      pass_reviews[]
+  message_templates message_templates[]
   khoi              khoi                @relation(fields: [khoi_id], references: [khoi_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([khoi_id], map: "idx_teachers_khoi")
+}
+
+model message_templates {
+  template_id  BigInt   @id @default(autoincrement())
+  teacher_id   Int
+  name         String   @db.VarChar(100)
+  trigger_type String   @db.VarChar(50)
+  body         String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  teachers     teachers @relation(fields: [teacher_id], references: [teacher_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([teacher_id, trigger_type], map: "idx_message_templates_teacher_trigger")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

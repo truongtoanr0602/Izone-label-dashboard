@@ -15,6 +15,7 @@ import { api, setAuthHeader } from './api/client';
 import { dashboardService } from './api/dashboardService';
 import { adaptTeacherStudent } from './api/dashboardContracts';
 import { useUrlParam } from './hooks/useUrlParam';
+import type { MessageTemplate, MessageTemplateInput } from './data/messageTemplates';
 
 const QUICK_BUTTONS: { trigger: ContactTrigger; className: string }[] = [
   { trigger: 'habit_reminder', className: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40' },
@@ -51,6 +52,7 @@ export default function App() {
   const [students, setStudents] = useState<StudentDetail[]>([]);
   const [labelEvents, setLabelEvents] = useState<LabelChangeLog[]>([]);
   const [contactLogs, setContactLogs] = useState<ContactLog[]>([]);
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
   const [contactCheckpoint, setContactCheckpoint] = useState(NO_CHECKPOINT);
   const [teacherDataClassId, setTeacherDataClassId] = useState<number | null>(null);
   const selectedClassIdRef = useRef<number | null>(null);
@@ -102,6 +104,7 @@ export default function App() {
     setClasses([]);
     setStudents([]);
     setContactLogs([]);
+    setMessageTemplates([]);
     setContactCheckpoint(NO_CHECKPOINT);
     setTeacherDataClassId(null);
   };
@@ -138,6 +141,19 @@ export default function App() {
       isCurrentRequest = false;
     };
   }, [currentUser, selectedPeriod]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let isCurrentRequest = true;
+    api.getMessageTemplates()
+      .then((templates) => {
+        if (isCurrentRequest) setMessageTemplates(templates);
+      })
+      .catch((error) => console.error('Failed to load message templates', error));
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [currentUser]);
 
   // When selected class changes, fetch its students, label events, and contact logs
   useEffect(() => {
@@ -262,6 +278,21 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const createMessageTemplate = async (input: MessageTemplateInput) => {
+    const template = await api.createMessageTemplate(input);
+    setMessageTemplates((current) => [template, ...current]);
+  };
+
+  const updateMessageTemplate = async (templateId: number, input: Pick<MessageTemplateInput, 'name' | 'body'>) => {
+    const template = await api.updateMessageTemplate(templateId, input);
+    setMessageTemplates((current) => current.map((item) => item.templateId === templateId ? template : item));
+  };
+
+  const deleteMessageTemplate = async (templateId: number) => {
+    await api.deleteMessageTemplate(templateId);
+    setMessageTemplates((current) => current.filter((item) => item.templateId !== templateId));
   };
 
   const totals = actionTotals;
@@ -514,6 +545,10 @@ export default function App() {
           checkpoint={checkpoint}
           onMarkContacted={markContacted}
           onUndoContacted={undoContacted}
+          templates={messageTemplates}
+          onCreateTemplate={createMessageTemplate}
+          onUpdateTemplate={updateMessageTemplate}
+          onDeleteTemplate={deleteMessageTemplate}
         />
       )}
     </div>

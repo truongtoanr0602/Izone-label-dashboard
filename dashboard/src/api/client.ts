@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { ClassSummary, StudentDetail, ClassSnapshot, LabelChangeLog, ContactLog } from '../data/types';
+import type { MessageTemplate, MessageTemplateInput } from '../data/messageTemplates';
 
 // Constants for backend URL
 const API_BASE_URL = '/api';
@@ -83,12 +84,46 @@ export const api = {
     const backendPayload = { ...payload, triggerType: payload.trigger, trigger: undefined };
     const response = await apiClient.post('/contact-logs/undo', backendPayload);
     return response.data;
+  },
+
+  getMessageTemplates: async (): Promise<MessageTemplate[]> => {
+    const response = await apiClient.get('/message-templates');
+    return response.data.map(mapMessageTemplate);
+  },
+
+  createMessageTemplate: async (input: MessageTemplateInput): Promise<MessageTemplate> => {
+    const response = await apiClient.post('/message-templates', {
+      name: input.name,
+      triggerType: input.trigger,
+      body: input.body,
+    });
+    return mapMessageTemplate(response.data);
+  },
+
+  updateMessageTemplate: async (templateId: number, input: Pick<MessageTemplateInput, 'name' | 'body'>): Promise<MessageTemplate> => {
+    const response = await apiClient.patch(`/message-templates/${templateId}`, input);
+    return mapMessageTemplate(response.data);
+  },
+
+  deleteMessageTemplate: async (templateId: number): Promise<void> => {
+    await apiClient.delete(`/message-templates/${templateId}`);
   }
 };
 
 // ==========================================
 // MAPPERS: Backend Snake_Case to Frontend CamelCase
 // ==========================================
+
+function mapMessageTemplate(data: any): MessageTemplate {
+  return {
+    templateId: Number(data.template_id),
+    name: data.name,
+    trigger: data.trigger_type,
+    body: data.body,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
 
 function mapClassSummary(data: any): ClassSummary {
   return {
