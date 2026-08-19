@@ -31,6 +31,7 @@ export interface StudentMetricEvidence {
 export interface ClassObservationEvidence {
   classId: number;
   className: string;
+  classStatus?: string;
   classTotalSessions: number;
   snapshots: ClassSnapshotEvidence[];
   studentMetrics: StudentMetricEvidence[];
@@ -177,17 +178,21 @@ export function resolveClassObservation(
   input: ClassObservationEvidence,
   asOf: string,
 ): ResolvedClassObservation {
-  const futureRowsExist =
-    input.snapshots.some((row) => row.date > asOf) ||
-    input.studentMetrics.some((row) => row.date > asOf);
   const snapshots = latestFirst(
     input.snapshots.filter((row) => row.date <= asOf),
   );
-  const studentMetrics = latestFirst(
-    input.studentMetrics.filter((row) => row.date <= asOf),
-  );
   const rosterRow = snapshots[0];
   const rosterDate = rosterRow?.date ?? null;
+  const metricAsOf =
+    input.classStatus === 'completed' && rosterDate && rosterDate < asOf
+      ? rosterDate
+      : asOf;
+  const futureRowsExist =
+    input.snapshots.some((row) => row.date > asOf) ||
+    input.studentMetrics.some((row) => row.date > metricAsOf);
+  const studentMetrics = latestFirst(
+    input.studentMetrics.filter((row) => row.date <= metricAsOf),
+  );
 
   const totalSessions = Math.max(
     0,

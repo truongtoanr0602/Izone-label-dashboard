@@ -6,6 +6,7 @@ import {
 const base: ClassObservationEvidence = {
   classId: 1127,
   className: 'IC2142',
+  classStatus: 'on_going',
   classTotalSessions: 27,
   snapshots: [
     {
@@ -34,6 +35,50 @@ const base: ClassObservationEvidence = {
 };
 
 describe('resolveClassObservation', () => {
+  it('ignores student metrics recorded after the final roster snapshot of a completed class', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      classId: 1141,
+      className: 'IC2155',
+      classStatus: 'completed',
+      snapshots: [
+        { ...base.snapshots[0], date: '2026-08-12', activeStudents: 12 },
+      ],
+      studentMetrics: [
+        {
+          ...base.studentMetrics[0],
+          date: '2026-08-17',
+          recordCount: 3,
+          attendanceSampleSize: 2,
+          attendanceAvg: 0,
+          homeworkSampleSize: 2,
+          homeworkAvg: 0,
+        },
+        {
+          ...base.studentMetrics[0],
+          date: '2026-08-12',
+          recordCount: 13,
+          attendanceSampleSize: 13,
+          attendanceAvg: 79.2,
+          homeworkSampleSize: 13,
+          homeworkAvg: 70.7,
+        },
+      ],
+    };
+
+    const result = resolveClassObservation(input, '2026-08-19');
+
+    expect(result.attendance).toMatchObject({
+      value: 79.2,
+      dataAsOf: '2026-08-12',
+    });
+    expect(result.homework).toMatchObject({
+      value: 70.7,
+      dataAsOf: '2026-08-12',
+    });
+    expect(result.dataQuality.warnings).toContain('FUTURE_ROWS_EXCLUDED');
+  });
+
   it('falls back from a newer empty snapshot but keeps its roster', () => {
     const input: ClassObservationEvidence = {
       ...base,

@@ -1016,6 +1016,7 @@ export class DashboardsService {
       return {
         classId,
         className: String(row.class_name),
+        classStatus: String(row.status ?? ''),
         classTotalSessions: Number(row.total_sessions ?? 0),
         snapshots: snapshotRows
           .filter((snapshot) => Number(snapshot.class_id) === classId)
