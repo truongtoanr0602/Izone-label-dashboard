@@ -314,6 +314,7 @@ describe('DashboardsService', () => {
     const studentMetricSql = (
       queryRaw.mock.calls[2][0] as TemplateStringsArray
     ).join('?');
+    expect(studentMetricSql).toMatch(/s\.class_id\s*=\s*r\.class_id/i);
     expect(studentMetricSql).toContain('r.test_average >= 60');
     expect(studentMetricSql).toContain('r.test_average >= 50');
     expect(studentMetricSql).toContain('r.test_average < 55');

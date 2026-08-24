@@ -277,7 +277,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] shadow-sm flex flex-col overflow-hidden">
         <SectionHeader
           icon={<Table2 className="w-4 h-4 text-[#db0829]" />}
-          title="Bảng Quản Lý Toàn Bộ Lớp (Master Table)"
+          title="Bảng Quản Lý Toàn Bộ Lớp"
           subtitle={`Các lớp hoạt động trong ${periodLabel(selectedPeriod)} — gồm lớp đang học và đã hoàn thành trong kỳ.`}
           right={
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -455,7 +455,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
         <SectionHeader
           icon={<BarChart3 className="w-4 h-4 text-[#db0829]" />}
-          title="Bản Đồ Phân Bố Nhãn Theo Lớp (Label Distribution)"
+          title="Bản Đồ Phân Bố Nhãn Theo Lớp"
           subtitle={`So sánh phân bố học viên nhãn Vàng / Đỏ / Xám giữa các lớp trong ${periodLabel(selectedPeriod)}.`}
           right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
         />

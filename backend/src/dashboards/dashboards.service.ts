@@ -27,6 +27,7 @@ import {
   type LabelTransitionRow,
   type LeadSnapshotRow,
 } from './lead-aggregation';
+import { selectLabelMetricRow } from './label-metric-selection';
 import {
   resolveClassObservation,
   type ClassObservationEvidence,
@@ -216,6 +217,7 @@ export class DashboardsService {
         )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
+        AND s.class_id = r.class_id
         AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
@@ -536,10 +538,11 @@ export class DashboardsService {
       const meta = classRows.find(
         (row) => Number(row.class_id) === observation.classId,
       );
-      const metrics = this.latestStudentMetric(
+      const metrics = selectLabelMetricRow(
         studentMetricRows,
         observation.classId,
         calendar.currentAsOf,
+        Number(meta?.roster_active_students ?? 0),
       );
       return this.mapResolvedLeadClass(
         meta,
