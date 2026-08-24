@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/common/Header';
 import { TopRibbon } from './components/dashboard/TopRibbon';
 import { StudentTable } from './components/dashboard/StudentTable';
+import { formatClassSchedule } from './components/dashboard/scheduleFormat';
 import { LeadDashboard } from './components/dashboard/LeadDashboard';
 import { ZaloRemindModal } from './components/modals/ZaloRemindModal';
 import { Login } from './components/auth/Login';
@@ -490,7 +491,7 @@ export default function App() {
                   <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] flex flex-wrap items-center gap-4">
                     <span>GVCN: <b className="text-[#404040] dark:text-[#e4e4e7]">{selectedClass.teacher.fullName}</b></span>
                     <span>•</span>
-                    <span>Lịch học: <b className="text-[#404040] dark:text-[#e4e4e7]">{selectedClass.schedule}</b></span>
+                    <span>Lịch học: <b className="text-[#404040] dark:text-[#e4e4e7]">{formatClassSchedule(selectedClass.schedule)}</b></span>
                     <span>•</span>
                     <span>Sĩ số: <b className="text-emerald-600 dark:text-emerald-400 font-mono">{selectedClass.studentCounts.active} Active</b> / {selectedClass.studentCounts.totalEnrolled} Tổng</span>
                   </p>

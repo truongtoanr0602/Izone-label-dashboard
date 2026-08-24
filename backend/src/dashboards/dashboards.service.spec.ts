@@ -120,6 +120,10 @@ describe('DashboardsService', () => {
           teacher_id: 10,
           teacher_name: 'GV A',
           teacher_email: 'a@izone.edu.vn',
+          roster_active_students: 18,
+          roster_on_hold_students: 0,
+          roster_dropped_students: 0,
+          roster_transferred_students: 0,
         },
         {
           class_id: 2,
@@ -282,6 +286,7 @@ describe('DashboardsService', () => {
     expect(result.kpis.netMomentum.totalClasses).toBe(2);
     expect(result.trend).toHaveLength(14);
     expect(result.classes).toHaveLength(2);
+    expect(result.classes[0].activeStudents).toBe(18);
     expect(result.classes[0].progress.completedSessions).toBe(10);
     expect(result.classes[0].attendanceAvg).toBe(80);
     expect(result.classes[0].dataQuality.status).toBe('fallback');
@@ -562,6 +567,13 @@ describe('DashboardsService', () => {
       tests: { average: null, scores: [] },
     });
     expect(result.actionSummary.level3.count).toBe(1);
+    expect(result.classHeader.studentCounts).toEqual({
+      total: 3,
+      active: 3,
+      onHold: 0,
+      dropped: 0,
+      transferred: 0,
+    });
     expect(result.tabs.all).toBe(3);
     expect(result.tabs.level1 + result.tabs.level2 + result.tabs.level3).toBe(
       1,

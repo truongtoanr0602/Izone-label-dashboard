@@ -230,6 +230,11 @@ export function toLeadClassPresentation(contract: LeadDashboardClass) {
       onHold: contract.onHoldStudents,
       dropped: contract.droppedStudents,
       transferred: contract.transferredStudents,
+      totalEnrolled:
+        contract.activeStudents +
+        contract.onHoldStudents +
+        contract.droppedStudents +
+        contract.transferredStudents,
     },
     progress: {
       completedSessions: contract.progress.completedSessions,

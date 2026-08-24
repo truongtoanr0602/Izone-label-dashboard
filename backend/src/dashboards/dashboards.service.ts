@@ -105,9 +105,32 @@ export class DashboardsService {
     const classRows = await this.prisma.$queryRaw<any[]>`
       SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
              c.location, c.portal_url, c.total_sessions,
-             c.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone
+             c.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone,
+             roster.active_students AS roster_active_students,
+             roster.on_hold_students AS roster_on_hold_students,
+             roster.dropped_students AS roster_dropped_students,
+             roster.transferred_students AS roster_transferred_students
       FROM izone.classes c
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) FILTER (
+            WHERE st.registration_status IN ('on_going', 'active')
+          )::integer AS active_students,
+          COUNT(*) FILTER (
+            WHERE st.registration_status = 'on_hold'
+          )::integer AS on_hold_students,
+          COUNT(*) FILTER (
+            WHERE st.registration_status NOT IN (
+              'on_going', 'active', 'on_hold', 'transferred'
+            )
+          )::integer AS dropped_students,
+          COUNT(*) FILTER (
+            WHERE st.registration_status = 'transferred'
+          )::integer AS transferred_students
+        FROM izone.students st
+        WHERE st.class_id = c.class_id
+      ) roster ON TRUE
       WHERE c.course_id = ${KH0I_34_COURSE_ID}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
@@ -923,7 +946,7 @@ export class DashboardsService {
             .at(-1) ?? null,
       },
       classHeader: {
-        ...this.mapClassHeader(classRow, students.length),
+        ...this.mapClassHeader(classRow, this.countRoster(students)),
         contactCheckpoint,
       },
       actionSummary: {
@@ -1208,7 +1231,7 @@ export class DashboardsService {
     metrics: any,
     contactCoverage: ContactCoverage,
   ) {
-    const activeStudents = observation.roster.activeStudents;
+    const activeStudents = Number(row?.roster_active_students ?? 0);
     const yellow = Number(metrics?.label_yellow ?? 0);
     const red = Number(metrics?.label_red ?? 0);
     const grey = Number(metrics?.label_grey ?? 0);
@@ -1243,9 +1266,9 @@ export class DashboardsService {
         phone: row?.teacher_phone ?? 'N/A',
       },
       activeStudents,
-      onHoldStudents: observation.roster.onHoldStudents,
-      droppedStudents: observation.roster.droppedStudents,
-      transferredStudents: observation.roster.transferredStudents,
+      onHoldStudents: Number(row?.roster_on_hold_students ?? 0),
+      droppedStudents: Number(row?.roster_dropped_students ?? 0),
+      transferredStudents: Number(row?.roster_transferred_students ?? 0),
       attendanceAvg: attendance,
       homeworkAvg: homework,
       passStandardRate: observation.passStandard.value,
@@ -1540,7 +1563,40 @@ export class DashboardsService {
       : status;
   }
 
-  private mapClassHeader(row: any, totalStudents: number) {
+  private countRoster(students: Array<{ registrationStatus: string }>) {
+    return students.reduce(
+      (counts, student) => {
+        switch (student.registrationStatus) {
+          case 'on_going':
+          case 'active':
+            counts.active += 1;
+            break;
+          case 'on_hold':
+            counts.onHold += 1;
+            break;
+          case 'transferred':
+            counts.transferred += 1;
+            break;
+          default:
+            counts.dropped += 1;
+        }
+        counts.total += 1;
+        return counts;
+      },
+      { total: 0, active: 0, onHold: 0, dropped: 0, transferred: 0 },
+    );
+  }
+
+  private mapClassHeader(
+    row: any,
+    studentCounts: {
+      total: number;
+      active: number;
+      onHold: number;
+      dropped: number;
+      transferred: number;
+    },
+  ) {
     return {
       classId: Number(row.class_id),
       className: row.class_name,
@@ -1563,13 +1619,7 @@ export class DashboardsService {
         ),
         percentage: this.nullableNumber(row.progress_pct),
       },
-      studentCounts: {
-        total: totalStudents,
-        active: Number(row.active_students ?? 0),
-        onHold: Number(row.on_hold_students ?? 0),
-        dropped: Number(row.dropped_students ?? 0),
-        transferred: Number(row.transferred_students ?? 0),
-      },
+      studentCounts,
       lastSnapshotDate: row.snapshot_date
         ? this.isoDate(row.snapshot_date)
         : null,

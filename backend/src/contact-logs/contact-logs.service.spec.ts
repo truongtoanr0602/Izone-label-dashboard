@@ -3,9 +3,10 @@ import type { AuthUser } from '../auth/auth.service';
 import { ContactLogsService } from './contact-logs.service';
 
 const teacher: AuthUser = {
-  sub: 'teacher-1002',
-  role: 'teacher',
+  userId: 'teacher-1002',
   email: 'teacher@izone.edu.vn',
+  displayName: 'Teacher 1002',
+  role: 'teacher',
   teacherId: 1002,
   classIds: [1237],
 };

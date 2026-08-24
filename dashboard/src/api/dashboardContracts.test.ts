@@ -170,6 +170,7 @@ describe('dashboard screen-contract adapters', () => {
 
     expect(julyView).toEqual(augustView);
     expect(augustView.progress).toEqual({ completedSessions: 22, totalSessions: 27, percentage: 81.5 });
+    expect(augustView.studentCounts.totalEnrolled).toBe(11);
   });
 
   it('adapts an exclusive level 3 student without recalculating its label', () => {
