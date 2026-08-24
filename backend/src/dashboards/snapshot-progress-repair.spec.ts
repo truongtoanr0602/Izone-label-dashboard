@@ -23,4 +23,25 @@ describe('snapshot progress repair migration', () => {
     );
     expect(migration).not.toMatch(/SET[\s\S]{0,200}progress_pct\s*=/);
   });
+
+  it('normalizes progress for courses 1 to 3 and audits both source columns', () => {
+    const migration = readFileSync(
+      resolve(
+        __dirname,
+        '../../../database/migrations/012_repair_multicourse_snapshot_progress.sql',
+      ),
+      'utf8',
+    );
+
+    expect(migration).toContain('c.course_id IN (1, 2, 3)');
+    expect(migration).toContain('r.snapshot_stage IS NULL');
+    expect(migration).toContain('MAX(r.attendance_total)');
+    expect(migration).toContain('MAX(r.homework_total)');
+    expect(migration).toContain('old_total_sessions');
+    expect(migration).toContain('new_total_sessions');
+    expect(migration).toMatch(
+      /SET completed_sessions = candidates\.derived_completed_sessions,[\s\S]*total_sessions = candidates\.derived_total_sessions/,
+    );
+    expect(migration).not.toMatch(/SET[\s\S]{0,250}progress_pct\s*=/);
+  });
 });

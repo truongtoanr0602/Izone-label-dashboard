@@ -50,7 +50,7 @@ export interface Khoi34DashboardSummary {
 export const dashboardService = {
   getLeadDashboard: async (filters: LeadDashboardFilters): Promise<LeadDashboardResponse> => {
     const response = await apiClient.get<LeadDashboardResponse>('/v1/lead-dashboard', {
-      params: { courseId: 2, ...filters },
+      params: filters,
     });
     return response.data;
   },

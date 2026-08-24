@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { ClassSummary, StudentDetail, ClassSnapshot, LabelChangeLog, ContactLog } from '../data/types';
 import type { MessageTemplate, MessageTemplateInput } from '../data/messageTemplates';
+import { courseName } from './courseScope';
 
 // Constants for backend URL
 const API_BASE_URL = '/api';
@@ -130,7 +131,7 @@ function mapClassSummary(data: any): ClassSummary {
     classId: data.class_id,
     className: data.class_name,
     courseId: data.course_id || 1,
-    courseName: data.course_id === 2 ? 'IELTS Nền Tảng' : 'IELTS', // Fallback as course mapping is out of scope
+    courseName: courseName(data.course_id || 1),
     teacher: {
       teacherId: data.teacher_id,
       fullName: data.teacher_name || 'GV', 

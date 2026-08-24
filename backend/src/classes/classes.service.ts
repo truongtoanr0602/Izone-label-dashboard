@@ -23,7 +23,7 @@ export class ClassesService {
         JOIN izone.classes c ON v.class_id = c.class_id
         JOIN izone.teachers t ON c.teacher_id = t.teacher_id
         WHERE t.khoi_id = ${user.khoiId}
-          AND c.course_id = 2
+          AND c.course_id = ${user.khoiId}
           AND c.status IN ('on_going', 'completed')
           AND EXISTS (
             SELECT 1

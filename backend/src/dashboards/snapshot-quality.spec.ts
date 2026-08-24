@@ -35,6 +35,63 @@ const base: ClassObservationEvidence = {
 };
 
 describe('resolveClassObservation', () => {
+  it('uses student counters with the class total instead of corrupt snapshot progress', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      classTotalSessions: 18,
+      snapshots: [
+        {
+          ...base.snapshots[0],
+          completedSessions: 1,
+          totalSessions: 28,
+        },
+      ],
+      studentMetrics: [
+        {
+          ...base.studentMetrics[0],
+          observedCompletedSessions: 15,
+        },
+      ],
+    };
+
+    const result = resolveClassObservation(input, '2026-08-10');
+
+    expect(result.progress).toEqual({
+      completedSessions: 15,
+      totalSessions: 18,
+      percentage: 83.3,
+      dataAsOf: '2026-08-10',
+    });
+    expect(result.dataQuality.warnings).toEqual(
+      expect.arrayContaining([
+        'PROGRESS_SNAPSHOT_MISMATCH',
+        'SNAPSHOT_TOTAL_SESSIONS_MISMATCH',
+      ]),
+    );
+  });
+
+  it('falls back to snapshot progress when student counters are unavailable', () => {
+    const input: ClassObservationEvidence = {
+      ...base,
+      studentMetrics: [
+        {
+          ...base.studentMetrics[0],
+          observedCompletedSessions: 0,
+        },
+      ],
+    };
+
+    const result = resolveClassObservation(input, '2026-08-10');
+
+    expect(result.progress).toMatchObject({
+      completedSessions: 22,
+      totalSessions: 27,
+      percentage: 81.5,
+      dataAsOf: '2026-08-10',
+    });
+    expect(result.dataQuality.warnings).toContain('PROGRESS_FALLBACK_USED');
+  });
+
   it('ignores student metrics recorded after the final roster snapshot of a completed class', () => {
     const input: ClassObservationEvidence = {
       ...base,

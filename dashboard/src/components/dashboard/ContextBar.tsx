@@ -3,6 +3,7 @@ import { CalendarRange, Database } from 'lucide-react';
 import type { KhoiAggregate } from '../../data/selectors';
 import { periodLabel, previousPeriodKey } from '../../data/selectors';
 import { MonthYearPicker } from './MonthYearPicker';
+import { khoiName } from '../../api/courseScope';
 
 interface ContextBarProps {
   selectedKey: string;
@@ -11,6 +12,7 @@ interface ContextBarProps {
   aggregate: KhoiAggregate;
   noDataStudents: number;
   lastSyncedAt: string;
+  khoiId: number;
 }
 
 export const ContextBar: React.FC<ContextBarProps> = ({
@@ -20,6 +22,7 @@ export const ContextBar: React.FC<ContextBarProps> = ({
   aggregate,
   noDataStudents,
   lastSyncedAt,
+  khoiId,
 }) => {
   /*
    * Không có HV active nào thì tỷ lệ này KHÔNG tính được — trả null để hiện gạch
@@ -51,7 +54,7 @@ export const ContextBar: React.FC<ContextBarProps> = ({
       </div>
 
       <p className="text-xs text-[#404040]/70 dark:text-[#a1a1aa] font-mono">
-        Khối 3-4 · {aggregate.classCount} lớp đang chạy · {aggregate.activeStudents} HV active
+        {khoiName(khoiId)} · {aggregate.classCount} lớp đang chạy · {aggregate.activeStudents} HV active
       </p>
 
       <p className="text-[11px] text-[#404040]/50 dark:text-[#71717a] flex items-center gap-1.5">

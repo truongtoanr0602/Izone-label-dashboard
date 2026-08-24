@@ -46,7 +46,13 @@ import type {
 } from './dashboard.types';
 
 const DAY_MS = 86_400_000;
-const KH0I_34_COURSE_ID = 2;
+const DEFAULT_COURSE_ID = 2;
+const SUPPORTED_COURSE_IDS = new Set([1, 2, 3]);
+const COURSE_NAMES: Record<number, string> = {
+  1: 'IELTS 0-3',
+  2: 'IELTS 3-4',
+  3: 'IELTS 4-5',
+};
 
 @Injectable()
 export class DashboardsService {
@@ -67,17 +73,18 @@ export class DashboardsService {
     }
     const requestedCourseId = this.parseOptionalInteger(
       query.courseId,
-      KH0I_34_COURSE_ID,
+      DEFAULT_COURSE_ID,
       'courseId',
     );
-    if (requestedCourseId !== KH0I_34_COURSE_ID) {
+    const courseId = user.role === 'lead' ? user.khoiId : requestedCourseId;
+    if (!courseId || !SUPPORTED_COURSE_IDS.has(courseId)) {
       throw new BadRequestException(
-        'Lead Dashboard hiện chỉ hỗ trợ courseId=2',
+        'Lead Dashboard chỉ hỗ trợ courseId thuộc 1, 2 hoặc 3',
       );
     }
     const requestedKhoiId = this.parseOptionalInteger(
       query.khoiId,
-      user.khoiId ?? 34,
+      user.khoiId ?? DEFAULT_COURSE_ID,
       'khoiId',
     );
     const khoiId = user.role === 'lead' ? user.khoiId : requestedKhoiId;
@@ -104,6 +111,15 @@ export class DashboardsService {
     const periodEnd = new Date(`${calendar.periodEnd}T00:00:00Z`);
 
     const classRows = await this.prisma.$queryRaw<any[]>`
+      WITH class_membership AS (
+        SELECT student_id, class_id
+        FROM izone.students
+        UNION
+        SELECT DISTINCT student_id, class_id
+        FROM izone.test_scores
+        WHERE grade_status = 'confirmed'
+          AND final_score IS NOT NULL
+      )
       SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
              c.location, c.portal_url, c.total_sessions,
              c.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone,
@@ -129,10 +145,11 @@ export class DashboardsService {
           COUNT(*) FILTER (
             WHERE st.registration_status = 'transferred'
           )::integer AS transferred_students
-        FROM izone.students st
-        WHERE st.class_id = c.class_id
+        FROM class_membership membership
+        JOIN izone.students st ON st.student_id = membership.student_id
+        WHERE membership.class_id = c.class_id
       ) roster ON TRUE
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -154,7 +171,7 @@ export class DashboardsService {
       FROM izone.class_daily_snapshots s
       JOIN izone.classes c ON c.class_id = s.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -170,12 +187,35 @@ export class DashboardsService {
     `;
 
     const studentMetricRows = await this.prisma.$queryRaw<any[]>`
+      WITH class_membership AS (
+        SELECT student_id, class_id
+        FROM izone.students
+        UNION
+        SELECT DISTINCT student_id, class_id
+        FROM izone.test_scores
+        WHERE grade_status = 'confirmed'
+          AND final_score IS NOT NULL
+      ), confirmed_test_orders AS (
+        SELECT student_id, class_id, test_order, MAX(final_score) AS final_score
+        FROM izone.test_scores
+        WHERE grade_status = 'confirmed'
+          AND final_score IS NOT NULL
+        GROUP BY student_id, class_id, test_order
+      ), student_test_labels AS (
+        SELECT student_id, class_id, AVG(final_score) AS test_average
+        FROM confirmed_test_orders
+        GROUP BY student_id, class_id
+      )
       SELECT r.class_id, TO_CHAR(r.record_date, 'YYYY-MM-DD') AS record_date,
              COUNT(*)::integer AS record_count,
              COUNT(r.attendance_pct)::integer AS attendance_sample_size,
              ROUND(AVG(r.attendance_pct) FILTER (WHERE r.attendance_pct IS NOT NULL), 2) AS attendance_avg,
              COUNT(r.homework_pct)::integer AS homework_sample_size,
              ROUND(AVG(r.homework_pct) FILTER (WHERE r.homework_pct IS NOT NULL), 2) AS homework_avg,
+             MAX(GREATEST(
+               COALESCE(r.attendance_total, 0),
+               COALESCE(r.homework_total, 0)
+             ))::integer AS observed_completed_sessions,
              COUNT(*) FILTER (
                WHERE COALESCE(r.tests_taken, 0) > 0
                  AND r.test_average IS NOT NULL
@@ -196,17 +236,25 @@ export class DashboardsService {
                     AND r.attendance_pct >= 90 AND r.homework_pct >= 90)
                  )
              )::integer AS soft_pass_students,
-             COUNT(*) FILTER (WHERE r.current_label = 'green')::integer AS label_green,
-             COUNT(*) FILTER (WHERE r.current_label = 'yellow')::integer AS label_yellow,
-             COUNT(*) FILTER (WHERE r.current_label = 'red')::integer AS label_red,
-             COUNT(*) FILTER (WHERE r.current_label = 'grey')::integer AS label_grey,
-             COUNT(*) FILTER (WHERE r.current_label = 'no_data' OR r.current_label IS NULL)::integer AS label_no_data,
+             0::integer AS label_green,
+             COUNT(*) FILTER (WHERE labels.test_average >= 60)::integer AS label_yellow,
+             COUNT(*) FILTER (
+               WHERE labels.test_average >= 45 AND labels.test_average < 60
+             )::integer AS label_red,
+             COUNT(*) FILTER (WHERE labels.test_average < 45)::integer AS label_grey,
+             COUNT(*) FILTER (WHERE labels.test_average IS NULL)::integer AS label_no_data,
              MAX(r.scraped_at) AS scraped_at
       FROM izone.student_daily_records r
-      JOIN izone.students s ON s.student_id = r.student_id
+      JOIN class_membership membership
+        ON membership.student_id = r.student_id
+       AND membership.class_id = r.class_id
+      JOIN izone.students s ON s.student_id = membership.student_id
+      LEFT JOIN student_test_labels labels
+        ON labels.student_id = r.student_id
+       AND labels.class_id = r.class_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -217,7 +265,6 @@ export class DashboardsService {
         )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
-        AND s.class_id = r.class_id
         AND r.record_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
@@ -248,7 +295,7 @@ export class DashboardsService {
       JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -296,7 +343,7 @@ export class DashboardsService {
       JOIN izone.students s ON s.student_id = r.student_id
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -320,7 +367,7 @@ export class DashboardsService {
       FROM izone.test_scores ts
       JOIN izone.classes c ON c.class_id = ts.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -340,7 +387,7 @@ export class DashboardsService {
       FROM izone.contact_logs cl
       JOIN izone.classes c ON c.class_id = cl.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
-      WHERE c.course_id = ${KH0I_34_COURSE_ID}
+      WHERE c.course_id = ${courseId}
         AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
@@ -576,7 +623,7 @@ export class DashboardsService {
     return this.serializeBigInt({
       meta: {
         apiVersion: 'v1',
-        courseId: KH0I_34_COURSE_ID,
+        courseId,
         khoiId,
         period: calendar.period,
         reportAsOf: calendar.reportAsOf,
@@ -691,8 +738,20 @@ export class DashboardsService {
       )
     `;
     const studentRows = await this.prisma.$queryRaw<any[]>`
+      WITH class_roster AS (
+        SELECT student_id
+        FROM izone.students
+        WHERE class_id = ${classId}
+        UNION
+        SELECT DISTINCT student_id
+        FROM izone.test_scores
+        WHERE class_id = ${classId}
+          AND grade_status = 'confirmed'
+          AND final_score IS NOT NULL
+      )
       SELECT st.*, r.*
-      FROM izone.students st
+      FROM class_roster roster
+      JOIN izone.students st ON st.student_id = roster.student_id
       LEFT JOIN LATERAL (
         SELECT sr.*
         FROM izone.student_daily_records sr
@@ -712,7 +771,6 @@ export class DashboardsService {
         ORDER BY sr.record_date DESC, sr.scraped_at DESC
         LIMIT 1
       ) r ON TRUE
-      WHERE st.class_id = ${classId}
       ORDER BY st.full_name ASC
     `;
     const testRows = await this.prisma.$queryRaw<any[]>`
@@ -1002,6 +1060,7 @@ export class DashboardsService {
         c.portal_url, c.total_sessions AS class_total_sessions,
         t.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone,
         s.completed_sessions, s.total_sessions, s.progress_pct,
+        p.observed_completed_sessions, p.progress_data_as_of,
         s.active_students, s.on_hold_students, s.dropped_students,
         s.transferred_students, s.snapshot_date
       FROM izone.classes c
@@ -1013,8 +1072,21 @@ export class DashboardsService {
         ORDER BY cs.snapshot_date DESC
         LIMIT 1
       ) s ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          GREATEST(
+            COALESCE(sr.attendance_total, 0),
+            COALESCE(sr.homework_total, 0)
+          )::integer AS observed_completed_sessions,
+          sr.record_date AS progress_data_as_of
+        FROM izone.student_daily_records sr
+        WHERE sr.class_id = c.class_id
+          AND sr.snapshot_stage IS NULL
+          AND sr.record_date <= ${asOf}
+        ORDER BY observed_completed_sessions DESC, sr.record_date DESC
+        LIMIT 1
+      ) p ON TRUE
       WHERE c.class_id = ${classId}
-        AND c.course_id = ${KH0I_34_COURSE_ID}
         AND (${khoiId ?? null}::integer IS NULL OR t.khoi_id = ${khoiId ?? null})
     `;
   }
@@ -1061,6 +1133,9 @@ export class DashboardsService {
           .filter((metric) => Number(metric.class_id) === classId)
           .map((metric): StudentMetricEvidence => ({
             date: this.isoDate(metric.record_date),
+            observedCompletedSessions: Number(
+              metric.observed_completed_sessions ?? 0,
+            ),
             recordCount: Number(metric.record_count ?? 0),
             attendanceSampleSize: Number(metric.attendance_sample_size ?? 0),
             attendanceAvg: this.nullableNumber(metric.attendance_avg),
@@ -1257,7 +1332,7 @@ export class DashboardsService {
     return {
       classId: observation.classId,
       className: observation.className,
-      courseId: Number(row?.course_id ?? KH0I_34_COURSE_ID),
+      courseId: Number(row?.course_id ?? DEFAULT_COURSE_ID),
       status: row?.status,
       schedule: row?.schedule,
       location: row?.location,
@@ -1600,11 +1675,27 @@ export class DashboardsService {
       transferred: number;
     },
   ) {
+    const totalSessions = Math.max(
+      0,
+      Number(row.class_total_sessions ?? row.total_sessions ?? 0),
+    );
+    const observedCompletedSessions = Number(
+      row.observed_completed_sessions ?? 0,
+    );
+    const rawCompletedSessions =
+      observedCompletedSessions > 0
+        ? observedCompletedSessions
+        : Number(row.completed_sessions ?? 0);
+    const completedSessions = Math.min(
+      totalSessions || rawCompletedSessions,
+      Math.max(0, rawCompletedSessions),
+    );
     return {
       classId: Number(row.class_id),
       className: row.class_name,
       courseId: Number(row.course_id),
-      courseName: 'Khối 34',
+      courseName:
+        COURSE_NAMES[Number(row.course_id)] ?? `Khóa học ${row.course_id}`,
       status: row.status,
       schedule: row.schedule,
       location: row.location,
@@ -1616,11 +1707,17 @@ export class DashboardsService {
         phone: row.teacher_phone ?? 'N/A',
       },
       progress: {
-        completedSessions: Number(row.completed_sessions ?? 0),
-        totalSessions: Number(
-          row.total_sessions ?? row.class_total_sessions ?? 0,
-        ),
-        percentage: this.nullableNumber(row.progress_pct),
+        completedSessions,
+        totalSessions,
+        percentage:
+          totalSessions === 0
+            ? null
+            : Math.round((completedSessions / totalSessions) * 1000) / 10,
+        dataAsOf: row.progress_data_as_of
+          ? this.isoDate(row.progress_data_as_of)
+          : row.snapshot_date
+            ? this.isoDate(row.snapshot_date)
+            : null,
       },
       studentCounts,
       lastSnapshotDate: row.snapshot_date

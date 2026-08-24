@@ -6,6 +6,7 @@ import type { ClassSummary } from '../../data/types';
 import {
   periodLabel,
 } from '../../data/selectors';
+import { classesWithTestLabels } from '../../data/selectors/labelDistribution';
 import { ContextBar } from './ContextBar';
 import { KpiRow } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
@@ -65,6 +66,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       setIsLoading(true);
       try {
         const response = await dashboardService.getLeadDashboard({
+          courseId: khoiId,
           khoiId,
           period: selectedPeriod,
         });
@@ -133,7 +135,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       lastSyncedAt: presentation.lastSyncedAt ?? '',
     };
   });
-  const barChartData = displayClasses.map((c) => ({
+  const barChartData = classesWithTestLabels(displayClasses).map((c) => ({
     name: c.className,
     teacher: c.teacher.fullName,
     Vàng: c.labelDistribution.yellow,
@@ -231,6 +233,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       </div>
 
       <ContextBar
+        khoiId={dashboard.meta.khoiId}
         selectedKey={selectedPeriod}
         currentKey={dashboard.meta.currentAsOf.slice(0, 7)}
         onSelectPeriod={onSelectPeriod}
@@ -459,21 +462,29 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
           subtitle={`So sánh phân bố học viên nhãn Vàng / Đỏ / Xám giữa các lớp trong ${periodLabel(selectedPeriod)}.`}
           right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
         />
-        <div className="h-80 w-full p-5 pb-6">
-          <ResponsiveContainer width="100%" height="100%" debounce={200}>
-            <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
-              <XAxis type="number" stroke="#9ca3af" fontSize={11} />
-              <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={12} fontStyle="bold" width={60} />
-              <Tooltip 
-                contentStyle={{ background: '#ffffff', border: '1px solid #f3f4f6', borderRadius: '12px', fontSize: '12px', color: '#404040' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '15px', bottom: 0 }} />
-              <Bar dataKey="Vàng" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Nhãn Vàng (An toàn / >=60 điểm)" />
-              <Bar dataKey="Đỏ" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} name="Nhãn Đỏ (Nhóm tiềm năng / Cần can thiệp / 45-59 điểm)" />
-              <Bar dataKey="Xám" stackId="a" fill="#64748b" radius={[0, 4, 4, 0]} name="Nhãn Xám (Rủi ro cao / Gần như Fail / <45 điểm)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {barChartData.length === 0 ? (
+          <div className="flex h-52 items-center justify-center px-6 text-center">
+            <p className="text-sm text-[#404040]/60 dark:text-[#a1a1aa]">
+              Chưa có lớp nào có dữ liệu bài test trong kỳ này.
+            </p>
+          </div>
+        ) : (
+          <div className="h-80 w-full p-5 pb-6">
+            <ResponsiveContainer width="100%" height="100%" debounce={200}>
+              <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
+                <XAxis type="number" stroke="#9ca3af" fontSize={11} />
+                <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={12} fontStyle="bold" width={60} />
+                <Tooltip
+                  contentStyle={{ background: '#ffffff', border: '1px solid #f3f4f6', borderRadius: '12px', fontSize: '12px', color: '#404040' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '15px', bottom: 0 }} />
+                <Bar dataKey="Vàng" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Nhãn Vàng (An toàn / >=60 điểm)" />
+                <Bar dataKey="Đỏ" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} name="Nhãn Đỏ (Nhóm tiềm năng / Cần can thiệp / 45-59 điểm)" />
+                <Bar dataKey="Xám" stackId="a" fill="#64748b" radius={[0, 4, 4, 0]} name="Nhãn Xám (Rủi ro cao / Gần như Fail / <45 điểm)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );

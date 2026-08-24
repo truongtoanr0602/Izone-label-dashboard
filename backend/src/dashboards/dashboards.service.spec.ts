@@ -4,11 +4,17 @@ import { DashboardsService } from './dashboards.service';
 const leadUser = {
   userId: 'lead_1',
   email: 'lead@izone.edu.vn',
-  displayName: 'Lead 34',
+  displayName: 'Lead 3-4',
   role: 'lead' as const,
   teacherId: 1,
-  khoiId: 34,
+  khoiId: 2,
   classIds: [],
+};
+
+const leadKhoi03 = {
+  ...leadUser,
+  displayName: 'Lead 03',
+  khoiId: 1,
 };
 
 function snapshotRow(
@@ -60,12 +66,31 @@ function metricRow(
 }
 
 describe('DashboardsService', () => {
+  it('forces a Lead dashboard to the course matching the authenticated khoi', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    const result = await service.getLeadDashboard(
+      { courseId: '3', khoiId: '3', period: '2026-08' },
+      leadKhoi03,
+    );
+
+    const [segments, ...values] = queryRaw.mock.calls[0] as unknown as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    expect(Array.from(segments).join('?')).toContain('c.course_id = ?');
+    expect(values[0]).toBe(1);
+    expect(values[1]).toBe(1);
+    expect(result.meta).toMatchObject({ courseId: 1, khoiId: 1 });
+  });
+
   it('uses snapshot-evidenced period classes consistently across Lead queries', async () => {
     const queryRaw = jest.fn().mockResolvedValue([]);
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     await service.getLeadDashboard(
-      { courseId: '2', khoiId: '34', period: '2026-08' },
+      { courseId: '2', khoiId: '2', period: '2026-08' },
       leadUser,
     );
 
@@ -90,7 +115,7 @@ describe('DashboardsService', () => {
 
     await expect(
       service.getLeadDashboard(
-        { courseId: '2', khoiId: '34', from: '2026-01-01', to: '2026-04-01' },
+        { courseId: '2', khoiId: '2', from: '2026-01-01', to: '2026-04-01' },
         leadUser,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -101,7 +126,7 @@ describe('DashboardsService', () => {
 
     await expect(
       service.getLeadDashboard(
-        { courseId: '2', khoiId: '34', from: '2026-08-01', to: '2026-08-02' },
+        { courseId: '2', khoiId: '2', from: '2026-08-01', to: '2026-08-02' },
         { ...leadUser, role: 'teacher', classIds: [1159] },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -262,7 +287,7 @@ describe('DashboardsService', () => {
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(
-      { courseId: '2', khoiId: '34', period: '2026-08' },
+      { courseId: '2', khoiId: '2', period: '2026-08' },
       leadUser,
     );
 
@@ -308,13 +333,22 @@ describe('DashboardsService', () => {
     const queryCalls = queryRaw.mock.calls as unknown as Array<
       [TemplateStringsArray, ...unknown[]]
     >;
+    const classRosterSql = Array.from(queryCalls[0][0]).join('?');
+    expect(classRosterSql).toMatch(/class_membership/i);
+    expect(classRosterSql).toMatch(/FROM izone\.test_scores/i);
+
     const coverageStudentSql = Array.from(queryCalls[5][0]).join('?');
     expect(coverageStudentSql).toMatch(/s\.class_id\s*=\s*r\.class_id/i);
 
     const studentMetricSql = (
       queryRaw.mock.calls[2][0] as TemplateStringsArray
     ).join('?');
-    expect(studentMetricSql).toMatch(/s\.class_id\s*=\s*r\.class_id/i);
+    expect(studentMetricSql).toMatch(/class_membership/i);
+    expect(studentMetricSql).toMatch(/FROM izone\.test_scores/i);
+    expect(studentMetricSql).toMatch(/student_test_labels/i);
+    expect(studentMetricSql).not.toContain(
+      "COUNT(*) FILTER (WHERE r.current_label = 'yellow')",
+    );
     expect(studentMetricSql).toContain('r.test_average >= 60');
     expect(studentMetricSql).toContain('r.test_average >= 50');
     expect(studentMetricSql).toContain('r.test_average < 55');
@@ -349,7 +383,7 @@ describe('DashboardsService', () => {
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(
-      { courseId: '2', khoiId: '34', period: '2026-07' },
+      { courseId: '2', khoiId: '2', period: '2026-07' },
       leadUser,
     );
 
@@ -375,9 +409,12 @@ describe('DashboardsService', () => {
           teacher_id: 1002,
           teacher_name: 'GV A',
           teacher_email: 'gv@izone.edu.vn',
+          class_total_sessions: 18,
           completed_sessions: 10,
           total_sessions: 28,
           progress_pct: 35.71,
+          observed_completed_sessions: 15,
+          progress_data_as_of: '2026-08-12',
           active_students: 2,
           on_hold_students: 0,
           dropped_students: 0,
@@ -550,6 +587,13 @@ describe('DashboardsService', () => {
       },
     });
     expect(result.classHeader.contactCheckpoint).toBe('Test 1');
+    expect(result.classHeader.courseName).toBe('IELTS 3-4');
+    expect(result.classHeader.progress).toEqual({
+      completedSessions: 15,
+      totalSessions: 18,
+      percentage: 83.3,
+      dataAsOf: '2026-08-12',
+    });
     expect(result.students[0].tests.average).toBe(40);
     expect(result.students[0].issues).toHaveLength(3);
     expect(result.students[1]).toMatchObject({
@@ -735,5 +779,58 @@ describe('DashboardsService', () => {
     const studentRowsStrings = queryCalls[2][0];
     const studentRowsSql = Array.from(studentRowsStrings).join('?');
     expect(studentRowsSql).toMatch(/snapshot_stage\s+IS\s+NULL/i);
+  });
+
+  it('keeps scored students in a completed class after their current roster class changes', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          class_id: 1152,
+          class_name: 'IC2167',
+          course_id: 3,
+          status: 'completed',
+          teacher_id: 1002,
+          teacher_name: 'GV A',
+          teacher_email: 'gv@izone.edu.vn',
+          completed_sessions: 28,
+          total_sessions: 28,
+        },
+      ])
+      .mockResolvedValue([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    await service.getTeacherDashboard(1152, '2026-08-24', {
+      ...leadUser,
+      role: 'admin',
+      classIds: [],
+    });
+
+    const queryCalls = queryRaw.mock.calls as unknown as Array<
+      [TemplateStringsArray, ...unknown[]]
+    >;
+    const studentRowsSql = Array.from(queryCalls[2][0]).join('?');
+    expect(studentRowsSql).toMatch(/class_roster/i);
+    expect(studentRowsSql).toMatch(/FROM izone\.test_scores/i);
+    expect(studentRowsSql).toMatch(/UNION/i);
+  });
+
+  it('does not restrict the Teacher Dashboard class lookup to course 2', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    await expect(
+      service.getTeacherDashboard(7001, '2026-08-12', {
+        ...leadKhoi03,
+        role: 'teacher',
+        classIds: [7001],
+      }),
+    ).rejects.toThrow('Class 7001 was not found in your scope');
+
+    const [segments] = queryRaw.mock.calls[0] as unknown as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    expect(Array.from(segments).join('?')).not.toContain('c.course_id =');
   });
 });

@@ -79,7 +79,7 @@ export interface LeadDashboardClass {
 export interface LeadDashboardResponse {
   meta: {
     apiVersion: 'v1';
-    courseId: 2;
+    courseId: number;
     khoiId: number;
     period: string;
     reportAsOf: string;
@@ -184,7 +184,7 @@ export interface TeacherDashboardResponse {
     portalUrl: string | null;
     contactCheckpoint: string;
     teacher: { teacherId: number; fullName: string; email: string };
-    progress: { completedSessions: number; totalSessions: number; percentage: number | null };
+    progress: { completedSessions: number; totalSessions: number; percentage: number | null; dataAsOf: string | null };
     studentCounts: { total: number; active: number; onHold: number; dropped: number; transferred: number };
     lastSnapshotDate: string | null;
   };
@@ -199,7 +199,7 @@ export interface TeacherDashboardResponse {
 }
 
 export interface LeadDashboardFilters {
-  courseId?: 2;
+  courseId?: number;
   khoiId: number;
   period: string;
   teacherId?: number;

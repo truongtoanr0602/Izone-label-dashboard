@@ -4,7 +4,10 @@ export type DataQualityWarning =
   | 'LOW_HOMEWORK_COVERAGE'
   | 'NO_TEST_SAMPLE'
   | 'PROGRESS_HISTORY_INCOMPLETE'
-  | 'FUTURE_ROWS_EXCLUDED';
+  | 'FUTURE_ROWS_EXCLUDED'
+  | 'PROGRESS_SNAPSHOT_MISMATCH'
+  | 'SNAPSHOT_TOTAL_SESSIONS_MISMATCH'
+  | 'PROGRESS_FALLBACK_USED';
 
 export interface ClassSnapshotEvidence {
   date: string;
@@ -18,6 +21,7 @@ export interface ClassSnapshotEvidence {
 
 export interface StudentMetricEvidence {
   date: string;
+  observedCompletedSessions?: number;
   recordCount: number;
   attendanceSampleSize: number;
   attendanceAvg: number | null;
@@ -194,20 +198,35 @@ export function resolveClassObservation(
     input.studentMetrics.filter((row) => row.date <= metricAsOf),
   );
 
-  const totalSessions = Math.max(
-    0,
-    Number(input.classTotalSessions || 0),
-    ...snapshots.map((row) => Number(row.totalSessions || 0)),
-  );
+  const classTotalSessions = Math.max(0, Number(input.classTotalSessions || 0));
+  const totalSessions =
+    classTotalSessions > 0
+      ? classTotalSessions
+      : Math.max(0, ...snapshots.map((row) => Number(row.totalSessions || 0)));
   const progressRow = [...snapshots].sort((a, b) => {
     const completedDelta =
       Number(b.completedSessions || 0) - Number(a.completedSessions || 0);
     return completedDelta !== 0 ? completedDelta : b.date.localeCompare(a.date);
   })[0];
+  const observedProgressRow = [...studentMetrics]
+    .filter((row) => Number(row.observedCompletedSessions || 0) > 0)
+    .sort((a, b) => {
+      const completedDelta =
+        Number(b.observedCompletedSessions || 0) -
+        Number(a.observedCompletedSessions || 0);
+      return completedDelta !== 0 ? completedDelta : b.date.localeCompare(a.date);
+    })[0];
+  const usesObservedProgress = Boolean(observedProgressRow);
+  const rawCompletedSessions = usesObservedProgress
+    ? Number(observedProgressRow?.observedCompletedSessions || 0)
+    : Number(progressRow?.completedSessions || 0);
   const completedSessions = Math.min(
-    totalSessions || Number(progressRow?.completedSessions || 0),
-    Math.max(0, Number(progressRow?.completedSessions || 0)),
+    totalSessions || rawCompletedSessions,
+    Math.max(0, rawCompletedSessions),
   );
+  const progressDataAsOf = usesObservedProgress
+    ? observedProgressRow?.date ?? null
+    : progressRow?.date ?? null;
 
   const attendance = resolveCoveredMetric(studentMetrics, rosterDate, 'attendance');
   const homework = resolveCoveredMetric(studentMetrics, rosterDate, 'homework');
@@ -242,11 +261,27 @@ export function resolveClassObservation(
     warnings.add('LOW_HOMEWORK_COVERAGE');
   }
   if (passStandard.value === null) warnings.add('NO_TEST_SAMPLE');
+  if (!usesObservedProgress) warnings.add('PROGRESS_FALLBACK_USED');
+  if (
+    classTotalSessions > 0 &&
+    rosterRow &&
+    Number(rosterRow.totalSessions || 0) > 0 &&
+    Number(rosterRow.totalSessions) !== classTotalSessions
+  ) {
+    warnings.add('SNAPSHOT_TOTAL_SESSIONS_MISMATCH');
+  }
+  if (
+    usesObservedProgress &&
+    progressRow &&
+    Number(progressRow.completedSessions || 0) !== completedSessions
+  ) {
+    warnings.add('PROGRESS_SNAPSHOT_MISMATCH');
+  }
   if (
     rosterDate &&
     (attendance.dataAsOf !== rosterDate ||
       homework.dataAsOf !== rosterDate ||
-      progressRow?.date !== rosterDate)
+      progressDataAsOf !== rosterDate)
   ) {
     warnings.add('PARTIAL_SNAPSHOT');
   }
@@ -264,7 +299,7 @@ export function resolveClassObservation(
     attendance.fallbackUsed ||
     homework.fallbackUsed ||
     passStandard.fallbackUsed ||
-    progressRow?.date !== rosterDate ||
+    progressDataAsOf !== rosterDate ||
     warnings.size > 0;
 
   return {
@@ -285,7 +320,7 @@ export function resolveClassObservation(
         totalSessions === 0
           ? null
           : round1((completedSessions / totalSessions) * 100),
-      dataAsOf: progressRow?.date ?? null,
+      dataAsOf: progressDataAsOf,
     },
     attendance,
     homework,
