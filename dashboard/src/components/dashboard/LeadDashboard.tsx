@@ -1,17 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, BarChart3, Search, Table2
+  ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, BarChart3, PieChart as PieChartIcon, Search, Table2
 } from 'lucide-react';
 import type { ClassSummary } from '../../data/types';
 import {
   periodLabel,
 } from '../../data/selectors';
-import { classesWithTestLabels } from '../../data/selectors/labelDistribution';
+import {
+  aggregateContactCoverage,
+  aggregateLabelDistribution,
+  classesWithTestLabels,
+  labelDistributionChartHeight,
+} from '../../data/selectors/labelDistribution';
 import { ContextBar } from './ContextBar';
 import { KpiRow } from './KpiRow';
 import { SectionHeader } from './SectionHeader';
 import { TrendChart, type TrendSeries } from './TrendChart';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, Cell, Pie, PieChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboardService';
 import {
   toLeadClassPresentation,
@@ -47,6 +52,8 @@ interface ClassSortConfig {
   direction: 'asc' | 'desc';
 }
 
+type LabelChartMode = 'bar' | 'pie';
+
 export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   classes,
   onSelectClassAndDrillDown,
@@ -58,6 +65,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   const [searchClass, setSearchClass] = useState('');
   const [statusFilter, setStatusFilter] = useState<WarningStatusFilter>('all');
   const [sortConfig, setSortConfig] = useState<ClassSortConfig | null>(null);
+  const [labelChartMode, setLabelChartMode] = useState<LabelChartMode>('bar');
 
   const [dashboard, setDashboard] = useState<LeadDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,6 +150,20 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
     Đỏ: c.labelDistribution.red,
     Xám: c.labelDistribution.grey,
   }));
+
+  const barChartHeight = labelDistributionChartHeight(barChartData.length);
+  const aggregateLabels = aggregateLabelDistribution(displayClasses);
+  const pieChartData = [
+    { name: 'Vàng', value: aggregateLabels.yellow, color: '#f59e0b' },
+    { name: 'Đỏ', value: aggregateLabels.red, color: '#ef4444' },
+    { name: 'Xám', value: aggregateLabels.grey, color: '#64748b' },
+  ].filter(({ value }) => value > 0);
+  const totalLabeledStudents = pieChartData.reduce((total, item) => total + item.value, 0);
+  const contactCoverage = aggregateContactCoverage(dashboard.classes);
+  const contactCoverageData = [
+    { name: 'Đã liên hệ', value: contactCoverage.done, color: '#10b981' },
+    { name: 'Chưa liên hệ', value: contactCoverage.remaining, color: '#cbd5e1' },
+  ].filter(({ value }) => value > 0);
 
   const getWarningStatus = (cls: ClassSummary) => {
     const quality = contractClassById.get(cls.classId)?.dataQuality;
@@ -458,31 +480,121 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
       <div className="rounded-[16px] bg-white dark:bg-[#27272a] flex flex-col overflow-hidden">
         <SectionHeader
           icon={<BarChart3 className="w-4 h-4 text-[#db0829]" />}
-          title="Bản Đồ Phân Bố Nhãn Theo Lớp"
-          subtitle={`So sánh phân bố học viên nhãn Vàng / Đỏ / Xám giữa các lớp trong ${periodLabel(selectedPeriod)}.`}
-          right={<BarChart3 className="w-5 h-5 text-[#475569] dark:text-[#71717a]" />}
+          title={labelChartMode === 'bar'
+            ? 'Phân Bố Nhãn Học Viên Toàn Khối'
+            : 'Tổng Quan Nhãn & Can Thiệp Toàn Khối'}
+          subtitle={labelChartMode === 'bar'
+            ? `So sánh số học viên nhãn Vàng / Đỏ / Xám giữa từng lớp trong ${periodLabel(selectedPeriod)}.`
+            : `Cơ cấu nhãn học tập và tỷ lệ học viên cần cảnh báo đã được giảng viên liên hệ trong ${periodLabel(selectedPeriod)}.`}
+          right={
+            <button
+              type="button"
+              onClick={() => setLabelChartMode(current => current === 'bar' ? 'pie' : 'bar')}
+              title={labelChartMode === 'bar' ? 'Xem biểu đồ tròn tổng hợp toàn khối' : 'Xem biểu đồ thanh theo từng lớp'}
+              aria-label={labelChartMode === 'bar' ? 'Xem biểu đồ tròn tổng hợp toàn khối' : 'Xem biểu đồ thanh theo từng lớp'}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e5e7eb] text-[#475569] transition-colors hover:border-[#db0829]/40 hover:text-[#db0829] dark:border-[#3f3f46] dark:text-[#a1a1aa] dark:hover:border-[#db0829]/50 dark:hover:text-[#db0829]"
+            >
+              {labelChartMode === 'bar'
+                ? <PieChartIcon className="h-4 w-4" />
+                : <BarChart3 className="h-4 w-4" />}
+            </button>
+          }
         />
+        {barChartData.length > 0 && labelChartMode === 'bar' && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-[#f3f4f6] px-5 py-3 text-[11px] text-[#404040]/70 dark:border-[#3f3f46] dark:text-[#a1a1aa]">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[2px] bg-[#f59e0b]" />Vàng ≥60</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[2px] bg-[#ef4444]" />Đỏ 45–59</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[2px] bg-[#64748b]" />Xám &lt;45</span>
+          </div>
+        )}
         {barChartData.length === 0 ? (
           <div className="flex h-52 items-center justify-center px-6 text-center">
             <p className="text-sm text-[#404040]/60 dark:text-[#a1a1aa]">
               Chưa có lớp nào có dữ liệu bài test trong kỳ này.
             </p>
           </div>
+        ) : labelChartMode === 'bar' ? (
+          <div className="max-h-[560px] w-full overflow-y-auto px-5 pb-5 pt-2">
+            <div style={{ height: barChartHeight }}>
+              <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                <BarChart data={barChartData} layout="vertical" barSize={16} margin={{ top: 12, right: 20, left: 10, bottom: 20 }}>
+                  <XAxis type="number" stroke="#9ca3af" fontSize={11} />
+                  <YAxis type="category" dataKey="name" interval={0} stroke="#64748b" fontSize={12} width={76} tickMargin={8} />
+                  <Tooltip
+                    contentStyle={{ background: '#ffffff', border: '1px solid #f3f4f6', borderRadius: '12px', fontSize: '12px', color: '#404040' }}
+                  />
+                  <Bar dataKey="Vàng" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Nhãn Vàng (An toàn / >=60 điểm)" />
+                  <Bar dataKey="Đỏ" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} name="Nhãn Đỏ (Nhóm tiềm năng / Cần can thiệp / 45-59 điểm)" />
+                  <Bar dataKey="Xám" stackId="a" fill="#64748b" radius={[0, 4, 4, 0]} name="Nhãn Xám (Rủi ro cao / Gần như Fail / <45 điểm)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         ) : (
-          <div className="h-80 w-full p-5 pb-6">
-            <ResponsiveContainer width="100%" height="100%" debounce={200}>
-              <BarChart data={barChartData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
-                <XAxis type="number" stroke="#9ca3af" fontSize={11} />
-                <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={12} fontStyle="bold" width={60} />
-                <Tooltip
-                  contentStyle={{ background: '#ffffff', border: '1px solid #f3f4f6', borderRadius: '12px', fontSize: '12px', color: '#404040' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '15px', bottom: 0 }} />
-                <Bar dataKey="Vàng" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Nhãn Vàng (An toàn / >=60 điểm)" />
-                <Bar dataKey="Đỏ" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} name="Nhãn Đỏ (Nhóm tiềm năng / Cần can thiệp / 45-59 điểm)" />
-                <Bar dataKey="Xám" stackId="a" fill="#64748b" radius={[0, 4, 4, 0]} name="Nhãn Xám (Rủi ro cao / Gần như Fail / <45 điểm)" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="grid w-full grid-cols-1 gap-4 p-5 lg:grid-cols-2">
+            <div className="rounded-[12px] border border-[#f3f4f6] p-4 dark:border-[#3f3f46]">
+              <div>
+                <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7]">Cơ cấu nhãn học viên</h3>
+                <p className="mt-0.5 text-[11px] text-[#404040]/60 dark:text-[#a1a1aa]">Trên các học viên đã có dữ liệu bài test</p>
+              </div>
+              <div className="relative mx-auto h-[260px] max-w-[420px]">
+                <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                  <PieChart>
+                    <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2}>
+                      {pieChartData.map(({ name, color }) => (
+                        <Cell key={name} fill={color} stroke={isDarkMode ? '#27272a' : '#ffffff'} strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: isDarkMode ? '#27272a' : '#ffffff', border: `1px solid ${isDarkMode ? '#3f3f46' : '#f3f4f6'}`, borderRadius: '12px', fontSize: '12px', color: isDarkMode ? '#e4e4e7' : '#404040' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-mono text-2xl font-semibold text-[#404040] dark:text-[#e4e4e7]">{totalLabeledStudents}</span>
+                  <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a]">HV có nhãn</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-[#404040]/70 dark:text-[#a1a1aa]">
+                {pieChartData.map(({ name, value, color }) => (
+                  <span key={name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: color }} />{name} <strong className="font-mono">{value}</strong></span>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[12px] border border-[#f3f4f6] p-4 dark:border-[#3f3f46]">
+              <div>
+                <h3 className="text-sm font-semibold text-[#404040] dark:text-[#e4e4e7]">Độ phủ liên hệ cảnh báo</h3>
+                <p className="mt-0.5 text-[11px] text-[#404040]/60 dark:text-[#a1a1aa]">Tại mốc test hiện tại của từng lớp</p>
+              </div>
+              {contactCoverage.total === 0 ? (
+                <div className="flex h-[300px] items-center justify-center text-center text-sm text-[#404040]/50 dark:text-[#71717a]">
+                  Không có học viên cần cảnh báo trong kỳ này.
+                </div>
+              ) : (
+                <>
+                  <div className="relative mx-auto h-[260px] max-w-[420px]">
+                    <ResponsiveContainer width="100%" height="100%" debounce={200}>
+                      <PieChart>
+                        <Pie data={contactCoverageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2}>
+                          {contactCoverageData.map(({ name, color }) => (
+                            <Cell key={name} fill={color} stroke={isDarkMode ? '#27272a' : '#ffffff'} strokeWidth={2} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: isDarkMode ? '#27272a' : '#ffffff', border: `1px solid ${isDarkMode ? '#3f3f46' : '#f3f4f6'}`, borderRadius: '12px', fontSize: '12px', color: isDarkMode ? '#e4e4e7' : '#404040' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="font-mono text-2xl font-semibold text-[#404040] dark:text-[#e4e4e7]">{contactCoverage.pct}%</span>
+                      <span className="text-[10px] text-[#404040]/50 dark:text-[#71717a]">đã liên hệ</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-[#404040]/70 dark:text-[#a1a1aa]">
+                    {contactCoverageData.map(({ name, value, color }) => (
+                      <span key={name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: color }} />{name} <strong className="font-mono">{value}</strong></span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
