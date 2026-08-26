@@ -291,7 +291,10 @@ export function adaptTeacherStudent(
     standardStatus = 'Đạt tiêu chuẩn';
     softPassStatus = '';
     softPassGroup = '';
-  } else if (softPassStatus === 'Đạt pass mềm') {
+  } else if (
+    softPassStatus === 'Đạt pass mềm'
+    && (softPassGroup === 'Nhóm 1' || softPassGroup === 'Nhóm 2')
+  ) {
     // A confirmed soft pass is authoritative and must remain filterable.
   } else if (softPassGroup === 'Nhóm 1' || softPassGroup === 'Nhóm 2') {
     standardStatus = 'Chưa đạt điều kiện pass';

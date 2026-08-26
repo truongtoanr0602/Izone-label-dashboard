@@ -66,7 +66,7 @@ describe('dashboard screen-contract adapters', () => {
     expect(escalated.evaluation.isEligibleForReview).toBe(false);
   });
 
-  it('preserves a confirmed soft-pass status from the backend', () => {
+  it('drops the retired soft-pass group 3 from backend data', () => {
     const adapted = adaptTeacherStudent(teacherStudent({
       standardStatus: 'not_met',
       standardReasons: [],
@@ -76,7 +76,8 @@ describe('dashboard screen-contract adapters', () => {
       reviewDeadline: null,
     }), 1104, 'IC2119');
 
-    expect(adapted.evaluation.passMemStatus).toBe('Đạt pass mềm');
+    expect(adapted.evaluation.passMemStatus).toBe('');
+    expect(adapted.evaluation.passMemGroup).toBe('');
   });
 
   it('keeps missing Lead measurements null for Recharts gaps', () => {

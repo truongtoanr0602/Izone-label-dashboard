@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client';
 import {
   DEFAULT_DASHBOARD_THRESHOLDS,
   classifyStudent,
+  evaluatePassRules,
   type DashboardThresholds,
   type InterventionLevel,
 } from './labeling-engine';
@@ -225,8 +226,6 @@ export class DashboardsService {
              COUNT(*) FILTER (
                WHERE COALESCE(r.tests_taken, 0) > 0
                  AND r.test_average >= 60
-                 AND r.attendance_pct >= 90
-                 AND r.homework_pct >= 90
              )::integer AS pass_standard_students,
              COUNT(*) FILTER (
                WHERE COALESCE(r.tests_taken, 0) > 0
@@ -783,6 +782,7 @@ export class DashboardsService {
       SELECT student_id, pass_mem_group, review_status, deadline, is_overdue
       FROM izone.pass_reviews
       WHERE class_id = ${classId}
+        AND pass_mem_group IN ('Nhóm 1', 'Nhóm 2')
         AND review_status IN ('pending_teacher', 'escalated_lead')
     `;
     const contactRows = await this.prisma.$queryRaw<any[]>`
@@ -879,6 +879,11 @@ export class DashboardsService {
         thresholds,
       );
       const review = reviewsByStudent.get(Number(row.student_id));
+      const passEvaluation = evaluatePassRules({
+        testAverage,
+        attendancePct: attendance.percentage,
+        homeworkPct: homework.percentage,
+      });
       const trigger = classification.recommendedAction.messageTemplateKey;
       const contact = (
         contactsByStudent.get(Number(row.student_id)) ?? []
@@ -954,12 +959,14 @@ export class DashboardsService {
             : null,
         },
         passEvaluation: {
-          standardStatus: row.pass_chuan_status ?? 'no_data',
-          standardReasons: this.parseReasons(row.pass_chuan_reasons),
-          softPassStatus: row.pass_mem_status ?? '',
-          softPassGroup: row.pass_mem_group || null,
-          reviewStatus: review?.review_status ?? null,
-          reviewDeadline: review?.deadline
+          standardStatus: passEvaluation.standardStatus,
+          standardReasons: passEvaluation.standardReasons,
+          softPassStatus: passEvaluation.softPassStatus,
+          softPassGroup: passEvaluation.softPassGroup,
+          reviewStatus: passEvaluation.softPassGroup
+            ? review?.review_status ?? null
+            : null,
+          reviewDeadline: passEvaluation.softPassGroup && review?.deadline
             ? this.isoDate(review.deadline)
             : null,
         },

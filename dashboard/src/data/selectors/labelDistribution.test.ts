@@ -3,8 +3,19 @@ import {
   aggregateContactCoverage,
   aggregateLabelDistribution,
   classesWithTestLabels,
+  formatPieSlicePercent,
   labelDistributionChartHeight,
 } from './labelDistribution';
+
+describe('formatPieSlicePercent', () => {
+  it('formats a pie slice ratio as a rounded percentage', () => {
+    expect(formatPieSlicePercent(0.346)).toBe('35%');
+  });
+
+  it('hides labels for slices smaller than five percent', () => {
+    expect(formatPieSlicePercent(0.049)).toBe('');
+  });
+});
 
 describe('classesWithTestLabels', () => {
   it('removes classes that have no yellow, red, or grey labels', () => {

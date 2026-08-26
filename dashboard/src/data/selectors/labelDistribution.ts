@@ -13,6 +13,10 @@ interface ClassContactCoverage {
   };
 }
 
+export function formatPieSlicePercent(percent: number): string {
+  return percent < 0.05 ? '' : `${Math.round(percent * 100)}%`;
+}
+
 export function classesWithTestLabels<T extends ClassLabelDistribution>(
   classes: T[],
 ): T[] {

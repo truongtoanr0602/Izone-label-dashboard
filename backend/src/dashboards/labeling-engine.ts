@@ -30,6 +30,54 @@ export interface StudentClassificationInput {
   flagHomeworkDrop: boolean;
 }
 
+export interface PassRuleInput {
+  testAverage: number | null;
+  attendancePct: number | null;
+  homeworkPct: number | null;
+}
+
+export interface PassRuleEvaluation {
+  standardStatus: 'passed' | 'not_met' | 'no_data';
+  standardReasons: string[];
+  softPassStatus: 'Xét chờ Review' | '';
+  softPassGroup: 'Nhóm 1' | 'Nhóm 2' | null;
+}
+
+export function evaluatePassRules(input: PassRuleInput): PassRuleEvaluation {
+  if (input.testAverage === null) {
+    return {
+      standardStatus: 'no_data',
+      standardReasons: [],
+      softPassStatus: '',
+      softPassGroup: null,
+    };
+  }
+
+  if (input.testAverage >= 60) {
+    return {
+      standardStatus: 'passed',
+      standardReasons: [],
+      softPassStatus: '',
+      softPassGroup: null,
+    };
+  }
+
+  const group1 = input.testAverage >= 50 && input.testAverage < 55
+    && input.attendancePct !== null && input.attendancePct >= 100
+    && input.homeworkPct !== null && input.homeworkPct >= 100;
+  const group2 = input.testAverage >= 55 && input.testAverage < 60
+    && input.attendancePct !== null && input.attendancePct >= 90
+    && input.homeworkPct !== null && input.homeworkPct >= 90;
+  const softPassGroup = group1 ? 'Nhóm 1' : group2 ? 'Nhóm 2' : null;
+
+  return {
+    standardStatus: 'not_met',
+    standardReasons: ['TEST_BELOW_60'],
+    softPassStatus: softPassGroup ? 'Xét chờ Review' : '',
+    softPassGroup,
+  };
+}
+
 export type ClassificationIssueCode =
   | 'TEST_BELOW_GREY_THRESHOLD'
   | 'TEST_BELOW_RED_THRESHOLD'

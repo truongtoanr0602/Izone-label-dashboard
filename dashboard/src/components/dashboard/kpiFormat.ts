@@ -12,6 +12,16 @@ export type DeltaTone = 'up' | 'down' | 'flat' | 'unknown';
  */
 export type KpiUnit = 'percent' | 'count' | 'event';
 
+export function passTooltipCopy() {
+  return {
+    standard: 'Chỉ cần TB test ≥60.',
+    soft: [
+      'Nhóm 1: TB test 50–<55, Điểm danh và BTVN = 100% (cần GV duyệt)',
+      'Nhóm 2: TB test 55–<60, Điểm danh và BTVN ≥90% (cần GV duyệt)',
+    ],
+  };
+}
+
 export interface FormattedDelta {
   text: string;
   /** Hướng thay đổi — quyết định mũi tên. */

@@ -1,6 +1,7 @@
 import {
   DEFAULT_DASHBOARD_THRESHOLDS,
   classifyStudent,
+  evaluatePassRules,
 } from './labeling-engine';
 
 const activeStudent = {
@@ -11,6 +12,39 @@ const activeStudent = {
   flagAttendanceDrop: false,
   flagHomeworkDrop: false,
 };
+
+describe('evaluatePassRules', () => {
+  it('passes a student at exactly 60 regardless of attendance and homework', () => {
+    expect(evaluatePassRules({
+      testAverage: 60,
+      attendancePct: 20,
+      homeworkPct: null,
+    })).toEqual({
+      standardStatus: 'passed',
+      standardReasons: [],
+      softPassStatus: '',
+      softPassGroup: null,
+    });
+  });
+
+  it('keeps only soft-pass groups 1 and 2', () => {
+    expect(evaluatePassRules({
+      testAverage: 52,
+      attendancePct: 100,
+      homeworkPct: 100,
+    }).softPassGroup).toBe('Nhóm 1');
+    expect(evaluatePassRules({
+      testAverage: 57,
+      attendancePct: 90,
+      homeworkPct: 90,
+    }).softPassGroup).toBe('Nhóm 2');
+    expect(evaluatePassRules({
+      testAverage: 75,
+      attendancePct: 10,
+      homeworkPct: 10,
+    }).softPassGroup).toBeNull();
+  });
+});
 
 describe('classifyStudent', () => {
   it.each([

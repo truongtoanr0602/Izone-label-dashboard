@@ -11,6 +11,7 @@ import {
   aggregateContactCoverage,
   aggregateLabelDistribution,
   classesWithTestLabels,
+  formatPieSlicePercent,
   labelDistributionChartHeight,
 } from '../../data/selectors/labelDistribution';
 import { ContextBar } from './ContextBar';
@@ -24,6 +25,48 @@ import {
   toLeadWeeklyTrendPoint,
   type LeadDashboardResponse,
 } from '../../api/dashboardContracts';
+
+interface PiePercentLabelProps {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+
+const renderPiePercentLabel = ({
+  cx = 0,
+  cy = 0,
+  midAngle = 0,
+  innerRadius = 0,
+  outerRadius = 0,
+  percent = 0,
+}: PiePercentLabelProps) => {
+  const label = formatPieSlicePercent(percent);
+  if (!label) return null;
+
+  const radius = innerRadius + (outerRadius - innerRadius) / 2;
+  const radians = (-midAngle * Math.PI) / 180;
+  const x = cx + radius * Math.cos(radians);
+  const y = cy + radius * Math.sin(radians);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      stroke="rgba(0, 0, 0, 0.35)"
+      strokeWidth={0.5}
+      paintOrder="stroke"
+      textAnchor="middle"
+      dominantBaseline="central"
+      className="font-mono text-[11px] font-semibold"
+    >
+      {label}
+    </text>
+  );
+};
 
 interface LeadDashboardProps {
   classes: ClassSummary[];
@@ -567,7 +610,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
               <div className="relative mx-auto h-[260px] max-w-[420px]">
                 <ResponsiveContainer width="100%" height="100%" debounce={200}>
                   <PieChart>
-                    <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2}>
+                    <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2} labelLine={false} label={renderPiePercentLabel}>
                       {pieChartData.map(({ name, color }) => (
                         <Cell key={name} fill={color} stroke={isDarkMode ? '#27272a' : '#ffffff'} strokeWidth={2} />
                       ))}
@@ -601,7 +644,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                   <div className="relative mx-auto h-[260px] max-w-[420px]">
                     <ResponsiveContainer width="100%" height="100%" debounce={200}>
                       <PieChart>
-                        <Pie data={contactCoverageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2}>
+                        <Pie data={contactCoverageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={100} paddingAngle={2} labelLine={false} label={renderPiePercentLabel}>
                           {contactCoverageData.map(({ name, color }) => (
                             <Cell key={name} fill={color} stroke={isDarkMode ? '#27272a' : '#ffffff'} strokeWidth={2} />
                           ))}

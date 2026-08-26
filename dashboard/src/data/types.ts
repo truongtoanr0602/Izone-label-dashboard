@@ -79,7 +79,7 @@ export interface StudentDetail {
     passChuanStatus: 'Có khả năng pass' | 'Chưa đạt điều kiện pass' | 'Chưa đủ DL' | 'Đạt tiêu chuẩn';
     passChuanReasons: string[];
     passMemStatus: 'Đạt pass mềm' | 'Không đạt pass mềm' | 'Xét chờ Review' | '';
-    passMemGroup: 'Nhóm 1' | 'Nhóm 2' | 'Nhóm 3' | '';
+    passMemGroup: 'Nhóm 1' | 'Nhóm 2' | '';
     passMemLabel: string;
     isEligibleForReview: boolean;
     reviewStatus: 'Chờ GV' | 'GV Đồng ý' | 'GV Từ chối' | 'Quá hạn → Lead' | '';

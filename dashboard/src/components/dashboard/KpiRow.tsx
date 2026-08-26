@@ -4,7 +4,7 @@ import type { LeadDashboardResponse, DashboardMetric } from '../../api/dashboard
 import type { MetricDelta } from '../../data/selectors';
 import { KpiCard } from './KpiCard';
 import { InfoTooltip } from '../common/InfoTooltip';
-import { formatPassNote, formatReportingNote } from './kpiFormat';
+import { formatPassNote, formatReportingNote, passTooltipCopy } from './kpiFormat';
 
 interface KpiRowProps {
   kpis: LeadDashboardResponse['kpis'];
@@ -19,6 +19,7 @@ function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses'
 }
 
 export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
+  const passCopy = passTooltipCopy();
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       <KpiCard
@@ -62,7 +63,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         })}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass chuẩn">
-            Điểm danh ≥90% <b>VÀ</b> BTVN ≥90% <b>VÀ</b> TB test ≥60 — cả 3 điều kiện.
+            {passCopy.standard}
           </InfoTooltip>
         }
       />
@@ -81,11 +82,12 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
         })}
         infoTooltip={
           <InfoTooltip label="Cách tính Pass mềm">
-            <b>Nhóm 1</b>: TB test 50–&lt;55, ĐH &amp; BTVN = 100% (cần GV duyệt)
-            <br />
-            <b>Nhóm 2</b>: TB test 55–&lt;60, ĐH &amp; BTVN ≥90% (cần GV duyệt)
-            <br />
-            <b>Nhóm 3</b>: TB test ≥60, không đạt ĐH &amp; BTVN (cần GV duyệt)
+            {passCopy.soft.map((line, index) => (
+              <React.Fragment key={line}>
+                {index > 0 && <br />}
+                {line}
+              </React.Fragment>
+            ))}
             <br />Không bao gồm học viên đã đạt Pass chuẩn.
           </InfoTooltip>
         }

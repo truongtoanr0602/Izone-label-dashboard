@@ -105,18 +105,17 @@ Nhãn học thuật chỉ tính theo Test — thiếu hoặc kém ĐH/BTVN khôn
 
 ```
 pass_chuan_status = 'Có khả năng pass'
-    ⟺ attendance_pct >= 90  AND  homework_pct >= 90  AND  test_average >= 60
+    ⟺ test_average >= 60
 ```
 
-Config: `pass_dh_min = 90`, `pass_btvn_min = 90`, `pass_test_avg_min = 60`. ĐH và BTVN vẫn là hai điều kiện tách rời.
+Pass chuẩn chỉ dựa trên TB Test. Điểm danh và BTVN vẫn được dùng cho cảnh báo thói quen học tập và điều kiện Pass mềm, nhưng không làm mất Pass chuẩn. Config ngưỡng Test: `pass_test_avg_min = 60`.
 
-### Pass mềm — 3 nhóm ngoại lệ
+### Pass mềm — 2 nhóm ngoại lệ
 
 | Nhóm | `test_average` | ĐH | BTVN | Cần GV duyệt? |
 |---|---|---|---|---|
 | **Nhóm 1** | `50 ≤ x < 55` | `= 100%` | `= 100%` | ✅ Có |
 | **Nhóm 2** | `55 ≤ x < 60` | `≥ 90%` | `≥ 90%` | ✅ Có |
-| **Nhóm 3** | `≥ 60` | — | — | ❌ Không (tự động đạt) |
 
 Config: `soft_g1_test_min/max = 50/55`, `soft_g1_dh_min = soft_g1_btvn_min = 100`, `soft_g2_test_min/max = 55/60`, `soft_g2_dh_min = soft_g2_btvn_min = 90`.
 

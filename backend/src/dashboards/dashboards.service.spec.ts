@@ -367,7 +367,9 @@ describe('DashboardsService', () => {
     expect(studentMetricSql).not.toContain(
       "COUNT(*) FILTER (WHERE r.current_label = 'yellow')",
     );
-    expect(studentMetricSql).toContain('r.test_average >= 60');
+    expect(studentMetricSql).toMatch(
+      /COUNT\(\*\) FILTER \(\s*WHERE COALESCE\(r\.tests_taken, 0\) > 0\s*AND r\.test_average >= 60\s*\)::integer AS pass_standard_students/,
+    );
     expect(studentMetricSql).toContain('r.test_average >= 50');
     expect(studentMetricSql).toContain('r.test_average < 55');
     expect(studentMetricSql).toContain('r.test_average < 60');

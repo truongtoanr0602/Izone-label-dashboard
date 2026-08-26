@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAttritionNote, formatComparisonNote, formatDelta, formatPassNote, formatReportingNote, formatTestNote, formatValue } from './kpiFormat';
+import { formatAttritionNote, formatComparisonNote, formatDelta, formatPassNote, formatReportingNote, formatTestNote, formatValue, passTooltipCopy } from './kpiFormat';
 import type { MetricDelta } from '../../data/selectors';
 
 const delta = (over: Partial<MetricDelta> = {}): MetricDelta => ({
@@ -7,6 +7,18 @@ const delta = (over: Partial<MetricDelta> = {}): MetricDelta => ({
   comparableClasses: 12,
   totalClasses: 15,
   ...over,
+});
+
+describe('passTooltipCopy', () => {
+  it('describes test-only standard pass and only two soft-pass groups', () => {
+    const copy = passTooltipCopy();
+
+    expect(copy.standard).toContain('TB test ≥60');
+    expect(copy.standard).not.toContain('Điểm danh');
+    expect(copy.standard).not.toContain('BTVN');
+    expect(copy.soft).toHaveLength(2);
+    expect(copy.soft.join(' ')).not.toContain('Nhóm 3');
+  });
 });
 
 describe('formatValue', () => {
@@ -27,14 +39,14 @@ describe('formatValue', () => {
 describe('formatDelta', () => {
   it('giảm ở chỉ số càng-cao-càng-tốt là xấu', () => {
     const result = formatDelta(delta({ value: -2.1 }), true, 'percent');
-    expect(result.text).toBe('▼2.1 điểm');
+    expect(result.text).toBe('▼2.1 %');
     expect(result.tone).toBe('down');
     expect(result.isGood).toBe(false);
   });
 
   it('tăng ở chỉ số càng-cao-càng-tốt là tốt', () => {
     const result = formatDelta(delta({ value: 3.4 }), true, 'percent');
-    expect(result.text).toBe('▲3.4 điểm');
+    expect(result.text).toBe('▲3.4 %');
     expect(result.isGood).toBe(true);
   });
 
@@ -46,7 +58,7 @@ describe('formatDelta', () => {
 
   it('giảm ở chỉ số càng-thấp-càng-tốt là tốt', () => {
     const result = formatDelta(delta({ value: -3 }), false, 'percent');
-    expect(result.text).toBe('▼3.0 điểm');
+    expect(result.text).toBe('▼3.0 %');
     expect(result.tone).toBe('down');
     expect(result.isGood).toBe(true);
   });
