@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.service';
+import { resolveLeadKhoiId } from '../auth/lead-scope';
 
 @Injectable()
 export class LabelChangesService {
@@ -12,7 +13,12 @@ export class LabelChangesService {
         throw new ForbiddenException(`You do not have access to class ${classId}`);
       }
       const changes = await this.prisma.label_change_logs.findMany({
-        where: { class_id: classId },
+        where: {
+          class_id: classId,
+          ...(user.role === 'lead'
+            ? { classes: { course_id: { in: user.khoiIds } } }
+            : {}),
+        },
         include: {
           students: { select: { full_name: true } },
           classes: { select: { class_name: true } },
@@ -23,10 +29,12 @@ export class LabelChangesService {
     } 
     
     if (khoiId) {
-      const queryKhoiId = user.role === 'lead' ? user.khoiId : khoiId;
+      const queryKhoiId = user.role === 'lead'
+        ? resolveLeadKhoiId(user, khoiId)
+        : khoiId;
       const changes = await this.prisma.label_change_logs.findMany({
         where: {
-          classes: { teachers: { khoi_id: queryKhoiId } }
+          classes: { course_id: queryKhoiId }
         },
         include: {
           students: { select: { full_name: true } },

@@ -8,6 +8,8 @@ const teacher: AuthUser = {
   email: 'teacher@izone.edu.vn',
   displayName: 'Ngọc Anh',
   teacherId: 1002,
+  khoiIds: [],
+  khoiScopes: [],
   classIds: [1237],
 };
 

@@ -3,6 +3,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, BarChart3, PieChart as PieChartIcon, Search, Table2
 } from 'lucide-react';
 import type { ClassSummary } from '../../data/types';
+import type { KhoiScope } from '../../api/courseScope';
 import {
   periodLabel,
 } from '../../data/selectors';
@@ -29,6 +30,8 @@ interface LeadDashboardProps {
   onSelectClassAndDrillDown: (cls: ClassSummary) => void;
   isDarkMode: boolean;
   khoiId: number;
+  khoiScopes: KhoiScope[];
+  onSelectKhoi: (khoiId: number) => void;
   selectedPeriod: string;
   onSelectPeriod: (period: string) => void;
 }
@@ -59,6 +62,8 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
   onSelectClassAndDrillDown,
   isDarkMode,
   khoiId,
+  khoiScopes,
+  onSelectKhoi,
   selectedPeriod,
   onSelectPeriod,
 }) => {
@@ -252,6 +257,28 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         <p className="text-xs text-[#404040]/60 dark:text-[#a1a1aa] mt-0.5">
           Giám sát chất lượng giảng dạy, tỷ lệ chuyển dịch nhãn và cảnh báo sớm các lớp sa sút.
         </p>
+        {khoiScopes.length > 1 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Chọn khối quản lý">
+            {khoiScopes.map((scope) => {
+              const isSelected = scope.khoiId === khoiId;
+              return (
+                <button
+                  key={scope.khoiId}
+                  type="button"
+                  onClick={() => onSelectKhoi(scope.khoiId)}
+                  aria-pressed={isSelected}
+                  className={`rounded-[8px] border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    isSelected
+                      ? 'border-[#db0829]/40 bg-[#db0829]/5 text-[#db0829] dark:border-[#db0829]/50 dark:bg-[#db0829]/10'
+                      : 'border-[#e5e7eb] bg-white text-[#404040]/70 hover:border-[#db0829]/30 hover:text-[#404040] dark:border-[#3f3f46] dark:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:border-[#db0829]/40 dark:hover:text-[#e4e4e7]'
+                  }`}
+                >
+                  {scope.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <ContextBar

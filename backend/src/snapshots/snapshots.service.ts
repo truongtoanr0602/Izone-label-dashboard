@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.service';
+import { resolveLeadKhoiId } from '../auth/lead-scope';
 
 @Injectable()
 export class SnapshotsService {
@@ -9,7 +10,9 @@ export class SnapshotsService {
   async getSnapshots(khoiId: number, user: AuthUser) {
     // Only leads can fetch by khoiId, and they can only fetch their own khoi (or admins can fetch any).
     // For now, if role is lead, force their khoiId if they requested something else.
-    const queryKhoiId = user.role === 'lead' ? user.khoiId : khoiId;
+    const queryKhoiId = user.role === 'lead'
+      ? resolveLeadKhoiId(user, khoiId)
+      : khoiId;
     
     if (!queryKhoiId) return [];
 
@@ -17,8 +20,7 @@ export class SnapshotsService {
       SELECT s.*, c.class_name
       FROM izone.class_daily_snapshots s
       JOIN izone.classes c ON s.class_id = c.class_id
-      JOIN izone.teachers t ON c.teacher_id = t.teacher_id
-      WHERE t.khoi_id = ${queryKhoiId}
+      WHERE c.course_id = ${queryKhoiId}
       ORDER BY s.snapshot_date ASC;
     `;
 

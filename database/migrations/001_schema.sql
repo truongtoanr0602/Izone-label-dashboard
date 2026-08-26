@@ -19,7 +19,7 @@ CREATE TABLE teachers (
     teacher_name  VARCHAR(100)  NOT NULL,
     teacher_email VARCHAR(150)  NOT NULL UNIQUE,
     teacher_phone VARCHAR(20),
-    khoi_id       INTEGER       NOT NULL DEFAULT 34,
+    khoi_id       INTEGER       NOT NULL DEFAULT 2,
     role          VARCHAR(20)   NOT NULL DEFAULT 'teacher'
                   CHECK (role IN ('teacher', 'lead', 'admin')),
     created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),

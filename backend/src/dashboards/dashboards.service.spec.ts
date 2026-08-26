@@ -8,6 +8,12 @@ const leadUser = {
   role: 'lead' as const,
   teacherId: 1,
   khoiId: 2,
+  khoiIds: [2, 3],
+  defaultKhoiId: 2,
+  khoiScopes: [
+    { khoiId: 2, name: 'Khối 3-4' },
+    { khoiId: 3, name: 'Khối 4-5' },
+  ],
   classIds: [],
 };
 
@@ -15,6 +21,9 @@ const leadKhoi03 = {
   ...leadUser,
   displayName: 'Lead 03',
   khoiId: 1,
+  khoiIds: [1],
+  defaultKhoiId: 1,
+  khoiScopes: [{ khoiId: 1, name: 'Khối 03' }],
 };
 
 function snapshotRow(
@@ -66,13 +75,13 @@ function metricRow(
 }
 
 describe('DashboardsService', () => {
-  it('forces a Lead dashboard to the course matching the authenticated khoi', async () => {
+  it('uses an assigned khoi selected by the Lead', async () => {
     const queryRaw = jest.fn().mockResolvedValue([]);
     const service = new DashboardsService({ $queryRaw: queryRaw } as never);
 
     const result = await service.getLeadDashboard(
       { courseId: '3', khoiId: '3', period: '2026-08' },
-      leadKhoi03,
+      leadUser,
     );
 
     const [segments, ...values] = queryRaw.mock.calls[0] as unknown as [
@@ -80,9 +89,18 @@ describe('DashboardsService', () => {
       ...unknown[],
     ];
     expect(Array.from(segments).join('?')).toContain('c.course_id = ?');
-    expect(values[0]).toBe(1);
-    expect(values[1]).toBe(1);
-    expect(result.meta).toMatchObject({ courseId: 1, khoiId: 1 });
+    expect(Array.from(segments).join('?')).not.toContain('t.khoi_id = ?');
+    expect(values[0]).toBe(3);
+    expect(result.meta).toMatchObject({ courseId: 3, khoiId: 3 });
+  });
+
+  it('rejects a Lead request for an unassigned khoi', async () => {
+    const service = new DashboardsService({ $queryRaw: jest.fn() } as never);
+
+    await expect(service.getLeadDashboard(
+      { courseId: '1', khoiId: '1', period: '2026-08' },
+      leadUser,
+    )).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('uses snapshot-evidenced period classes consistently across Lead queries', async () => {

@@ -13,8 +13,13 @@ export class ClassesController {
   async getAllClasses(
     @CurrentUser() user: AuthUser,
     @Query('period') period?: string,
+    @Query('khoiId') khoiId?: string,
   ) {
-    return this.classesService.getLatestClasses(user, period);
+    return this.classesService.getLatestClasses(
+      user,
+      period,
+      khoiId ? Number(khoiId) : undefined,
+    );
   }
 
   @Get(':id/trend')

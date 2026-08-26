@@ -10,10 +10,28 @@ const KHOI_NAMES: Record<number, string> = {
   3: 'Khối 4-5',
 };
 
+export interface KhoiScope {
+  khoiId: number;
+  name: string;
+}
+
 export function courseName(courseId: number): string {
   return COURSE_NAMES[courseId] ?? `Khóa học ${courseId}`;
 }
 
 export function khoiName(khoiId: number): string {
   return KHOI_NAMES[khoiId] ?? `Khối ${khoiId}`;
+}
+
+export function selectInitialKhoiId(
+  scopes: KhoiScope[],
+  defaultKhoiId?: number,
+): number | null {
+  if (
+    defaultKhoiId !== undefined &&
+    scopes.some((scope) => scope.khoiId === defaultKhoiId)
+  ) {
+    return defaultKhoiId;
+  }
+  return scopes[0]?.khoiId ?? null;
 }

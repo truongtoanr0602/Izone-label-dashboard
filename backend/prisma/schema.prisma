@@ -254,6 +254,7 @@ model teachers {
   label_change_logs label_change_logs[]
   pass_reviews      pass_reviews[]
   message_templates message_templates[]
+  teacher_khoi_assignments teacher_khoi_assignments[]
   khoi              khoi                @relation(fields: [khoi_id], references: [khoi_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([khoi_id], map: "idx_teachers_khoi")
@@ -325,4 +326,17 @@ model khoi {
   khoi_name  String    @db.VarChar(50)
   created_at DateTime  @default(now()) @db.Timestamptz(6)
   teachers   teachers[]
+  teacher_khoi_assignments teacher_khoi_assignments[]
+}
+
+model teacher_khoi_assignments {
+  teacher_id Int
+  khoi_id    Int
+  is_primary Boolean  @default(false)
+  granted_at DateTime @default(now()) @db.Timestamptz(6)
+  teachers   teachers @relation(fields: [teacher_id], references: [teacher_id], onDelete: Cascade, onUpdate: NoAction)
+  khoi       khoi     @relation(fields: [khoi_id], references: [khoi_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([teacher_id, khoi_id], map: "pk_teacher_khoi_assignments")
+  @@index([khoi_id, teacher_id], map: "idx_teacher_khoi_assignments_khoi")
 }

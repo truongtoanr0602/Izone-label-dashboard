@@ -167,8 +167,11 @@ CREATE TABLE IF NOT EXISTS khoi (
 
 COMMENT ON TABLE khoi IS 'Danh sách khối giảng dạy';
 
--- Seed existing khoi
-INSERT INTO khoi (khoi_id, khoi_name) VALUES (34, 'Khối 34')
+-- Seed supported khoi; khoi_id maps one-to-one to classes.course_id.
+INSERT INTO khoi (khoi_id, khoi_name) VALUES
+  (1, 'Khối 03'),
+  (2, 'Khối 3-4'),
+  (3, 'Khối 4-5')
 ON CONFLICT (khoi_id) DO NOTHING;
 
 -- Add FK constraint

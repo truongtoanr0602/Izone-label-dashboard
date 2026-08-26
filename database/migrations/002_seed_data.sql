@@ -10,10 +10,10 @@ SET search_path TO izone, public;
 -- ============================================================
 
 INSERT INTO teachers (teacher_id, teacher_name, teacher_email, teacher_phone, khoi_id, role) VALUES
-(305, 'Trần Minh Phương',    'phuong.tm@izone.edu.vn',  '0901234567', 34, 'teacher'),
-(412, 'Nguyễn Hoàng Anh',    'anh.nh@izone.edu.vn',     '0912345678', 34, 'teacher'),
-(218, 'Lê Thanh Hà',         'ha.lt@izone.edu.vn',      '0923456789', 34, 'teacher'),
-(100, 'Nguyễn Ngọc Bảo Hà',  'ha.nnb@izone.edu.vn',     '0934567890', 34, 'lead');
+(305, 'Trần Minh Phương',    'phuong.tm@izone.edu.vn',  '0901234567', 2, 'teacher'),
+(412, 'Nguyễn Hoàng Anh',    'anh.nh@izone.edu.vn',     '0912345678', 2, 'teacher'),
+(218, 'Lê Thanh Hà',         'ha.lt@izone.edu.vn',      '0923456789', 2, 'teacher'),
+(100, 'Nguyễn Ngọc Bảo Hà',  'ha.nnb@izone.edu.vn',     '0934567890', 2, 'lead');
 
 -- ============================================================
 -- 2. CLASSES (Sheet 01 — metadata tĩnh)

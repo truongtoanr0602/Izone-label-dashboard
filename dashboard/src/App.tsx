@@ -12,7 +12,8 @@ import { NO_CHECKPOINT, remainingCount } from './data/selectors';
 import { TRIGGER_SHORT_TITLE } from './data/labels';
 import { LayoutDashboard, Users, X, CheckCircle, BookOpen, Award, MessageSquare, LogOut } from 'lucide-react';
 import IzoneLogo from './images/logo.png';
-import { api, setAuthHeader } from './api/client';
+import { api, setAuthHeader, type AuthenticatedUser } from './api/client';
+import { selectInitialKhoiId } from './api/courseScope';
 import { dashboardService } from './api/dashboardService';
 import { adaptTeacherStudent } from './api/dashboardContracts';
 import { useUrlParam } from './hooks/useUrlParam';
@@ -44,7 +45,8 @@ export default function App() {
   const currentMonthKey = new Date().toISOString().slice(0, 7);
   const [urlPeriod, setSelectedPeriod] = useUrlParam('ky', 'current');
   const selectedPeriod = /^\d{4}-\d{2}$/.test(urlPeriod) ? urlPeriod : currentMonthKey;
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
+  const [selectedKhoiId, setSelectedKhoiId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -79,6 +81,11 @@ export default function App() {
       setAuthHeader(token);
       const user = await api.getMe();
       setCurrentUser(user);
+      setSelectedKhoiId(
+        user.role === 'lead'
+          ? selectInitialKhoiId(user.khoiScopes, user.defaultKhoiId)
+          : null,
+      );
       localStorage.setItem('auth_token', token);
 
       // Force view mode based on role
@@ -101,6 +108,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     setCurrentUser(null);
+    setSelectedKhoiId(null);
     setSelectedClass(null);
     setClasses([]);
     setStudents([]);
@@ -121,12 +129,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || (currentUser.role === 'lead' && selectedKhoiId === null)) return;
+    const scopedUser = currentUser;
     let isCurrentRequest = true;
 
     async function fetchClassesForScope() {
       const clsData = await api.getClasses(
-        currentUser.role === 'lead' ? selectedPeriod : undefined,
+        scopedUser.role === 'lead' ? selectedPeriod : undefined,
+        scopedUser.role === 'lead' ? selectedKhoiId ?? undefined : undefined,
       );
       if (!isCurrentRequest) return;
       setClasses(clsData);
@@ -141,7 +151,7 @@ export default function App() {
     return () => {
       isCurrentRequest = false;
     };
-  }, [currentUser, selectedPeriod]);
+  }, [currentUser, selectedPeriod, selectedKhoiId]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -465,12 +475,18 @@ export default function App() {
           onSelectReportPeriod={setSelectedPeriod}
         />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
-          {activeTab === 'lead' && currentUser?.role === 'lead' && (
+          {activeTab === 'lead' && currentUser?.role === 'lead' && selectedKhoiId !== null && (
             <LeadDashboard
               classes={classes}
               onSelectClassAndDrillDown={handleDrillDownToClass}
               isDarkMode={isDarkMode}
-              khoiId={currentUser.khoiId}
+              khoiId={selectedKhoiId}
+              khoiScopes={currentUser.khoiScopes}
+              onSelectKhoi={(khoiId) => {
+                setClasses([]);
+                setSelectedClass(null);
+                setSelectedKhoiId(khoiId);
+              }}
               selectedPeriod={selectedPeriod}
               onSelectPeriod={setSelectedPeriod}
             />

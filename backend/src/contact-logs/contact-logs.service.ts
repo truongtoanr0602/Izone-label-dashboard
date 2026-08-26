@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.service';
+import { resolveLeadKhoiId } from '../auth/lead-scope';
 
 @Injectable()
 export class ContactLogsService {
@@ -22,10 +23,19 @@ export class ContactLogsService {
     }
 
     if (user.role === 'lead') {
-      const qKhoiId = khoiId || user.khoiId;
-      if (!qKhoiId) return [];
+      if (classId) {
+        const logs = await this.prisma.contact_logs.findMany({
+          where: {
+            class_id: classId,
+            classes: { course_id: { in: user.khoiIds } },
+          },
+          orderBy: { created_at: 'desc' },
+        });
+        return this.serializeBigInt(logs);
+      }
+      const qKhoiId = resolveLeadKhoiId(user, khoiId);
       const logs = await this.prisma.contact_logs.findMany({
-        where: { classes: { teachers: { khoi_id: qKhoiId } } },
+        where: { classes: { course_id: qKhoiId } },
         orderBy: { created_at: 'desc' },
       });
       return this.serializeBigInt(logs);

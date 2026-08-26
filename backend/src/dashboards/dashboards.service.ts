@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/auth.service';
+import { resolveLeadKhoiId } from '../auth/lead-scope';
+import { Prisma } from '@prisma/client';
 import {
   DEFAULT_DASHBOARD_THRESHOLDS,
   classifyStudent,
@@ -76,18 +78,20 @@ export class DashboardsService {
       DEFAULT_COURSE_ID,
       'courseId',
     );
-    const courseId = user.role === 'lead' ? user.khoiId : requestedCourseId;
+    const requestedKhoiId = this.parseOptionalInteger(
+      query.khoiId,
+      requestedCourseId,
+      'khoiId',
+    );
+    const khoiId = user.role === 'lead'
+      ? resolveLeadKhoiId(user, requestedKhoiId)
+      : requestedKhoiId;
+    const courseId = user.role === 'lead' ? khoiId : requestedCourseId;
     if (!courseId || !SUPPORTED_COURSE_IDS.has(courseId)) {
       throw new BadRequestException(
         'Lead Dashboard chỉ hỗ trợ courseId thuộc 1, 2 hoặc 3',
       );
     }
-    const requestedKhoiId = this.parseOptionalInteger(
-      query.khoiId,
-      user.khoiId ?? DEFAULT_COURSE_ID,
-      'khoiId',
-    );
-    const khoiId = user.role === 'lead' ? user.khoiId : requestedKhoiId;
     if (!khoiId) throw new ForbiddenException('User is not assigned to a khoi');
 
     const teacherId = this.parseNullableInteger(query.teacherId, 'teacherId');
@@ -150,7 +154,6 @@ export class DashboardsService {
         WHERE membership.class_id = c.class_id
       ) roster ON TRUE
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -172,7 +175,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = s.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -255,7 +257,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -296,7 +297,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -344,7 +344,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = r.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -368,7 +367,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = ts.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -388,7 +386,6 @@ export class DashboardsService {
       JOIN izone.classes c ON c.class_id = cl.class_id
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
-        AND t.khoi_id = ${khoiId}
         AND c.status IN ('on_going', 'completed')
         AND EXISTS (
           SELECT 1
@@ -719,10 +716,11 @@ export class DashboardsService {
       'asOf',
     );
 
-    const classRows =
-      user.role === 'admin'
-        ? await this.queryTeacherClass(classId, asOf.date)
-        : await this.queryTeacherClass(classId, asOf.date, user.khoiId ?? -1);
+    const classRows = await this.queryTeacherClass(
+      classId,
+      asOf.date,
+      user.role === 'lead' ? user.khoiIds : undefined,
+    );
     if (classRows.length === 0)
       throw new NotFoundException(
         `Class ${classId} was not found in your scope`,
@@ -1052,8 +1050,11 @@ export class DashboardsService {
   private async queryTeacherClass(
     classId: number,
     asOf: Date,
-    khoiId?: number,
+    khoiIds?: number[],
   ) {
+    const scopeFilter = khoiIds && khoiIds.length > 0
+      ? Prisma.sql`AND c.course_id IN (${Prisma.join(khoiIds)})`
+      : Prisma.empty;
     return this.prisma.$queryRaw<any[]>`
       SELECT
         c.class_id, c.class_name, c.course_id, c.status, c.schedule, c.location,
@@ -1087,7 +1088,7 @@ export class DashboardsService {
         LIMIT 1
       ) p ON TRUE
       WHERE c.class_id = ${classId}
-        AND (${khoiId ?? null}::integer IS NULL OR t.khoi_id = ${khoiId ?? null})
+        ${scopeFilter}
     `;
   }
 

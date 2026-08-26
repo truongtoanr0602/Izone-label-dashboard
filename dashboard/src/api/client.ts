@@ -1,7 +1,20 @@
 import axios from 'axios';
 import type { ClassSummary, StudentDetail, ClassSnapshot, LabelChangeLog, ContactLog } from '../data/types';
 import type { MessageTemplate, MessageTemplateInput } from '../data/messageTemplates';
-import { courseName } from './courseScope';
+import { courseName, type KhoiScope } from './courseScope';
+
+export interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  displayName: string;
+  role: 'teacher' | 'lead' | 'admin';
+  teacherId?: number;
+  khoiId?: number;
+  khoiIds: number[];
+  defaultKhoiId?: number;
+  khoiScopes: KhoiScope[];
+  classIds: number[];
+}
 
 // Constants for backend URL
 const API_BASE_URL = '/api';
@@ -24,14 +37,17 @@ export function clearAuthHeader() {
 
 // API Methods
 export const api = {
-  getMe: async () => {
-    const response = await apiClient.get('/me');
+  getMe: async (): Promise<AuthenticatedUser> => {
+    const response = await apiClient.get<AuthenticatedUser>('/me');
     return response.data;
   },
 
-  getClasses: async (period?: string): Promise<ClassSummary[]> => {
+  getClasses: async (period?: string, khoiId?: number): Promise<ClassSummary[]> => {
     const response = await apiClient.get('/classes', {
-      params: period ? { period } : undefined,
+      params: {
+        ...(period ? { period } : {}),
+        ...(khoiId !== undefined ? { khoiId } : {}),
+      },
     });
     // Map backend snake_case to frontend camelCase if needed,
     // though our backend serialized them. Wait, backend returns what DB has:
