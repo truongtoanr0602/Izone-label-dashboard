@@ -24,7 +24,7 @@ export function passTooltipCopy() {
 
 export interface FormattedDelta {
   text: string;
-  /** Hướng thay đổi — quyết định mũi tên. */
+  /** Hướng thay đổi — quyết định màu. */
   tone: DeltaTone;
   /** Thay đổi này là tốt hay xấu — quyết định màu. null nghĩa là trung tính. */
   isGood: boolean | null;
@@ -39,11 +39,11 @@ export function formatValue(value: number | null, unit: KpiUnit): string {
 /**
  * Hướng và ý nghĩa của một thay đổi là HAI chuyện khác nhau.
  *
- * Điểm danh tăng là tốt; số HV bỏ học tăng là xấu. Mũi tên bám theo hướng
- * (`tone`), màu bám theo ý nghĩa (`isGood`).
+ * Điểm danh tăng là tốt; số HV bỏ học tăng là xấu. Hướng (`tone`) và màu
+ * bám theo ý nghĩa (`isGood`).
  *
  * Unit phải được truyền vào vì không thể suy ra từ delta: cùng một thay đổi
- * có thể là thay đổi phần trăm (đơn vị `điểm`), thay đổi số HV (đơn vị `HV`)
+ * có thể là thay đổi phần trăm (đơn vị `%`), thay đổi số HV (đơn vị `HV`)
  * hay thay đổi số lượt (đơn vị `lượt`). Card Bỏ học đếm người nên dùng
  * `unit: 'count'`; card Chuyển dịch nhãn đếm lần đổi nhãn nên dùng
  * `unit: 'event'`; card Điểm danh và BTVN dùng `unit: 'percent'`.
@@ -60,28 +60,16 @@ export function formatDelta(delta: MetricDelta, higherIsBetter: boolean, unit: K
   const magnitude = unit === 'percent'
     ? Math.abs(delta.value).toFixed(1)
     : String(Math.round(Math.abs(delta.value)));
-  const suffix = unit === 'percent' ? '%' : unit === 'event' ? 'lượt' : 'HV';
+  const formattedMagnitude =
+    unit === 'percent'
+      ? `${magnitude}%`
+      : `${magnitude} ${unit === 'event' ? 'lượt' : 'HV'}`;
 
   return {
-    text: `${rising ? '▲' : '▼'}${magnitude} ${suffix}`,
+    text: `${rising ? 'Tăng' : 'Giảm'} ${formattedMagnitude}`,
     tone: rising ? 'up' : 'down',
     isGood: rising === higherIsBetter,
   };
-}
-
-/**
- * Mẫu số của DELTA, không phải của giá trị.
- *
- * Câu chữ phải tự đứng một mình được: thẻ KPI hiện đồng thời hai dòng mẫu số —
- * một cho giá trị (prop `note`) và một cho delta — nên nếu dòng này chỉ ghi
- * "12/15 lớp" thì người đọc không biết con số nào đang được chia cho mẫu số nào.
- * Vì thế mở đầu bằng chữ "thay đổi".
- */
-export function formatComparisonNote(delta: MetricDelta): string {
-  if (delta.totalClasses === 0) {
-    return 'thay đổi: không có lớp nào trong kỳ';
-  }
-  return `thay đổi so với trung bình tháng trước`;
 }
 
 export function formatAttritionNote(input: {

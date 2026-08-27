@@ -200,7 +200,13 @@ function compareMetric(
 ): DashboardMetric {
   const allCurrent = weightedResolved(current, key);
   const allPrevious = weightedResolved(previous, key);
-  
+  const previousByClassId = new Map(previous.map((row) => [row.classId, row]));
+  const hasMeasuredValue = (row: ResolvedClassObservation | undefined) =>
+    row !== undefined && row[key].sampleSize > 0 && row[key].value !== null;
+  const comparableCurrent = current.filter(
+    (row) => hasMeasuredValue(row) && hasMeasuredValue(previousByClassId.get(row.classId)),
+  );
+
   const delta =
     allCurrent.value === null || allPrevious.value === null
       ? null
@@ -212,7 +218,7 @@ function compareMetric(
     direction: direction(delta),
     sampleSize: allCurrent.sampleSize,
     classesReported: allCurrent.classes,
-    comparableClasses: current.length,
+    comparableClasses: comparableCurrent.length,
     totalClasses: current.length,
     ...(key === 'passStandard' || key === 'softPass'
       ? {

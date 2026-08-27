@@ -114,6 +114,12 @@ export class DashboardsService {
     );
     const periodStart = new Date(`${calendar.periodStart}T00:00:00Z`);
     const periodEnd = new Date(`${calendar.periodEnd}T00:00:00Z`);
+    const previousPeriodStart = new Date(
+      `${previousCalendar.periodStart}T00:00:00Z`,
+    );
+    const previousPeriodEnd = new Date(
+      `${previousCalendar.periodEnd}T00:00:00Z`,
+    );
 
     const classRows = await this.prisma.$queryRaw<any[]>`
       WITH class_membership AS (
@@ -128,6 +134,18 @@ export class DashboardsService {
       SELECT c.class_id, c.class_name, c.course_id, c.status, c.schedule,
              c.location, c.portal_url, c.total_sessions,
              c.teacher_id, t.teacher_name, t.teacher_email, t.teacher_phone,
+             EXISTS (
+               SELECT 1
+               FROM izone.class_daily_snapshots current_period_snapshot
+               WHERE current_period_snapshot.class_id = c.class_id
+                 AND current_period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+             ) AS has_current_period_snapshot,
+             EXISTS (
+               SELECT 1
+               FROM izone.class_daily_snapshots previous_period_snapshot
+               WHERE previous_period_snapshot.class_id = c.class_id
+                 AND previous_period_snapshot.snapshot_date BETWEEN ${previousPeriodStart} AND ${previousPeriodEnd}
+             ) AS has_previous_period_snapshot,
              roster.active_students AS roster_active_students,
              roster.on_hold_students AS roster_on_hold_students,
              roster.dropped_students AS roster_dropped_students,
@@ -156,11 +174,19 @@ export class DashboardsService {
       ) roster ON TRUE
       WHERE c.course_id = ${courseId}
         AND c.status IN ('on_going', 'completed')
-        AND EXISTS (
-          SELECT 1
-          FROM izone.class_daily_snapshots period_snapshot
-          WHERE period_snapshot.class_id = c.class_id
-            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots period_snapshot
+            WHERE period_snapshot.class_id = c.class_id
+              AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots previous_period_snapshot
+            WHERE previous_period_snapshot.class_id = c.class_id
+              AND previous_period_snapshot.snapshot_date BETWEEN ${previousPeriodStart} AND ${previousPeriodEnd}
+          )
         )
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
         AND (${classId}::integer IS NULL OR c.class_id = ${classId})
@@ -177,11 +203,19 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
         AND c.status IN ('on_going', 'completed')
-        AND EXISTS (
-          SELECT 1
-          FROM izone.class_daily_snapshots period_snapshot
-          WHERE period_snapshot.class_id = c.class_id
-            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots period_snapshot
+            WHERE period_snapshot.class_id = c.class_id
+              AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots previous_period_snapshot
+            WHERE previous_period_snapshot.class_id = c.class_id
+              AND previous_period_snapshot.snapshot_date BETWEEN ${previousPeriodStart} AND ${previousPeriodEnd}
+          )
         )
         AND s.snapshot_date <= ${new Date(`${calendar.currentAsOf}T00:00:00Z`)}
         AND (${teacherId}::integer IS NULL OR c.teacher_id = ${teacherId})
@@ -257,11 +291,19 @@ export class DashboardsService {
       JOIN izone.teachers t ON t.teacher_id = c.teacher_id
       WHERE c.course_id = ${courseId}
         AND c.status IN ('on_going', 'completed')
-        AND EXISTS (
-          SELECT 1
-          FROM izone.class_daily_snapshots period_snapshot
-          WHERE period_snapshot.class_id = c.class_id
-            AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots period_snapshot
+            WHERE period_snapshot.class_id = c.class_id
+              AND period_snapshot.snapshot_date BETWEEN ${periodStart} AND ${periodEnd}
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM izone.class_daily_snapshots previous_period_snapshot
+            WHERE previous_period_snapshot.class_id = c.class_id
+              AND previous_period_snapshot.snapshot_date BETWEEN ${previousPeriodStart} AND ${previousPeriodEnd}
+          )
         )
         AND r.snapshot_stage IS NULL
         AND s.registration_status = 'on_going'
@@ -508,24 +550,49 @@ export class DashboardsService {
       snapshotRows,
       studentMetricRows,
     );
+    const currentClassIds = new Set(
+      classRows
+        .filter((row) => row.has_current_period_snapshot !== false)
+        .map((row) => Number(row.class_id)),
+    );
+    const previousClassIds = new Set(
+      classRows
+        .filter((row) => row.has_previous_period_snapshot !== false)
+        .map((row) => Number(row.class_id)),
+    );
+    const currentSnapshotRows = snapshotRows.filter((row) =>
+      currentClassIds.has(Number(row.class_id)),
+    );
+    const currentStudentMetricRows = studentMetricRows.filter((row) =>
+      currentClassIds.has(Number(row.class_id)),
+    );
+    const currentEvidence = evidence.filter((item) =>
+      currentClassIds.has(item.classId),
+    );
+    const previousEvidence = evidence.filter((item) =>
+      previousClassIds.has(item.classId),
+    );
     const hasDataForPeriod = hasLeadPeriodData(
-      snapshotRows,
-      studentMetricRows,
+      currentSnapshotRows,
+      currentStudentMetricRows,
       calendar.period,
     );
-    const reportRows = evidence.map((item) =>
+    const reportRows = currentEvidence.map((item) =>
       resolveClassObservation(item, calendar.reportAsOf),
     );
-    const previousRows = evidence.map((item) =>
+    const previousRows = currentEvidence.map((item) =>
       resolveClassObservation(item, calendar.previousAsOf),
     );
-    const previousPreviousRows = evidence.map((item) =>
+    const previousComparisonRows = previousEvidence.map((item) =>
+      resolveClassObservation(item, calendar.previousAsOf),
+    );
+    const previousPreviousRows = currentEvidence.map((item) =>
       resolveClassObservation(item, previousCalendar.previousAsOf),
     );
-    const currentRows = evidence.map((item) =>
+    const currentRows = currentEvidence.map((item) =>
       resolveClassObservation(item, calendar.currentAsOf),
     );
-    const monthly = compareMonthlyMetrics(reportRows, previousRows);
+    const monthly = compareMonthlyMetrics(reportRows, previousComparisonRows);
     const attrition = this.resolvedAttrition(previousRows, reportRows);
     const previousAttrition = this.resolvedAttrition(
       previousPreviousRows,
@@ -562,7 +629,7 @@ export class DashboardsService {
         ? null
         : currentComparableMomentum.value - previousComparableMomentum.value;
     const weeklyTrend = (hasDataForPeriod
-      ? buildWeeklyTrend(evidence, calendar)
+      ? buildWeeklyTrend(currentEvidence, calendar)
       : []
     ).map((point) => {
       const weeklyMomentum = calculateNetMomentum(
@@ -582,7 +649,7 @@ export class DashboardsService {
         (row) => Number(row.class_id) === observation.classId,
       );
       const metrics = selectLabelMetricRow(
-        studentMetricRows,
+        currentStudentMetricRows,
         observation.classId,
         calendar.currentAsOf,
         Number(meta?.roster_active_students ?? 0),
@@ -599,7 +666,7 @@ export class DashboardsService {
       );
     });
     const dataFreshnessAt =
-      [...snapshotRows, ...studentMetricRows]
+      [...currentSnapshotRows, ...currentStudentMetricRows]
         .map((row) => this.isoTimestamp(row.scraped_at))
         .filter(Boolean)
         .sort()
@@ -646,7 +713,11 @@ export class DashboardsService {
           ? monthly.softPassRate
           : emptyPassMetric,
         riskRate: hasDataForPeriod
-          ? this.riskMetric(reportRows, previousRows, studentMetricRows)
+          ? this.riskMetric(
+              reportRows,
+              previousRows,
+              currentStudentMetricRows,
+            )
           : emptyMetric,
         periodAttritionRate: {
           value: hasDataForPeriod ? attrition.newDroppedStudents : null,

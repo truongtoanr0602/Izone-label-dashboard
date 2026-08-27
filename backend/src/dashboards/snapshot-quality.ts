@@ -334,7 +334,7 @@ export function resolveClassObservation(
           : 'complete',
       warnings: [...warnings],
       rosterAsOf: rosterDate,
-      progressAsOf: progressRow?.date ?? null,
+      progressAsOf: progressDataAsOf ?? null,
       attendanceAsOf: attendance.dataAsOf,
       homeworkAsOf: homework.dataAsOf,
       passAsOf: passStandard.dataAsOf,

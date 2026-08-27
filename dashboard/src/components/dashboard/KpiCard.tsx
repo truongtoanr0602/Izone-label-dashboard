@@ -1,6 +1,6 @@
 import React from 'react';
 import type { MetricDelta } from '../../data/selectors';
-import { formatComparisonNote, formatDelta, formatValue, type KpiUnit } from './kpiFormat';
+import { formatDelta, formatValue, type KpiUnit } from './kpiFormat';
 
 interface KpiCardProps {
   icon: React.ReactNode;
@@ -10,12 +10,7 @@ interface KpiCardProps {
   delta: MetricDelta;
   /** true khi giá trị càng cao càng tốt (điểm danh); false khi ngược lại (bỏ học). */
   higherIsBetter: boolean;
-  /**
-   * Mẫu số của GIÁ TRỊ lớn. BỔ SUNG cho dòng mẫu số của delta chứ không thay thế
-   * nó: hai con số trên thẻ được tính trên hai tập lớp khác nhau (giá trị trên
-   * mọi lớp của kỳ, delta chỉ trên lớp so sánh được), nên mỗi con số phải mang
-   * mẫu số của chính nó — §3.3.
-   */
+  /** Mẫu số của giá trị KPI hiện tại. */
   note?: string;
   /** Icon giải thích cách tính, đặt cạnh label. Xem `InfoTooltip`. */
   infoTooltip?: React.ReactNode;
@@ -46,7 +41,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         : TONE_CLASS.down;
 
   return (
-    <div className="rounded-[16px] p-[24px] bg-white dark:bg-[#27272a] shadow-sm">
+    <div className="rounded-[16px] border border-[#f3f4f6] bg-white p-[20px] dark:border-[#3f3f46] dark:bg-[#27272a]">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#475569] dark:text-[#a1a1aa]">
           {icon}
@@ -57,35 +52,20 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         {infoTooltip}
       </div>
 
-      <div className="flex items-baseline gap-2">
+      <div>
         <span className="text-2xl font-extrabold font-mono text-[#404040] dark:text-[#e4e4e7]">
           {formatValue(value, unit)}
         </span>
-        <span className={`text-xs font-semibold font-mono ${toneClass}`}>{formatted.text}</span>
       </div>
 
-      {/*
-        Hai dòng mẫu số riêng biệt khi có `note`: dòng trên thuộc về con số lớn,
-        dòng dưới thuộc về delta. Phân biệt bằng CÂU CHỮ (formatComparisonNote
-        luôn mở đầu bằng "thay đổi") VÀ bằng một đường kẻ mảnh phía trên dòng
-        delta — hai câu gần giống nhau về hình thức nên chỉ câu chữ là chưa đủ
-        để mắt phân biệt nhanh. Cố ý không làm dòng dưới mờ đi: đây chính là
-        dòng cần đọc được, hạ tương phản ở cỡ 10px là xoá nó khỏi màn hình.
-      */}
+      <p className={`mt-2 text-xs font-semibold ${toneClass}`}>
+        So với tháng trước: {formatted.text}
+      </p>
       {note !== undefined && (
-        <p className="text-[10px] text-[#404040]/50 dark:text-[#71717a] mt-1.5">
+        <p className="mt-1.5 text-[11px] text-[#404040]/50 dark:text-[#71717a]">
           {note}
         </p>
       )}
-      <p
-        className={`text-[10px] text-[#404040]/50 dark:text-[#71717a] ${
-          note !== undefined
-            ? 'mt-1.5 pt-1.5 border-t border-[#f3f4f6] dark:border-[#3f3f46]'
-            : 'mt-1.5'
-        }`}
-      >
-        {formatComparisonNote(delta)}
-      </p>
     </div>
   );
 };

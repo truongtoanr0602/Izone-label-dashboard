@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAttritionNote, formatComparisonNote, formatDelta, formatPassNote, formatReportingNote, formatTestNote, formatValue, passTooltipCopy } from './kpiFormat';
+import { formatAttritionNote, formatDelta, formatPassNote, formatReportingNote, formatTestNote, formatValue, passTooltipCopy } from './kpiFormat';
 import type { MetricDelta } from '../../data/selectors';
 
 const delta = (over: Partial<MetricDelta> = {}): MetricDelta => ({
@@ -39,14 +39,14 @@ describe('formatValue', () => {
 describe('formatDelta', () => {
   it('giảm ở chỉ số càng-cao-càng-tốt là xấu', () => {
     const result = formatDelta(delta({ value: -2.1 }), true, 'percent');
-    expect(result.text).toBe('▼2.1 %');
+    expect(result.text).toBe('Giảm 2.1%');
     expect(result.tone).toBe('down');
     expect(result.isGood).toBe(false);
   });
 
   it('tăng ở chỉ số càng-cao-càng-tốt là tốt', () => {
     const result = formatDelta(delta({ value: 3.4 }), true, 'percent');
-    expect(result.text).toBe('▲3.4 %');
+    expect(result.text).toBe('Tăng 3.4%');
     expect(result.isGood).toBe(true);
   });
 
@@ -58,7 +58,7 @@ describe('formatDelta', () => {
 
   it('giảm ở chỉ số càng-thấp-càng-tốt là tốt', () => {
     const result = formatDelta(delta({ value: -3 }), false, 'percent');
-    expect(result.text).toBe('▼3.0 %');
+    expect(result.text).toBe('Giảm 3.0%');
     expect(result.tone).toBe('down');
     expect(result.isGood).toBe(true);
   });
@@ -79,38 +79,15 @@ describe('formatDelta', () => {
 
   it('định dạng số HV với đơn vị count', () => {
     const result = formatDelta(delta({ value: 2.4 }), true, 'count');
-    expect(result.text).toBe('▲2 HV');
+    expect(result.text).toBe('Tăng 2 HV');
     expect(result.isGood).toBe(true);
   });
 
   it('đếm SỰ KIỆN thì ghi "lượt", không ghi "HV"', () => {
     // Một HV đổi nhãn hai lần là hai lượt nhưng vẫn một người.
     const result = formatDelta(delta({ value: -7 }), true, 'event');
-    expect(result.text).toBe('▼7 lượt');
+    expect(result.text).toBe('Giảm 7 lượt');
     expect(result.tone).toBe('down');
-  });
-});
-
-describe('formatComparisonNote', () => {
-  it('nêu rõ thay đổi so với trung bình tháng trước', () => {
-    expect(formatComparisonNote(delta({ totalClasses: 15 })))
-      .toBe('thay đổi so với trung bình tháng trước');
-  });
-
-  it('nêu lý do khi không có lớp nào trong kỳ', () => {
-    expect(formatComparisonNote(delta({ totalClasses: 0 })))
-      .toBe('thay đổi: không có lớp nào trong kỳ');
-  });
-
-  it('luôn tự nói rõ nó mô tả DELTA, vì thẻ KPI hiện hai dòng mẫu số cạnh nhau', () => {
-    // Dòng này nằm ngay dưới dòng mẫu số của giá trị lớn; thiếu chữ "thay đổi"
-    // thì hai mẫu số khác tập lớp hiện ra như thể cùng một mẫu số.
-    for (const d of [
-      delta({ totalClasses: 10 }),
-      delta({ totalClasses: 0 }),
-    ]) {
-      expect(formatComparisonNote(d)).toContain('thay đổi');
-    }
   });
 });
 

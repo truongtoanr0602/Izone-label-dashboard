@@ -46,20 +46,24 @@ describe('lead aggregation', () => {
     });
   });
 
-  it('computes delta only on classes valid in both month-end cohorts', () => {
+  it('computes delta from the full current and previous periods', () => {
     const current = [
       resolved(1, 10, 90),
       resolved(2, 30, 80),
       resolved(3, 20, 100),
     ];
-    const previous = [resolved(1, 10, 84), resolved(2, 30, 74)];
+    const previous = [
+      resolved(1, 10, 84),
+      resolved(2, 30, 74),
+      resolved(4, 20, 90),
+    ];
 
     const result = compareMonthlyMetrics(current, previous);
 
     expect(result.attendanceAvg).toMatchObject({
       value: 88.3,
-      baselineValue: 76.5,
-      delta: 6,
+      baselineValue: 81,
+      delta: 7.3,
       classesReported: 3,
       comparableClasses: 2,
       totalClasses: 3,

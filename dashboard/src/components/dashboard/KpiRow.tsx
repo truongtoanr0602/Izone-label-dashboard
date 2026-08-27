@@ -21,10 +21,10 @@ function metricDelta(metric: Pick<DashboardMetric, 'delta' | 'comparableClasses'
 export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
   const passCopy = passTooltipCopy();
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
         icon={<UserCheck className="w-4 h-4" />}
-        label="Điểm danh (TB)"
+        label="Điểm danh"
         value={kpis.attendanceAvg.value}
         unit="percent"
         delta={metricDelta(kpis.attendanceAvg)}
@@ -37,7 +37,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({ kpis }) => {
       />
       <KpiCard
         icon={<BookOpen className="w-4 h-4" />}
-        label="Làm BTVN (TB)"
+        label="Làm BTVN"
         value={kpis.homeworkAvg.value}
         unit="percent"
         delta={metricDelta(kpis.homeworkAvg)}

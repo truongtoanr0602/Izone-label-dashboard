@@ -90,7 +90,7 @@ describe('DashboardsService', () => {
     ];
     expect(Array.from(segments).join('?')).toContain('c.course_id = ?');
     expect(Array.from(segments).join('?')).not.toContain('t.khoi_id = ?');
-    expect(values[0]).toBe(3);
+    expect(values).toContain(3);
     expect(result.meta).toMatchObject({ courseId: 3, khoiId: 3 });
   });
 
@@ -126,6 +126,56 @@ describe('DashboardsService', () => {
       expect(sql).toContain('period_snapshot.snapshot_date BETWEEN');
     }
     expect(configQuery).not.toContain('period_snapshot');
+  });
+
+  it('uses the previous period class set for the KPI baseline', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([
+        {
+          class_id: 1,
+          class_name: '34A',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
+          has_current_period_snapshot: true,
+          has_previous_period_snapshot: false,
+        },
+        {
+          class_id: 2,
+          class_name: '34B',
+          course_id: 2,
+          status: 'on_going',
+          total_sessions: 28,
+          has_current_period_snapshot: false,
+          has_previous_period_snapshot: true,
+        },
+      ])
+      .mockResolvedValueOnce([
+        snapshotRow(1, '2026-08-12', 10, 12),
+        snapshotRow(2, '2026-07-31', 10, 11),
+      ])
+      .mockResolvedValueOnce([
+        metricRow(1, '2026-08-12', 10, 89, 89, 5, 5),
+        metricRow(2, '2026-07-31', 10, 90.1, 90.1, 5, 5),
+      ]);
+    const service = new DashboardsService({ $queryRaw: queryRaw } as never);
+
+    const result = await service.getLeadDashboard(
+      { courseId: '2', khoiId: '2', period: '2026-08' },
+      leadUser,
+    );
+
+    expect(result.kpis.attendanceAvg).toMatchObject({
+      value: 89,
+      baselineValue: 90.1,
+      delta: -1.1,
+      classesReported: 1,
+      comparableClasses: 0,
+      totalClasses: 1,
+    });
+    expect(result.classes.map((item) => item.classId)).toEqual([1]);
   });
 
   it('rejects a Lead trend window longer than 90 inclusive days', async () => {

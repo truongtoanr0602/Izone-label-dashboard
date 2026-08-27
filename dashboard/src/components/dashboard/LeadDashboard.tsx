@@ -457,7 +457,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
                   </td>
                 </tr>
               ) : (
-                sortedClasses.map((c) => {
+                sortedClasses .map((c) => {
                   const warning = getWarningStatus(c);
                   const contract = contractClassById.get(c.classId);
                   const coverage = contract?.contactCoverage ?? { done: 0, total: 0, pct: null };
