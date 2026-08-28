@@ -27,6 +27,7 @@ describe('ClassesService', () => {
     const [segments, ...values] = queryRaw.mock.calls[0];
     const sql = Array.from(segments as TemplateStringsArray).join('?');
     expect(sql).toContain('c.course_id = ?');
+    expect(sql).toContain('c.portal_url');
     expect(sql).not.toContain('t.khoi_id = ?');
     expect(sql).toContain('period_snapshot.snapshot_date BETWEEN');
     expect(values).toEqual([

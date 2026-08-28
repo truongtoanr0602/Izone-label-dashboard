@@ -300,6 +300,17 @@ describe('toLeadClassPresentation — độ phủ liên hệ', () => {
     expect(result.contactCoverage).toEqual({ done: 3, total: 5, pct: 60 });
   });
 
+  it('giữ link Portal theo từng lớp khi Lead drill-down', () => {
+    const portalUrl = 'https://portal.izone.edu.vn/academic-affairs/course-classes/1127';
+
+    const result = toLeadClassPresentation({
+      ...leadClassFixture,
+      portalUrl,
+    });
+
+    expect(result).toMatchObject({ portalUrl });
+  });
+
   it('giữ pct null khi lớp không có cảnh báo nào', () => {
     const result = toLeadClassPresentation({
       ...leadClassFixture,

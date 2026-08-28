@@ -34,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
   const classMenuRef = useRef<HTMLDivElement>(null);
   const classGroups = useMemo(() => groupClassesByCourse(classes), [classes]);
+  const portalUrl = selectedClass?.portalUrl.trim() ?? '';
 
   useEffect(() => {
     if (!isClassMenuOpen) return;
@@ -189,9 +190,9 @@ export const Header: React.FC<HeaderProps> = ({
               Export Dữ Liệu
             </button>
             
-            {selectedClass && (
+            {selectedClass && (portalUrl ? (
               <a
-                href={selectedClass.portalUrl}
+                href={portalUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="p-2 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] hover:bg-[#e5e7eb] dark:hover:bg-[#52525b] text-[#404040]/70 dark:text-[#a1a1aa] hover:text-[#404040] dark:hover:text-[#e4e4e7] transition-all border border-[#f3f4f6] dark:border-[#3f3f46]"
@@ -199,7 +200,17 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
-            )}
+            ) : (
+              <button
+                type="button"
+                disabled
+                aria-label="Lớp chưa có link Portal"
+                className="p-2 rounded-[8px] bg-[#f3f4f6] dark:bg-[#3f3f46] text-[#404040]/40 dark:text-[#71717a] border border-[#f3f4f6] dark:border-[#3f3f46] cursor-not-allowed"
+                title="Lớp chưa có link Portal"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            ))}
           </div>
         </div>
       </div>

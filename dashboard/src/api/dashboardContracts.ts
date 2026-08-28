@@ -254,6 +254,7 @@ export function toLeadClassPresentation(contract: LeadDashboardClass) {
       grey: contract.labelDistribution.grey,
       noData: contract.labelDistribution.noData,
     },
+    portalUrl: contract.portalUrl,
     lastSyncedAt: contract.lastSnapshotDate,
     contactCoverage: contract.contactCoverage,
   };

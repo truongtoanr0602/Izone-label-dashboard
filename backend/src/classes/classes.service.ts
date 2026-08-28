@@ -20,7 +20,7 @@ export class ClassesService {
       const periodStart = new Date(Date.UTC(year, month - 1, 1));
       const periodEnd = new Date(Date.UTC(year, month, 1) - 1);
       classes = await this.prisma.$queryRaw`
-        SELECT v.*, t.teacher_phone 
+        SELECT v.*, c.portal_url, t.teacher_phone
         FROM izone.v_class_latest v
         JOIN izone.classes c ON v.class_id = c.class_id
         JOIN izone.teachers t ON c.teacher_id = t.teacher_id
@@ -37,7 +37,7 @@ export class ClassesService {
     } else if (user.role === 'teacher') {
       if (user.classIds.length === 0) return [];
       classes = await this.prisma.$queryRaw`
-        SELECT v.*, t.teacher_phone
+        SELECT v.*, c.portal_url, t.teacher_phone
         FROM izone.v_class_latest v
         JOIN izone.classes c ON v.class_id = c.class_id
         JOIN izone.teachers t ON c.teacher_id = t.teacher_id

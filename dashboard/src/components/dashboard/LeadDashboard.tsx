@@ -188,6 +188,7 @@ export const LeadDashboard: React.FC<LeadDashboardProps> = ({
         ...item.labelDistribution,
         ...presentation.labelDistribution,
       },
+      portalUrl: presentation.portalUrl ?? item.portalUrl,
       lastSyncedAt: presentation.lastSyncedAt ?? '',
     };
   });

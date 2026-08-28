@@ -188,7 +188,7 @@ function mapClassSummary(data: any): ClassSummary {
       netMomentum: 0,
     },
     actionItems: { urgentCallsNeeded: 0, homeworkRemindersNeeded: 0, pendingPassReviews: 0 },
-    portalUrl: '',
+    portalUrl: typeof data.portal_url === 'string' ? data.portal_url : '',
     lastSyncedAt: new Date().toISOString(),
   };
 }
